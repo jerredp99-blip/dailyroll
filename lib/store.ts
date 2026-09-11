@@ -1,11 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 
-// File-backed JSON store so tracker data (ratings, casino lists, users,
-// directory) persists on the server instead of per-browser localStorage.
-// NOTE: this relies on a writable local filesystem. If this app is deployed
-// to a serverless/read-only environment (e.g. Vercel), swap this module for
-// a real database or KV store — the on-disk file will not persist there.
+// Use Upstash Redis in deployed environments and the JSON file for local development.
 
 export type UserProfile = {
   id: string;
@@ -38,6 +34,9 @@ type Store = {
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "store.json");
+const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL;
+const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const REDIS_KEY = "dailyroll:store";
 
 const EMPTY_STORE: Store = {
   users: [],
@@ -49,7 +48,27 @@ const EMPTY_STORE: Store = {
 
 let writeQueue: Promise<unknown> = Promise.resolve();
 
-async function readStore(): Promise<Store> {
+function hasRemoteStore() {
+  return Boolean(REDIS_URL && REDIS_TOKEN);
+}
+
+async function redisCommand<T>(command: string[]) {
+  if (!REDIS_URL || !REDIS_TOKEN) throw new Error("Upstash Redis is not configured");
+  const response = await fetch(REDIS_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${REDIS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(command),
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Upstash Redis request failed: ${response.status}`);
+  const data = (await response.json()) as { result: T };
+  return data.result;
+}
+
+async function readFileStore(): Promise<Store> {
   try {
     const raw = await fs.readFile(DATA_FILE, "utf-8");
     return { ...EMPTY_STORE, ...(JSON.parse(raw) as Partial<Store>) };
@@ -58,16 +77,32 @@ async function readStore(): Promise<Store> {
   }
 }
 
+async function readStore(): Promise<Store> {
+  if (hasRemoteStore()) {
+    const raw = await redisCommand<string | null>(["GET", REDIS_KEY]);
+    if (raw) return { ...EMPTY_STORE, ...(JSON.parse(raw) as Partial<Store>) };
+  }
+  return readFileStore();
+}
+
 async function writeStoreFile(store: Store) {
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.writeFile(DATA_FILE, JSON.stringify(store, null, 2), "utf-8");
+}
+
+async function writeStore(store: Store) {
+  if (hasRemoteStore()) {
+    await redisCommand(["SET", REDIS_KEY, JSON.stringify(store)]);
+    return;
+  }
+  await writeStoreFile(store);
 }
 
 function queueMutation<T>(mutate: (store: Store) => T | Promise<T>): Promise<T> {
   const result = writeQueue.then(async () => {
     const store = await readStore();
     const value = await mutate(store);
-    await writeStoreFile(store);
+    await writeStore(store);
     return value;
   });
   writeQueue = result.catch(() => undefined);
