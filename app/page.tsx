@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { ArrowRight, Check, LockKeyhole } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { apiGetUsers } from "@/lib/api-client";
+import { apiGetUsers, apiSaveUsers } from "@/lib/api-client";
 import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 
 const ADMIN_EMAIL = "AdminJerredp99@gmail.com";
@@ -18,27 +18,57 @@ type UserProfile = {
 
 export default function Home() {
   const router = useRouter();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedEmail = email.trim().toLowerCase();
-    if (normalizedEmail !== ADMIN_EMAIL.toLowerCase()) {
-      migrateLegacyLocalStorage().then(() => apiGetUsers()).then((users) => {
-        const user = users.find((candidate) => candidate.email.toLowerCase() === normalizedEmail);
-        if (!user) {
-          setError("That email is not registered.");
+    setError("");
+    setIsSubmitting(true);
+    try {
+      await migrateLegacyLocalStorage();
+      if (normalizedEmail === ADMIN_EMAIL.toLowerCase()) {
+        localStorage.setItem("dailyroll_admin", JSON.stringify({ email: ADMIN_EMAIL, signedInAt: new Date().toISOString() }));
+        router.push("/dashboard");
+        return;
+      }
+
+      const users = await apiGetUsers();
+      let user = users.find((candidate) => candidate.email.toLowerCase() === normalizedEmail);
+      if (isCreatingProfile) {
+        const trimmedName = name.trim();
+        if (!trimmedName) {
+          setError("Enter your name to create a profile.");
           return;
         }
-        localStorage.setItem("dailyroll_user", JSON.stringify({ ...user, signedInAt: new Date().toISOString() }));
-        router.push("/user-profile");
-      });
-      return;
+        if (user) {
+          setError("A profile with that email already exists. Sign in instead.");
+          return;
+        }
+        user = {
+          id: crypto.randomUUID(),
+          name: trimmedName,
+          email: normalizedEmail,
+          createdAt: new Date().toISOString(),
+          signInMethod: "passwordless email",
+        };
+        await apiSaveUsers([...users, user]);
+      } else if (!user) {
+        setError("That email is not registered. Create a profile to get started.");
+        return;
+      }
+
+      localStorage.setItem("dailyroll_user", JSON.stringify({ ...user, signedInAt: new Date().toISOString() }));
+      router.push("/user-profile");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to save your profile. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
-    localStorage.setItem("dailyroll_admin", JSON.stringify({ email: ADMIN_EMAIL, signedInAt: new Date().toISOString() }));
-    router.push("/dashboard");
   }
 
   return (
@@ -68,9 +98,9 @@ export default function Home() {
           <div className="absolute -inset-3 rounded-[2rem] bg-[#294631]/30 shadow-[0_28px_70px_rgba(0,0,0,0.28)] blur-xl" />
           <div className="relative rounded-[1.75rem] border border-[#2b4434] bg-[#19251f]/95 p-7 shadow-[0_18px_50px_rgba(0,0,0,0.32)] backdrop-blur sm:p-9">
             <div className="mb-8">
-              <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">Welcome back</p>
-              <h2 className="font-serif text-3xl font-semibold tracking-[-0.04em] text-[#e5eee3]">Sign in to dailyroll</h2>
-              <p className="mt-2 text-sm text-[#93a495]">Your next small win is waiting.</p>
+              <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">{isCreatingProfile ? "Get started" : "Welcome back"}</p>
+              <h2 className="font-serif text-3xl font-semibold tracking-[-0.04em] text-[#e5eee3]">{isCreatingProfile ? "Create your profile" : "Sign in to dailyroll"}</h2>
+              <p className="mt-2 text-sm text-[#93a495]">{isCreatingProfile ? "Save your daily bonus roll in one place." : "Your next small win is waiting."}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -86,23 +116,23 @@ export default function Home() {
               <span className="h-px flex-1 bg-[#304438]" /> or continue with email <span className="h-px flex-1 bg-[#304438]" />
             </div>
 
-            {isSubmitted ? (
-              <div className="rounded-xl border border-[#355b3d] bg-[#1b3625] p-5 text-center">
-                <div className="mx-auto mb-3 grid h-9 w-9 place-items-center rounded-full bg-[#5eaa70] text-[#102117]"><Check size={18} /></div>
-                <p className="font-semibold text-[#c6e2c3]">Check your inbox</p>
-                <p className="mt-1 text-sm leading-5 text-[#9fbea0]">We sent a sign-in link to {email}.</p>
-                <button type="button" onClick={() => setIsSubmitted(false)} className="mt-4 text-xs font-semibold text-[#9bcf9c] hover:text-[#d0edc9]">Use a different email</button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit}>
+                {isCreatingProfile && (
+                  <>
+                    <label htmlFor="name" className="mb-2 block text-xs font-semibold text-[#b7cbb8]">Name</label>
+                    <input id="name" type="text" required value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" className="mb-3 h-12 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-4 text-sm text-[#e0ece0] outline-none transition placeholder:text-[#718275] focus:border-[#78ae7e] focus:ring-4 focus:ring-[#294a31]" />
+                  </>
+                )}
                 <label htmlFor="email" className="mb-2 block text-xs font-semibold text-[#b7cbb8]">Email address</label>
                 <input id="email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="h-12 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-4 text-sm text-[#e0ece0] outline-none transition placeholder:text-[#718275] focus:border-[#78ae7e] focus:ring-4 focus:ring-[#294a31]" />
-                <button type="submit" className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#79b77f] text-sm font-semibold text-[#122519] shadow-[0_8px_18px_rgba(44,100,57,0.25)] transition hover:bg-[#91c991]">
-                  Continue with email <ArrowRight size={16} />
+                <button type="submit" disabled={isSubmitting} className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#79b77f] text-sm font-semibold text-[#122519] shadow-[0_8px_18px_rgba(44,100,57,0.25)] transition hover:bg-[#91c991] disabled:cursor-not-allowed disabled:opacity-70">
+                  {isSubmitting ? "Saving..." : isCreatingProfile ? "Create profile" : "Continue with email"} <ArrowRight size={16} />
                 </button>
                 {error && <p role="alert" className="mt-3 text-center text-xs text-[#e69b91]">{error}</p>}
-              </form>
-            )}
+            </form>
+            <button type="button" onClick={() => { setIsCreatingProfile((creating) => !creating); setError(""); }} className="mt-4 w-full text-center text-xs font-semibold text-[#9bcf9c] hover:text-[#d0edc9]">
+              {isCreatingProfile ? "Already have a profile? Sign in" : "New to dailyroll? Create a profile"}
+            </button>
 
             <div className="mt-7 flex items-center justify-center gap-2 text-[11px] text-[#91a595]"><LockKeyhole size={13} /> Secure sign-in, no spam</div>
             <p className="mt-5 text-center text-[11px] leading-5 text-[#84988a]">By continuing, you agree to our <a href="#terms" className="underline decoration-[#506b55] underline-offset-2">Terms</a> and <a href="#privacy" className="underline decoration-[#506b55] underline-offset-2">Privacy Policy</a>.</p>
