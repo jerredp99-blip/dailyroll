@@ -670,7 +670,7 @@ export default function TrackerPage() {
       )}
       <aside
         className={`fixed right-0 top-0 z-50 flex h-screen w-64 flex-col justify-between border-l border-emerald-900/30 bg-[#0a1410] px-5 py-5 transition-transform duration-200 lg:px-6 lg:py-8 ${
-          isSidebarOpen ? "translate-x-0" : "translate-x-[calc(100%-4rem)]"
+          isSidebarOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div>
@@ -789,7 +789,16 @@ export default function TrackerPage() {
           tracked
         </div>
       </aside>
-      <div className="w-full px-5 py-8 sm:px-10 lg:pr-72">
+      <button
+        type="button"
+        onClick={() => setIsSidebarOpen((open) => !open)}
+        aria-label={isSidebarOpen ? "Close menu" : "Open menu"}
+        aria-expanded={isSidebarOpen}
+        className="fixed right-5 top-5 z-40 grid h-9 w-9 place-items-center rounded-lg border border-[#344d3b] bg-[#101815]/90 text-[#b7d5b5] shadow-lg backdrop-blur transition hover:border-[#6b916f] hover:bg-[#1b2a20] sm:right-8"
+      >
+        {isSidebarOpen ? <X size={18} /> : <Menu size={18} />}
+      </button>
+      <div className="w-full px-5 py-8 sm:px-10">
         <div className="mx-auto max-w-4xl">
           <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[#263a2c] pb-3">
             <div className="flex items-center gap-3">
@@ -808,15 +817,6 @@ export default function TrackerPage() {
                 </div>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => setIsSidebarOpen((open) => !open)}
-              aria-label={isSidebarOpen ? "Close menu" : "Open menu"}
-              aria-expanded={isSidebarOpen}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#344d3b] text-[#b7d5b5] transition hover:border-[#6b916f] hover:bg-[#1b2a20]"
-            >
-              {isSidebarOpen ? <X size={18} /> : <Menu size={18} />}
-            </button>
           </header>
 
           <section className="mt-4">
