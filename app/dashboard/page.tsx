@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [profileError, setProfileError] = useState("");
 
   useEffect(() => {
     const savedProfile = localStorage.getItem("dailyroll_admin");
@@ -47,27 +48,41 @@ export default function Dashboard() {
     };
   }, [router]);
 
-  function addUser(event: FormEvent<HTMLFormElement>) {
+  async function addUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = newUserName.trim();
     const email = newUserEmail.trim().toLowerCase();
     if (!name || !email) return;
+    if (users.some((user) => user.email.toLowerCase() === email)) {
+      setProfileError("A profile with that email already exists.");
+      return;
+    }
     const newUser: UserProfile = { id: Date.now().toString(), name, email, createdAt: new Date().toISOString(), signInMethod: "passwordless email" };
     const updatedUsers = [...users, newUser];
-    setUsers(updatedUsers);
-    apiSaveUsers(updatedUsers);
-    setNewUserName("");
-    setNewUserEmail("");
-    setSelectedUser(newUser);
+    setProfileError("");
+    try {
+      const savedUsers = await apiSaveUsers(updatedUsers);
+      setUsers(savedUsers);
+      setNewUserName("");
+      setNewUserEmail("");
+      setSelectedUser(newUser);
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "Unable to save the profile. Please try again.");
+    }
   }
 
-  function deleteUser(user: UserProfile) {
+  async function deleteUser(user: UserProfile) {
     if (!window.confirm(`Remove ${user.name}'s profile? This also deletes their casino progress.`)) return;
     const updatedUsers = users.filter((item) => item.id !== user.id);
-    setUsers(updatedUsers);
-    apiSaveUsers(updatedUsers);
-    apiDeleteCasinos(user.email.toLowerCase());
-    if (selectedUser?.id === user.id) setSelectedUser(null);
+    setProfileError("");
+    try {
+      const savedUsers = await apiSaveUsers(updatedUsers);
+      await apiDeleteCasinos(user.email.toLowerCase());
+      setUsers(savedUsers);
+      if (selectedUser?.id === user.id) setSelectedUser(null);
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "Unable to remove the profile. Please try again.");
+    }
   }
 
   if (!profile) {
@@ -110,6 +125,7 @@ export default function Dashboard() {
             <input aria-label="New user email" required type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} placeholder="user@example.com" className="h-11 rounded-xl border border-[#344d3b] bg-[#111b16] px-4 text-sm text-[#e0ece0] outline-none placeholder:text-[#718275] focus:border-[#78ae7e]" />
             <button type="submit" className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#79b77f] px-5 text-sm font-semibold text-[#122519] transition hover:bg-[#91c991]"><UserPlus size={16} /> Add user</button>
           </form>
+          {profileError && <p role="alert" className="mt-3 text-sm text-[#e69b91]">{profileError}</p>}
 
           <div className="mt-6 space-y-3">
             {users.length === 0 ? (
