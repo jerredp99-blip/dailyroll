@@ -1,9 +1,22 @@
 import type { Casino, UserProfile } from "@/lib/store";
 
 async function readApiResponse<T>(response: Response): Promise<T> {
-  const data = (await response.json()) as T & { error?: string };
+  const text = await response.text();
+  let data: (T & { error?: string }) | undefined;
+
+  if (text) {
+    try {
+      data = JSON.parse(text) as T & { error?: string };
+    } catch {
+      throw new Error(`The server returned an invalid response (status ${response.status}).`);
+    }
+  }
+
   if (!response.ok) {
-    throw new Error(data.error || `Request failed with status ${response.status}.`);
+    throw new Error(data?.error || `Request failed with status ${response.status}.`);
+  }
+  if (!data) {
+    throw new Error("The server returned an empty response.");
   }
   return data;
 }

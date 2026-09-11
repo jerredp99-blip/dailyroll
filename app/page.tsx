@@ -7,6 +7,7 @@ import { apiGetUsers, apiSaveUsers } from "@/lib/api-client";
 import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 
 const ADMIN_EMAIL = "AdminJerredp99@gmail.com";
+const LOCAL_USERS_KEY = "dailyroll_users";
 
 type UserProfile = {
   id: string;
@@ -15,6 +16,22 @@ type UserProfile = {
   createdAt: string;
   signInMethod: "passwordless email";
 };
+
+function getLocalUsers(): UserProfile[] {
+  const rawUsers = localStorage.getItem(LOCAL_USERS_KEY);
+  if (!rawUsers) return [];
+
+  try {
+    const users = JSON.parse(rawUsers) as unknown;
+    return Array.isArray(users) ? users as UserProfile[] : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalUsers(users: UserProfile[]) {
+  localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+}
 
 export default function Home() {
   const router = useRouter();
@@ -37,8 +54,22 @@ export default function Home() {
         return;
       }
 
-      const users = await apiGetUsers();
-      let user = users.find((candidate) => candidate.email.toLowerCase() === normalizedEmail);
+      const localUsers = getLocalUsers();
+      let serverUsers: UserProfile[] = [];
+      let canSyncProfiles = true;
+      try {
+        serverUsers = await apiGetUsers();
+      } catch (error) {
+        canSyncProfiles = false;
+        console.warn("Unable to load server profiles; using profiles saved on this device.", error);
+      }
+      const usersByEmail = new Map(
+        [...serverUsers, ...localUsers].map((candidate) => [
+          candidate.email.toLowerCase(),
+          candidate,
+        ]),
+      );
+      let user = usersByEmail.get(normalizedEmail);
       if (isCreatingProfile) {
         const trimmedName = name.trim();
         if (!trimmedName) {
@@ -56,7 +87,16 @@ export default function Home() {
           createdAt: new Date().toISOString(),
           signInMethod: "passwordless email",
         };
-        await apiSaveUsers([...users, user]);
+        const updatedLocalUsers = [...localUsers, user];
+        saveLocalUsers(updatedLocalUsers);
+
+        if (canSyncProfiles) {
+          try {
+            await apiSaveUsers([...serverUsers, user]);
+          } catch (error) {
+            console.warn("Profile was saved locally but could not be synced to the server.", error);
+          }
+        }
       } else if (!user) {
         setError("That email is not registered. Create a profile to get started.");
         return;
