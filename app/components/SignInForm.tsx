@@ -1,42 +1,25 @@
 "use client";
 
 import { FormEvent, Suspense, useEffect, useState } from "react";
-import { ArrowRight, LockKeyhole, Mail, User, ShieldCheck, Sparkles } from "lucide-react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { ArrowRight, LockKeyhole } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export function SignInFormComponent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const [tab, setTab] = useState<"signin" | "register">("signin");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const response = await fetch("/api/auth/me", { cache: "no-store" });
-        const data = await response.json();
-        if (!cancelled && (data?.user || data?.isAdmin) && pathname === "/sign-in") {
-          router.replace("/tracker");
-        }
-      } catch {}
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [pathname, router]);
 
   useEffect(() => {
     const errorParam = searchParams?.get("error");
     if (errorParam === "invalid" || errorParam === "expired") {
       setError("That sign-in link is invalid or expired. Please sign in with your password.");
     } else if (errorParam === "google-not-configured") {
-      setError("Google sign-in is not configured. Please use email and password.");
+      setError("Google sign-in is not configured yet. Please use email and password below.");
     } else if (errorParam === "google-failed") {
       setError("Google sign-in failed. Please try again or use email.");
     }
@@ -48,15 +31,15 @@ export function SignInFormComponent() {
     setError("");
 
     if (!normalizedEmail) {
-      setError("Please enter your email address.");
+      setError("Enter your email address.");
       return;
     }
     if (!password) {
-      setError("Please enter your password.");
+      setError("Enter your password.");
       return;
     }
-    if (tab === "register" && !name.trim()) {
-      setError("Please enter your name.");
+    if (isCreatingProfile && !name.trim()) {
+      setError("Enter your name to create a profile.");
       return;
     }
 
@@ -68,13 +51,13 @@ export function SignInFormComponent() {
         body: JSON.stringify({
           email: normalizedEmail,
           password,
-          name: tab === "register" ? name.trim() : undefined,
+          name: isCreatingProfile ? name.trim() : undefined,
         }),
       });
       const data = (await response.json()) as { error?: string; redirectTo?: string };
       if (!response.ok) {
-        if (tab === "signin" && data.error === "Incorrect email or password.") {
-          setError("Incorrect password, or no account yet. Try the 'Create Account' tab above!");
+        if (!isCreatingProfile && data.error === "Incorrect email or password.") {
+          setError("Incorrect password, or no account yet? Click 'Create a profile' below.");
         } else {
           setError(data.error || "Unable to sign in. Please try again.");
         }
@@ -83,180 +66,141 @@ export function SignInFormComponent() {
       router.push(data.redirectTo || "/tracker");
       router.refresh();
     } catch {
-      setError("Unable to connect to the server. Please try again.");
+      setError("Unable to connect to server. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="w-full">
-      {/* Animated Segmented Tab Switcher */}
-      <div className="relative flex rounded-xl bg-[#0f1913] p-1 border border-[#243a2c] mb-6 select-none">
-        {/* Sliding Indicator Pill */}
-        <div
-          className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-gradient-to-r from-[#244330] to-[#2f553d] border border-emerald-500/40 shadow-lg shadow-emerald-950/50 transition-all duration-300 ease-out"
-          style={{
-            left: tab === "signin" ? "4px" : "calc(50%)",
-          }}
-        />
-
-        {/* Sign In Button */}
-        <button
-          type="button"
-          onClick={() => {
-            setTab("signin");
-            setError("");
-          }}
-          className={`relative z-10 flex flex-1 items-center justify-center py-2.5 text-xs font-semibold transition-colors duration-200 ${
-            tab === "signin" ? "text-white" : "text-[#7f9884] hover:text-[#b0cdb5]"
-          }`}
-        >
-          <span
-            className={`inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 mr-1.5 transition-all duration-300 ${
-              tab === "signin" ? "scale-100 opacity-100" : "scale-0 opacity-0 w-0 mr-0"
-            }`}
-          />
-          Sign In
-        </button>
-
-        {/* Create Account Button */}
-        <button
-          type="button"
-          onClick={() => {
-            setTab("register");
-            setError("");
-          }}
-          className={`relative z-10 flex flex-1 items-center justify-center py-2.5 text-xs font-semibold transition-colors duration-200 ${
-            tab === "register" ? "text-white" : "text-[#7f9884] hover:text-[#b0cdb5]"
-          }`}
-        >
-          <span
-            className={`inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 mr-1.5 transition-all duration-300 ${
-              tab === "register" ? "scale-100 opacity-100" : "scale-0 opacity-0 w-0 mr-0"
-            }`}
-          />
-          Create Account
-        </button>
-      </div>
-
-      {/* Header text with gentle crossfade */}
-      <div className="mb-6 transition-all duration-300">
-        <h2 className="font-serif text-2xl font-semibold tracking-tight text-[#e5eee3]">
-          {tab === "signin" ? "Welcome back" : "Start your daily roll"}
+    <>
+      <div className="mb-6">
+        <p className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">
+          {isCreatingProfile ? "Get started" : "Welcome back"}
+        </p>
+        <h2 className="font-serif text-2xl sm:text-3xl font-semibold tracking-[-0.04em] text-[#e5eee3]">
+          {isCreatingProfile ? "Create your profile" : "Sign in to dailyroll"}
         </h2>
-        <p className="mt-1 text-xs text-[#93a495]">
-          {tab === "signin"
-            ? "Sign in to track your bonuses and reset timers."
-            : "Keep your daily sweepstakes bonuses all in one place."}
+        <p className="mt-1 text-xs sm:text-sm text-[#93a495]">
+          {isCreatingProfile ? "Save your daily bonus roll in one place." : "Your next small win is waiting."}
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-3.5">
-        {/* Animated Name Field (smooth slide in / out) */}
-        <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out ${
-            tab === "register"
-              ? "max-h-24 opacity-100 translate-y-0"
-              : "max-h-0 opacity-0 -translate-y-2 pointer-events-none"
-          }`}
+      <div className="grid grid-cols-2 gap-2.5">
+        <a
+          href="/api/auth/google"
+          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[#344d3b] bg-[#223128] text-xs sm:text-sm font-semibold text-[#d6e4d5] transition hover:border-[#608363] hover:bg-[#2a3d30]"
         >
-          <label
-            htmlFor="landing-name"
-            className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[#b7cbb8]"
-          >
-            <User size={13} className="text-[#78ae7e]" /> Name
-          </label>
-          <input
-            id="landing-name"
-            type="text"
-            tabIndex={tab === "register" ? 0 : -1}
-            required={tab === "register"}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Your name"
-            className="h-11 w-full rounded-xl border border-[#2e4735] bg-[#101914] px-3.5 text-sm text-[#e0ece0] outline-none transition placeholder:text-[#5f7363] focus:border-[#78ae7e] focus:ring-2 focus:ring-[#78ae7e]/20"
-          />
-        </div>
+          <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M21.35 12.23c0-.79-.07-1.55-.2-2.28H12v4.31h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42Z" />
+            <path fill="#34A853" d="M12 21.75c2.63 0 4.84-.87 6.45-2.36l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.7-1.72-5.47-4.04H3.28v2.53A9.74 9.74 0 0 0 12 21.75Z" />
+            <path fill="#FBBC05" d="M6.53 13.82a5.85 5.85 0 0 1 0-3.64V7.65H3.28a9.75 9.75 0 0 0 0 8.7l3.25-2.53Z" />
+            <path fill="#EA4335" d="M12 6.14c1.43 0 2.72.49 3.73 1.45l2.8-2.8C16.84 3.22 14.63 2.25 12 2.25a9.74 9.74 0 0 0-8.72 5.4l3.25 2.53C7.3 7.86 9.46 6.14 12 6.14Z" />
+          </svg>
+          Google
+        </a>
+        <button
+          type="button"
+          onClick={() => setError("Facebook sign-in isn't available yet. Use email and password below.")}
+          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[#344d3b] bg-[#223128] text-xs sm:text-sm font-semibold text-[#d6e4d5] transition hover:border-[#608363] hover:bg-[#2a3d30]"
+        >
+          <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24">
+            <path fill="#1877F2" d="M24 12a12 12 0 1 0-13.88 11.86v-8.4H7.08V12h3.04V9.36c0-3 1.79-4.66 4.53-4.66 1.31 0 2.68.24 2.68.24v2.95h-1.51c-1.49 0-1.95.93-1.95 1.87V12h3.32l-.53 3.46h-2.79v8.4A12 12 0 0 0 24 12Z" />
+            <path fill="#fff" d="M16.67 15.46 17.2 12h-3.32V9.76c0-.94.46-1.87 1.95-1.87h1.51V4.94s-1.37-.24-2.68-.24c-2.74 0-4.53 1.66-4.53 4.66V12H7.08v3.46h3.04v8.4a12.12 12.12 0 0 0 3.76 0v-8.4h2.79Z" />
+          </svg>
+          Facebook
+        </button>
+      </div>
 
+      <div className="my-5 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#819487]">
+        <span className="h-px flex-1 bg-[#304438]" /> or continue with email <span className="h-px flex-1 bg-[#304438]" />
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-3">
+        {isCreatingProfile && (
+          <div>
+            <label htmlFor="name-input" className="mb-1.5 block text-xs font-semibold text-[#b7cbb8]">
+              Your Name
+            </label>
+            <input
+              id="name-input"
+              type="text"
+              required
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="e.g. Alex"
+              className="h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-4 text-sm text-[#e0ece0] outline-none transition placeholder:text-[#718275] focus:border-[#78ae7e] focus:ring-2 focus:ring-[#294a31]"
+            />
+          </div>
+        )}
         <div>
-          <label
-            htmlFor="landing-email"
-            className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[#b7cbb8]"
-          >
-            <Mail size={13} className="text-[#78ae7e]" /> Email Address
+          <label htmlFor="email-input" className="mb-1.5 block text-xs font-semibold text-[#b7cbb8]">
+            Email Address
           </label>
           <input
-            id="landing-email"
+            id="email-input"
             type="email"
             required
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(event) => setEmail(event.target.value)}
             placeholder="you@example.com"
-            className="h-11 w-full rounded-xl border border-[#2e4735] bg-[#101914] px-3.5 text-sm text-[#e0ece0] outline-none transition placeholder:text-[#5f7363] focus:border-[#78ae7e] focus:ring-2 focus:ring-[#78ae7e]/20"
+            className="h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-4 text-sm text-[#e0ece0] outline-none transition placeholder:text-[#718275] focus:border-[#78ae7e] focus:ring-2 focus:ring-[#294a31]"
           />
         </div>
-
         <div>
-          <label
-            htmlFor="landing-password"
-            className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[#b7cbb8]"
-          >
-            <LockKeyhole size={13} className="text-[#78ae7e]" /> Password
+          <label htmlFor="password-input" className="mb-1.5 block text-xs font-semibold text-[#b7cbb8]">
+            Password
           </label>
           <input
-            id="landing-password"
+            id="password-input"
             type="password"
             required
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={tab === "register" ? "Create a secure password" : "Enter your password"}
-            className="h-11 w-full rounded-xl border border-[#2e4735] bg-[#101914] px-3.5 text-sm text-[#e0ece0] outline-none transition placeholder:text-[#5f7363] focus:border-[#78ae7e] focus:ring-2 focus:ring-[#78ae7e]/20"
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder={isCreatingProfile ? "Choose a password" : "Enter your password"}
+            className="h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-4 text-sm text-[#e0ece0] outline-none transition placeholder:text-[#718275] focus:border-[#78ae7e] focus:ring-2 focus:ring-[#294a31]"
           />
         </div>
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#68a66e] to-[#79b77f] text-sm font-semibold text-[#0d1c12] shadow-[0_4px_14px_rgba(40,90,50,0.3)] transition-all duration-200 hover:from-[#76b77c] hover:to-[#8ac890] hover:shadow-[0_6px_18px_rgba(40,90,50,0.4)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#79b77f] text-sm font-semibold text-[#122519] shadow-[0_8px_18px_rgba(44,100,57,0.25)] transition hover:bg-[#91c991] disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {isSubmitting ? (
-            "Processing..."
-          ) : tab === "register" ? (
-            <>Create Profile <ArrowRight size={15} /></>
-          ) : (
-            <>Sign In <ArrowRight size={15} /></>
-          )}
+          {isSubmitting ? "Processing..." : isCreatingProfile ? "Create profile" : "Sign in"}
+          <ArrowRight size={16} />
         </button>
 
         {error && (
-          <div
-            role="alert"
-            className="rounded-xl border border-red-900/40 bg-red-950/30 p-2.5 text-center text-xs text-red-200 animate-in fade-in duration-200"
-          >
+          <p role="alert" className="text-center text-xs text-[#e69b91] bg-red-950/30 border border-red-900/40 rounded-lg p-2 mt-2">
             {error}
-          </div>
+          </p>
         )}
       </form>
 
-      <div className="mt-5 flex items-center justify-center gap-2 text-[11px] text-[#78907e]">
-        <ShieldCheck size={13} className="text-[#78ae7e]" />
-        <span>Private & secure session</span>
+      <button
+        type="button"
+        onClick={() => {
+          setIsCreatingProfile((creating) => !creating);
+          setError("");
+        }}
+        className="mt-4 w-full text-center text-xs font-semibold text-[#9bcf9c] hover:text-[#d0edc9] transition"
+      >
+        {isCreatingProfile ? "Already have a profile? Sign in" : "New to dailyroll? Create a profile"}
+      </button>
+
+      <div className="mt-5 flex items-center justify-center gap-2 text-[11px] text-[#91a595]">
+        <LockKeyhole size={13} /> Secure sign-in
       </div>
-    </div>
+    </>
   );
 }
 
 export function SignInForm() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex h-64 items-center justify-center text-xs text-[#809984]">
-          Loading form...
-        </div>
-      }
-    >
+    <Suspense fallback={<p className="text-center text-sm text-[#93a495]">Loading sign-in form...</p>}>
       <SignInFormComponent />
     </Suspense>
   );
 }
+

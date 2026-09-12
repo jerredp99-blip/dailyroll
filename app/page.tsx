@@ -1,7 +1,14 @@
 import { ArrowRight, Check, Sparkles } from "lucide-react";
+import { redirect } from "next/navigation";
+import { getCurrentSession } from "@/lib/auth";
 import { SignInForm } from "@/app/components/SignInForm";
 
-export default function Home() {
+export default async function Home() {
+  const session = await getCurrentSession();
+  if (session) {
+    redirect("/tracker");
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#0c1410] text-[#e6eee5]">
       {/* Ambient background glows */}

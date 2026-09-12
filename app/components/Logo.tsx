@@ -9,14 +9,16 @@ const SIZE_STYLES = {
 export function Logo({
   size = "md",
   className = "",
+  href = "/",
 }: {
   size?: keyof typeof SIZE_STYLES;
   className?: string;
+  href?: string;
 }) {
   const styles = SIZE_STYLES[size];
   return (
     <Link
-      href="/"
+      href={href}
       className={`flex items-center gap-2.5 ${className}`}
       aria-label="dailyroll home"
     >
