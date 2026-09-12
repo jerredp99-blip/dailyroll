@@ -16,12 +16,45 @@ import {
   Trash2,
   X,
   CheckCheck,
+  ExternalLink,
 } from "lucide-react";
 import { TagBadge } from "@/app/components/feed/TagBadge";
 import { CATEGORY_TAGS, CASINO_TAGS } from "@/lib/casino-tags";
 import type { Post, Comment } from "@/lib/store";
 
 const EMOJI_OPTIONS = ["🔥", "🎰", "💎", "🚀"];
+
+function cleanDomain(urlStr: string) {
+  try {
+    const u = new URL(urlStr);
+    return u.hostname.replace(/^www\./, "");
+  } catch {
+    return urlStr;
+  }
+}
+
+function renderFormattedContent(text: string) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+
+  return parts.map((part, index) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a
+          key={index}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-emerald-400 hover:text-emerald-300 underline underline-offset-2 break-all transition"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+}
 
 export function PostCard({
   post,
@@ -64,6 +97,8 @@ export function PostCard({
   const [editWinAmount, setEditWinAmount] = useState(post.winAmount || "");
   const [editMultiplier, setEditMultiplier] = useState(post.multiplier || "");
   const [editDropCode, setEditDropCode] = useState(post.dropCode || "");
+  const [editMediaUrl, setEditMediaUrl] = useState(post.mediaUrl || "");
+  const [mediaError, setMediaError] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -170,6 +205,14 @@ export function PostCard({
           winAmount: editWinAmount ? editWinAmount.trim() : undefined,
           multiplier: editMultiplier ? editMultiplier.trim() : undefined,
           dropCode: editDropCode ? editDropCode.trim().toUpperCase() : undefined,
+          mediaUrl: editMediaUrl ? editMediaUrl.trim() : undefined,
+          mediaType: editMediaUrl
+            ? editMediaUrl.match(/\.(mp4|webm|mov)(\?.*)?$/i)
+              ? "video"
+              : editMediaUrl.match(/\.(png|jpg|jpeg|gif|webp|svg|avif)(\?.*)?$/i) || editMediaUrl.startsWith("data:image/")
+              ? "image"
+              : "link"
+            : undefined,
           authorEmail: currentUserEmail,
           isAdmin,
         }),
@@ -181,6 +224,7 @@ export function PostCard({
       }
 
       setCurrentPost(data.post);
+      setMediaError(false);
       onPostUpdated?.(data.post);
       setIsEditing(false);
       setMenuVisible(false);
@@ -348,6 +392,7 @@ export function PostCard({
                     setEditWinAmount(currentPost.winAmount || "");
                     setEditMultiplier(currentPost.multiplier || "");
                     setEditDropCode(currentPost.dropCode || "");
+                    setEditMediaUrl(currentPost.mediaUrl || "");
                     setMenuVisible(false);
                   }}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-[#cbe0d0] hover:bg-[#1a2f22] hover:text-white"
@@ -503,6 +548,31 @@ export function PostCard({
             </select>
           </div>
 
+          {/* Media / Link URL in Edit Mode */}
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold text-[#8ca592]">
+              Attached Link or Media URL
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={editMediaUrl}
+                onChange={(e) => setEditMediaUrl(e.target.value)}
+                placeholder="Paste link or image URL..."
+                className="h-8 flex-1 rounded-lg border border-[#274230] bg-[#122018] px-2.5 text-xs text-white placeholder-[#5c7261] outline-none focus:border-emerald-500"
+              />
+              {editMediaUrl && (
+                <button
+                  type="button"
+                  onClick={() => setEditMediaUrl("")}
+                  className="rounded-lg bg-[#1a2d21] px-2.5 text-xs text-red-300 hover:text-white"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
           {editError && <p className="text-[11px] text-red-400">{editError}</p>}
 
           <div className="flex justify-end gap-2">
@@ -590,28 +660,58 @@ export function PostCard({
 
           {/* Main Content */}
           <p className="mt-3 text-sm leading-relaxed text-[#d7e4d8] whitespace-pre-wrap">
-            {currentPost.content}
+            {renderFormattedContent(currentPost.content)}
           </p>
 
-          {/* Attached Media (Photo or Video) */}
+          {/* Attached Media (Photo, Video, or Link Preview Card) */}
           {currentPost.mediaUrl && (
-            <div className="mt-3 overflow-hidden rounded-xl border border-[#243d2e] bg-black/40">
+            <>
               {currentPost.mediaType === "video" ||
               currentPost.mediaUrl.match(/\.(mp4|webm|mov)(\?.*)?$/i) ? (
-                <video
-                  src={currentPost.mediaUrl}
-                  controls
-                  playsInline
-                  className="max-h-96 w-full object-contain"
-                />
+                <div className="mt-3 overflow-hidden rounded-xl border border-[#243d2e] bg-black/40">
+                  <video
+                    src={currentPost.mediaUrl}
+                    controls
+                    playsInline
+                    className="max-h-80 sm:max-h-96 w-full object-contain"
+                  />
+                </div>
+              ) : (currentPost.mediaUrl.match(/\.(png|jpg|jpeg|gif|webp|svg|avif)(\?.*)?$/i) ||
+                  currentPost.mediaUrl.startsWith("data:image/")) &&
+                !mediaError ? (
+                <div className="mt-3 overflow-hidden rounded-xl border border-[#243d2e] bg-black/40">
+                  <img
+                    src={currentPost.mediaUrl}
+                    alt="Post attachment"
+                    onError={() => setMediaError(true)}
+                    className="max-h-80 sm:max-h-96 w-full object-contain transition hover:opacity-95"
+                  />
+                </div>
               ) : (
-                <img
-                  src={currentPost.mediaUrl}
-                  alt="Post attachment"
-                  className="max-h-96 w-full object-contain transition hover:opacity-95"
-                />
+                <a
+                  href={currentPost.mediaUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-600/40 bg-[#0f1d15] p-3 text-xs transition hover:border-emerald-500 hover:bg-[#14261c] group"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-950/80 border border-emerald-700/50 text-emerald-400 shrink-0">
+                      <ExternalLink size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-white group-hover:text-emerald-300 truncate">
+                        {cleanDomain(currentPost.mediaUrl)}
+                      </p>
+                      <p className="text-[11px] text-[#718c77] truncate">{currentPost.mediaUrl}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs font-semibold text-emerald-400 group-hover:text-emerald-300 shrink-0">
+                    <span>Visit Link</span>
+                    <ExternalLink size={13} />
+                  </div>
+                </a>
               )}
-            </div>
+            </>
           )}
         </>
       )}

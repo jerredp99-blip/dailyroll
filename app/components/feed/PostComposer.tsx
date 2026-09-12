@@ -34,7 +34,7 @@ export function PostComposer({
   const [multiplier, setMultiplier] = useState("");
   const [dropCode, setDropCode] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
-  const [mediaType, setMediaType] = useState<"image" | "video" | undefined>(undefined);
+  const [mediaType, setMediaType] = useState<"image" | "video" | "link" | undefined>(undefined);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -404,7 +404,7 @@ export function PostComposer({
           />
         </div>
 
-        {/* Media Preview (Photo or Video) */}
+        {/* Media Preview (Photo, Video, or Link) */}
         {mediaUrl && (
           <div className="relative mt-2 overflow-hidden rounded-xl border border-emerald-500/30 bg-black/40 p-1">
             {mediaType === "video" ? (
@@ -413,12 +413,20 @@ export function PostComposer({
                 controls
                 className="max-h-64 w-full rounded-lg object-contain"
               />
-            ) : (
+            ) : mediaType === "image" ? (
               <img
                 src={mediaUrl}
                 alt="Attachment preview"
                 className="max-h-64 w-full rounded-lg object-contain"
               />
+            ) : (
+              <div className="flex items-center gap-2 p-2.5 text-xs text-emerald-300">
+                <LinkIcon size={16} className="text-emerald-400 shrink-0" />
+                <span className="truncate flex-1 font-mono text-[11px] text-white">{mediaUrl}</span>
+                <span className="text-[10px] bg-emerald-950 px-2 py-0.5 rounded border border-emerald-700/50 text-emerald-400 shrink-0 mr-8">
+                  Link attached
+                </span>
+              </div>
             )}
             <button
               type="button"
@@ -436,14 +444,16 @@ export function PostComposer({
           <div className="flex gap-2 animate-in fade-in duration-150">
             <input
               type="url"
-              placeholder="Paste image or video URL"
+              placeholder="Paste image, video, or bonus link URL..."
               onChange={(e) => {
                 const val = e.target.value.trim();
                 setMediaUrl(val);
                 if (val.match(/\.(mp4|webm|mov)(\?.*)?$/i)) {
                   setMediaType("video");
-                } else {
+                } else if (val.match(/\.(png|jpg|jpeg|gif|webp|svg|avif)(\?.*)?$/i) || val.startsWith("data:image/")) {
                   setMediaType("image");
+                } else {
+                  setMediaType("link");
                 }
               }}
               className="flex-1 rounded-lg border border-[#274230] bg-[#0e1913] px-3 py-1.5 text-xs text-white placeholder-[#5c7261] outline-none focus:border-emerald-500"

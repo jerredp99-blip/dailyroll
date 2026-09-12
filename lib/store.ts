@@ -88,7 +88,7 @@ export type Post = {
   multiplier?: string;
   dropCode?: string;
   mediaUrl?: string;
-  mediaType?: "image" | "video";
+  mediaType?: "image" | "video" | "link";
   createdAt: string;
   updatedAt?: string;
   likes: string[];
