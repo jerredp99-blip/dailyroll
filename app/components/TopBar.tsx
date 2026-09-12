@@ -18,10 +18,26 @@ export function TopBar() {
   // Re-sync session state whenever navigation happens, since this bar stays
   // mounted across route changes in the shared layout.
   useEffect(() => {
-    const savedUser = localStorage.getItem("dailyroll_user");
-    const savedAdmin = localStorage.getItem("dailyroll_admin");
-    setSignedInUser(savedUser ? (JSON.parse(savedUser) as SignedInUser) : null);
-    setIsAdmin(Boolean(savedAdmin));
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch("/api/auth/me", { cache: "no-store" });
+        const data = (await response.json()) as {
+          user: SignedInUser | null;
+          isAdmin: boolean;
+        };
+        if (cancelled) return;
+        setSignedInUser(data.user);
+        setIsAdmin(data.isAdmin);
+      } catch {
+        if (cancelled) return;
+        setSignedInUser(null);
+        setIsAdmin(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [pathname]);
 
   return (
@@ -29,17 +45,33 @@ export function TopBar() {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4 sm:px-10 lg:px-16">
         <Logo />
         <div className="flex items-center gap-3">
+          {(signedInUser || isAdmin) && pathname !== "/tracker" && (
+            <Link
+              href="/tracker"
+              className="text-sm font-semibold text-[#9bcf9c] hover:text-[#c2e4bd]"
+            >
+              Feed & Tracker
+            </Link>
+          )}
+          {(signedInUser || isAdmin) && pathname !== "/profile" && (
+            <Link
+              href="/profile"
+              className="hidden text-sm font-semibold text-[#8ca892] hover:text-[#c2e4bd] sm:block"
+            >
+              Profile
+            </Link>
+          )}
           {isAdmin && pathname !== "/dashboard" && (
             <Link
               href="/dashboard"
-              className="hidden text-sm font-semibold text-[#9bcf9c] hover:text-[#c2e4bd] sm:block"
+              className="hidden text-sm font-semibold text-amber-300 hover:text-amber-200 sm:block"
             >
-              Admin dashboard
+              Admin
             </Link>
           )}
-          {!signedInUser && !isAdmin && (
+          {!signedInUser && !isAdmin && pathname !== "/sign-in" && (
             <Link
-              href={pathname === "/" ? "#signin" : "/#signin"}
+              href="/sign-in"
               className="text-sm font-semibold text-[#9bcf9c] hover:text-[#c2e4bd]"
             >
               Sign in

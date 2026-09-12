@@ -26,8 +26,14 @@ export function migrateLegacyLocalStorage(): Promise<void> {
       );
       if (!hasLegacyData) return;
 
+      // Only the admin can migrate users and directory data since those
+      // endpoints now require admin auth. Casino data is migrated per-user.
       if (rawUsers) {
-        await apiSaveUsers(JSON.parse(rawUsers) as UserProfile[]);
+        try {
+          await apiSaveUsers(JSON.parse(rawUsers) as UserProfile[]);
+        } catch (error) {
+          console.warn("Unable to migrate legacy user profiles (admin only).", error);
+        }
       }
 
       const directoryUpdate: {
@@ -39,14 +45,22 @@ export function migrateLegacyLocalStorage(): Promise<void> {
       if (rawUrls) directoryUpdate.urls = JSON.parse(rawUrls) as Record<string, string>;
       if (rawRatings) directoryUpdate.ratings = JSON.parse(rawRatings) as Record<string, number>;
       if (Object.keys(directoryUpdate).length > 0) {
-        await apiSaveDirectory(directoryUpdate);
+        try {
+          await apiSaveDirectory(directoryUpdate);
+        } catch (error) {
+          console.warn("Unable to migrate legacy directory data (admin only).", error);
+        }
       }
 
       for (const key of legacyCasinoKeys) {
         const raw = localStorage.getItem(key);
         if (!raw) continue;
         const email = key === "dailyroll_casinos_admin" ? "admin" : key.replace("dailyroll_casinos_", "");
-        await apiSaveCasinos(email, JSON.parse(raw) as Casino[]);
+        try {
+          await apiSaveCasinos(email, JSON.parse(raw) as Casino[]);
+        } catch (error) {
+          console.warn(`Unable to migrate legacy casino data for ${email}.`, error);
+        }
       }
 
       localStorage.setItem(MIGRATION_FLAG, "1");

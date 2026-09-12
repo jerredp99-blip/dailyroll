@@ -1,0 +1,46 @@
+steps:
+  # Build container image with Docker
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/bonus-tracker:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/bonus-tracker:latest'
+      - '.'
+
+  # Push image to Container Registry / Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/bonus-tracker:$COMMIT_SHA'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/bonus-tracker:latest'
+
+  # Deploy image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'bonus-tracker'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/bonus-tracker:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8080'
+
+images:
+  - 'gcr.io/$PROJECT_ID/bonus-tracker:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/bonus-tracker:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+

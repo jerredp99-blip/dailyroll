@@ -5,17 +5,21 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
+  EyeOff,
   LayoutDashboard,
   LogOut,
   Menu,
   MoreHorizontal,
   Plus,
+  Settings,
   ShieldCheck,
   Trash2,
   X,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import {
   apiGetCasinos,
   apiGetDirectory,
@@ -24,71 +28,38 @@ import {
   apiSaveDirectory,
 } from "@/lib/api-client";
 import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
+import { casinoDirectory, casinoDirectoryUrls } from "@/lib/casino-directory";
 
 type Casino = {
   id: string;
   name: string;
   dailyBonus: string;
-  url: string;
+  /** Canonical casino site URL — used for the logo/favicon fallback and the card click target. */
+  siteUrl?: string;
+  /** Affiliate / sign-up link used by the "Sign up" button on the add-casinos page. */
+  affiliateUrl?: string;
+  /** Link opened by "Claim Now" from rollcall after a bonus has been claimed. */
+  claimUrl?: string;
+  /** Optional bonus T&C / detail page. */
+  bonusUrl?: string;
+  /** Admin-set button label shown on the bonus-details button (falls back to "Bonus"). */
+  bonusTitle?: string;
   lastClaimedAt: string | null;
   intervalHours: number;
   resetAtTime?: string | null;
   trustpilotRating?: number;
   logo?: string;
   details?: string;
+  hidden?: boolean;
+  /** Legacy single URL field kept only for backward compatibility with existing records.
+   *  Precedence: siteUrl > url. UI paths read siteUrl (falling back to url) instead of url directly. */
+  url?: string;
 };
 
 type SignedInUser = {
   name: string;
   email: string;
-};
-
-const casinoDirectoryUrls: Record<string, string> = {
-  Coinsback: "https://coinsback.com",
-  "High 5 Casino": "https://high5casino.com",
-  ReBet: "https://rebet.com",
-  "Lucky Bunny": "https://luckybunnycasino.com",
-  Pulszbingo: "https://pulszbingo.com",
-  "1UP": "https://1upcasino.com",
-  Lucklake: "https://lucklake.com",
-  Punt: "https://punt.com",
-  Chanced: "https://chanced.com",
-  SidePot: "https://sidepot.com",
-  MyPrize: "https://myprize.us",
-  Lonestar: "https://lonestarcasino.com",
-  RealPrize: "https://realprize.com",
-  KingPrize: "https://kingprize.com",
-  "Sheesh Casino": "https://sheesh.com",
-  Pulsz: "https://pulsz.com",
-  Sportzino: "https://sportzino.com",
-  Modo: "https://modo.us",
-  PlayFame: "https://playfame.com",
-  YayCasino: "https://yaycasino.com",
-  McLuck: "https://mcluck.com",
-  "Hello Millions": "https://hellomillions.com",
-  Megabonanza: "https://megabonanza.com",
-  Jackpota: "https://jackpota.com",
-  Superboo: "https://superboo.com",
-  Ace: "https://ace.bet",
-  Spree: "https://spree.com",
-  "The Win Zone": "https://thewinzone.com",
-  "Dogg House": "https://dogghouse.com",
-  "Lucky Bits Vegas": "https://luckybitsvegas.com",
-  "Oder Casino": "https://odercasino.com",
-  "WOW Vegas": "https://wowvegas.com",
-  Fliff: "https://fliff.com",
-  "Coin Wizard": "https://coinwizard.com",
-  "Golden Hearts Games": "https://goldenheartsgames.com",
-  "Rolling Riches": "https://rollingriches.com",
-  "Casino.click": "https://casino.click",
-  "American Luck": "https://americanluck.com",
-  "Luck Party": "https://luckparty.com",
-  NewLuck: "https://newluck.com",
-  "Shuffle.us": "https://shuffle.us",
-  "Fortune Purple": "https://fortunepurple.com",
-  "Fortune Wins": "https://fortunewins.com",
-  AceBet: "https://acebet.com",
-  Stake: "https://stake.us",
+  avatarUrl?: string | null;
 };
 
 const casinoOfficialLogoUrls: Record<string, string> = {
@@ -118,15 +89,18 @@ const casinoOfficialLogoUrls: Record<string, string> = {
   "WOW Vegas": "https://cdn4.wowvegas.com/assets/wowvegas-og-open-graph-image-v3.jpg",
 };
 
-function CasinoLogo({ name, url }: { name: string; url: string }) {
+function CasinoLogo({ name, siteUrl }: { name: string; siteUrl?: string }) {
   const [hasError, setHasError] = useState(false);
   let logoUrl = casinoOfficialLogoUrls[name] || "";
 
   if (!logoUrl) {
-    try {
-      logoUrl = `${new URL(url).origin}/favicon.ico`;
-    } catch {
-      logoUrl = "";
+    const origin = siteUrl && safeOrigin(siteUrl);
+    if (origin) {
+      try {
+        logoUrl = `${origin}/favicon.ico`;
+      } catch {
+        logoUrl = "";
+      }
     }
   }
 
@@ -144,79 +118,56 @@ function CasinoLogo({ name, url }: { name: string; url: string }) {
   );
 }
 
+function safeOrigin(url: string): string | undefined {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return undefined;
+  }
+}
+
+/** True when `iso` falls on the same local calendar day as `referenceMs`. */
+function isSameLocalDay(iso: string, referenceMs: number) {
+  const date = new Date(iso);
+  const reference = new Date(referenceMs);
+  return (
+    date.getFullYear() === reference.getFullYear() &&
+    date.getMonth() === reference.getMonth() &&
+    date.getDate() === reference.getDate()
+  );
+}
+
 function TrustpilotStars({ rating }: { rating?: number }) {
-  if (typeof rating !== "number") {
+  const numericRating = Number(rating);
+  if (!Number.isFinite(numericRating)) {
     return <span className="text-[#718275]">☆☆☆☆☆</span>;
   }
 
+  const clampedRating = Math.max(0, Math.min(5, numericRating));
   return (
-    <span aria-label={`${rating.toFixed(1)} out of 5 stars`} className="tracking-[0.08em]">
+    <span aria-label={`${clampedRating.toFixed(1)} out of 5 stars`} className="tracking-[0.08em]">
       {Array.from({ length: 5 }, (_, index) => {
-        const fillPercent = Math.max(0, Math.min(1, rating - index)) * 100;
+        const fillPercent = Math.max(0, Math.min(1, clampedRating - index)) * 100;
         return (
           <span
             key={index}
             aria-hidden="true"
-            className="inline-block bg-clip-text text-transparent"
+            className="inline-block"
             style={{
-              backgroundImage: `linear-gradient(90deg, #e5b85d ${fillPercent}%, #536359 ${fillPercent}%)`,
+              color: fillPercent === 100 ? "#e5b85d" : "transparent",
+              backgroundImage: fillPercent > 0 && fillPercent < 100
+                ? "linear-gradient(90deg, #e5b85d 50%, #536359 50%)"
+                : undefined,
+              WebkitBackgroundClip: fillPercent > 0 && fillPercent < 100 ? "text" : undefined,
             }}
           >
-            ★
+            {fillPercent === 0 ? "☆" : "★"}
           </span>
         );
       })}
     </span>
   );
 }
-
-const casinoDirectory = [
-  "Coinsback",
-  "High 5 Casino",
-  "ReBet",
-  "Lucky Bunny",
-  "Pulszbingo",
-  "1UP",
-  "Lucklake",
-  "Punt",
-  "Chanced",
-  "SidePot",
-  "MyPrize",
-  "Lonestar",
-  "RealPrize",
-  "KingPrize",
-  "Sheesh Casino",
-  "Pulsz",
-  "Sportzino",
-  "Modo",
-  "PlayFame",
-  "YayCasino",
-  "McLuck",
-  "Hello Millions",
-  "Megabonanza",
-  "Jackpota",
-  "Superboo",
-  "Ace",
-  "Spree",
-  "The Win Zone",
-  "Dogg House",
-  "Lucky Bits Vegas",
-  "Oder Casino",
-  "WOW Vegas",
-  "Fliff",
-  "Coin Wizard",
-  "Golden Hearts Games",
-  "Rolling Riches",
-  "Casino.click",
-  "American Luck",
-  "Luck Party",
-  "NewLuck",
-  "Shuffle.us",
-  "Fortune Purple",
-  "Fortune Wins",
-  "AceBet",
-  "Stake",
-];
 
 const DEFAULT_CASINOS: Casino[] = [
   {
@@ -253,6 +204,31 @@ const DEFAULT_CASINOS: Casino[] = [
   },
 ];
 
+type StatusState = "ready" | "pending" | "claimed";
+
+// Instant, colour-coded status styling: vibrant green = ready, yellow = pending
+// (reset within the hour), dimmed grey = claimed.
+const STATUS_STYLES: Record<
+  StatusState,
+  { card: string; dot: string; label: string }
+> = {
+  ready: {
+    card: "border-[#3f7a4d] bg-[#192a20] hover:border-[#6f9d73] hover:bg-[#203524]",
+    dot: "bg-[#39ff6a] shadow-[0_0_10px_rgba(57,255,106,0.85)]",
+    label: "text-[#9bcf9c]",
+  },
+  pending: {
+    card: "border-[#6b552a] bg-[#241f14] hover:border-[#8a6f36] hover:bg-[#2b2416]",
+    dot: "bg-[#f4b548] shadow-[0_0_10px_rgba(244,181,72,0.75)]",
+    label: "text-[#e6c179]",
+  },
+  claimed: {
+    card: "border-[#293a30] bg-[#17211c] opacity-80 hover:border-[#3d5142] hover:bg-[#1d2a22]",
+    dot: "bg-[#5b6b60]",
+    label: "text-[#819487]",
+  },
+};
+
 export default function TrackerPage() {
   const router = useRouter();
   const [casinos, setCasinos] = useState<Casino[]>([]);
@@ -261,32 +237,41 @@ export default function TrackerPage() {
   const [name, setName] = useState("");
   const [bonus, setBonus] = useState("");
   const [url, setUrl] = useState("");
+  const [newClaimUrl, setNewClaimUrl] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [use24HourReset, setUse24HourReset] = useState(true);
   const [useSpecificReset, setUseSpecificReset] = useState(false);
   const [resetTime, setResetTime] = useState("00:00");
   const [isAddCasinosPage, setIsAddCasinosPage] = useState(false);
   const [showAlreadyAdded, setShowAlreadyAdded] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const [directoryFilter, setDirectoryFilter] = useState<"available" | "added" | "all">("available");
   const [directorySort, setDirectorySort] = useState<"name-asc" | "name-desc" | "f2p" | "trustpilot">("name-asc");
   const [isAdmin, setIsAdmin] = useState(false);
   const [directory, setDirectory] = useState(casinoDirectory);
-  const [directoryUrls, setDirectoryUrls] = useState<Record<string, string>>(
-    casinoDirectoryUrls,
-  );
+  const [directoryUrls, setDirectoryUrls] = useState<Record<string, string>>(casinoDirectoryUrls);
+  const [directoryAffiliateUrls, setDirectoryAffiliateUrls] = useState<Record<string, string>>({});
+  const [directoryClaimUrls, setDirectoryClaimUrls] = useState<Record<string, string>>({});
+  const [directoryBonusUrls, setDirectoryBonusUrls] = useState<Record<string, string>>({});
+  const [directoryBonusTitles, setDirectoryBonusTitles] = useState<Record<string, string>>({});
   const [directoryRatings, setDirectoryRatings] = useState<Record<string, number>>({});
   const [editingCasino, setEditingCasino] = useState<Casino | null>(null);
   const [editUrl, setEditUrl] = useState("");
+  const [editAffiliateUrl, setEditAffiliateUrl] = useState("");
+  const [editClaimUrl, setEditClaimUrl] = useState("");
+  const [editBonusUrl, setEditBonusUrl] = useState("");
+  const [editBonusTitle, setEditBonusTitle] = useState("");
   const [editDetails, setEditDetails] = useState("");
   const [editBonus, setEditBonus] = useState("");
   const [editTrustpilotRating, setEditTrustpilotRating] = useState("");
   const [editUseSpecificReset, setEditUseSpecificReset] = useState(false);
-  const [editResetTime, setEditResetTime] = useState("00:00");
+    const [editResetTime, setEditResetTime] = useState("00:00");
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [casinoFilter, setCasinoFilter] = useState<"all" | "ready" | "claimed">("all");
   const [casinoSort, setCasinoSort] = useState<"status" | "f2p" | "trustpilot" | "name-asc" | "name-desc">("status");
+  const [viewMode, setViewMode] = useState<"social" | "rollcall">("social");
   const editScrollPosition = useRef<number | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -295,13 +280,16 @@ export default function TrackerPage() {
     localStorage.setItem("dailyroll_tracker_view", show ? "add-casinos" : "dashboard");
   }
 
-  function signOut() {
-    localStorage.removeItem("dailyroll_user");
-    localStorage.removeItem("dailyroll_admin");
+  async function signOut() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Even if the server call fails, clear local state.
+    }
     setSignedInUser(null);
     setIsAdmin(false);
     setIsProfileMenuOpen(false);
-    router.replace("/#signin");
+    router.replace("/sign-in");
   }
 
   useEffect(() => {
@@ -316,13 +304,23 @@ export default function TrackerPage() {
   }, [isProfileMenuOpen]);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("dailyroll_user");
-    const savedAdmin = localStorage.getItem("dailyroll_admin");
-    const user = savedUser ? (JSON.parse(savedUser) as SignedInUser) : null;
-    const admin = Boolean(savedAdmin);
-
     let cancelled = false;
     (async () => {
+      let user: SignedInUser | null = null;
+      let admin = false;
+      try {
+        const response = await fetch("/api/auth/me", { cache: "no-store" });
+        const data = (await response.json()) as {
+          user: SignedInUser | null;
+          isAdmin: boolean;
+        };
+        user = data.user;
+        admin = data.isAdmin;
+      } catch {
+        // Not signed in.
+      }
+      if (cancelled) return;
+
       await migrateLegacyLocalStorage();
       const [saved, directoryData] = await Promise.all([
         apiGetCasinos(user?.email),
@@ -333,6 +331,22 @@ export default function TrackerPage() {
       const sharedUrls = directoryData.urls;
       const sharedUrlsByName = Object.fromEntries(
         Object.entries(sharedUrls).map(([name, url]) => [name.toLowerCase(), url]),
+      );
+      const sharedAffiliateUrls = directoryData.affiliateUrls;
+      const sharedAffiliateUrlsByName = Object.fromEntries(
+        Object.entries(sharedAffiliateUrls).map(([name, url]) => [name.toLowerCase(), url]),
+      );
+      const sharedClaimUrls = directoryData.claimUrls;
+      const sharedClaimUrlsByName = Object.fromEntries(
+        Object.entries(sharedClaimUrls).map(([name, url]) => [name.toLowerCase(), url]),
+      );
+      const sharedBonusUrls = directoryData.bonusUrls;
+      const sharedBonusUrlsByName = Object.fromEntries(
+        Object.entries(sharedBonusUrls).map(([name, url]) => [name.toLowerCase(), url]),
+      );
+      const sharedBonusTitles = directoryData.bonusTitles;
+      const sharedBonusTitlesByName = Object.fromEntries(
+        Object.entries(sharedBonusTitles).map(([name, title]) => [name.toLowerCase(), title]),
       );
       const sharedRatings = directoryData.ratings;
       const sharedRatingsByName = Object.fromEntries(
@@ -352,24 +366,71 @@ export default function TrackerPage() {
         });
         await apiSaveDirectory({ ratings: currentRatings });
       }
-      const hydratedCasinos = loadedCasinos.map((casino) => ({
-        ...casino,
-        url: sharedUrlsByName[casino.name.toLowerCase()] ?? casino.url,
-        trustpilotRating:
-          sharedRatingsByName[casino.name.toLowerCase()] ?? casino.trustpilotRating,
-      }));
+      const defaultUrlByName = Object.fromEntries(
+        DEFAULT_CASINOS.map((casino) => [casino.name.toLowerCase(), casino.url]),
+      );
+      const hydratedCasinos = loadedCasinos.map((casino) => {
+        // Preserve each profile's own saved URLs unless the field is missing.
+        // For the four built-in default casinos, when the user has never edited
+        // their URL we pull the current master URL from the shared directory so
+        // admin URL edits reach them; a user- or admin-written siteUrl always
+        // wins. Legacy records that only have `url` keep using it as their site
+        // URL until an admin or the user sets a dedicated siteUrl.
+        const defaultUrl = defaultUrlByName[casino.name.toLowerCase()];
+        const isDefaultCasinoWithUneditedUrl =
+          defaultUrl !== undefined && casino.url === defaultUrl;
+        const siteUrl = casino.siteUrl ??
+          (casino.url && !isDefaultCasinoWithUneditedUrl
+            ? casino.url
+            : defaultUrl !== undefined
+              ? sharedUrlsByName[casino.name.toLowerCase()]
+              : undefined);
+        return {
+          ...casino,
+          siteUrl,
+          affiliateUrl: casino.affiliateUrl ?? sharedAffiliateUrlsByName[casino.name.toLowerCase()],
+          claimUrl: casino.claimUrl ?? sharedClaimUrlsByName[casino.name.toLowerCase()],
+          bonusUrl: casino.bonusUrl ?? sharedBonusUrlsByName[casino.name.toLowerCase()],
+          bonusTitle: casino.bonusTitle ?? sharedBonusTitlesByName[casino.name.toLowerCase()],
+          trustpilotRating:
+            sharedRatingsByName[casino.name.toLowerCase()] ?? casino.trustpilotRating,
+        };
+      });
       if (cancelled) return;
       setCasinos(hydratedCasinos);
-      if (user && saved) {
+      if (user) {
         await apiSaveCasinos(user.email, hydratedCasinos);
       }
       if (user) setSignedInUser(user);
       setIsAdmin(admin);
       setIsAddCasinosPage(localStorage.getItem("dailyroll_tracker_view") === "add-casinos");
+      const storedPreferences = localStorage.getItem("dailyroll_profile_prefs");
+      if (storedPreferences) {
+        try {
+          const parsedPreferences = JSON.parse(storedPreferences) as {
+            sortOrder?: typeof casinoSort;
+          };
+          if (parsedPreferences.sortOrder) setCasinoSort(parsedPreferences.sortOrder);
+        } catch {
+          // Ignore malformed saved preferences.
+        }
+      }
       if (directoryData.list) setDirectory(directoryData.list);
       setDirectoryUrls({
         ...casinoDirectoryUrls,
         ...sharedUrls,
+      });
+      setDirectoryAffiliateUrls({
+        ...sharedAffiliateUrls,
+      });
+      setDirectoryClaimUrls({
+        ...sharedClaimUrls,
+      });
+      setDirectoryBonusUrls({
+        ...sharedBonusUrls,
+      });
+      setDirectoryBonusTitles({
+        ...sharedBonusTitles,
       });
       setDirectoryRatings(currentRatings);
     })();
@@ -386,8 +447,13 @@ export default function TrackerPage() {
     apiSaveCasinos(signedInUser?.email, updated);
   }
 
-  function statusFor(casino: Casino) {
-    if (!casino.lastClaimedAt) return { ready: true, label: "Ready to claim" };
+  function statusFor(casino: Casino): {
+    ready: boolean;
+    state: StatusState;
+    label: string;
+    shortLabel: string;
+  } {
+    if (!casino.lastClaimedAt) return { ready: true, state: "ready", label: "Ready to claim", shortLabel: "now" };
     let nextReset =
       new Date(casino.lastClaimedAt).getTime() +
       casino.intervalHours * 60 * 60 * 1000;
@@ -400,14 +466,23 @@ export default function TrackerPage() {
       nextReset = reset.getTime();
     }
     const remaining = nextReset - now;
-    if (remaining <= 0) return { ready: true, label: "Ready to claim" };
+    if (remaining <= 0) return { ready: true, state: "ready", label: "Ready to claim", shortLabel: "now" };
     const hours = Math.floor(remaining / 3600000);
     const minutes = Math.floor((remaining % 3600000) / 60000);
     const seconds = Math.floor((remaining % 60000) / 1000);
-    return { ready: false, label: `${hours}h ${minutes}m ${seconds}s` };
+    return {
+      ready: false,
+      state: remaining <= 3600000 ? "pending" : "claimed",
+      label: `${hours}h ${minutes}m ${seconds}s`,
+      shortLabel: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m ${seconds}s`,
+    };
   }
 
-  function claim(casino: Casino) {
+  function siteUrlFor(casino: Casino): string | undefined {
+    return casino.siteUrl ?? casino.url;
+  }
+
+  function markClaimed(casino: Casino) {
     saveCasinos(
       casinos.map((item) =>
         item.id === casino.id
@@ -415,17 +490,35 @@ export default function TrackerPage() {
           : item,
       ),
     );
-    window.open(casino.url, "_blank", "noopener,noreferrer");
   }
 
   function openCasino(casino: Casino) {
-    window.open(casino.url, "_blank", "noopener,noreferrer");
+    const target = siteUrlFor(casino);
+    if (target) window.open(target, "_blank", "noopener,noreferrer");
+  }
+
+  function handleClaimFromFeed(casino: Casino) {
+    const target = casino.claimUrl || siteUrlFor(casino) || "https://google.com";
+    window.open(target, "_blank", "noopener,noreferrer");
+    markClaimed(casino);
+  }
+
+    function openBonus(casino: Casino) {
+    if (casino.bonusUrl) window.open(casino.bonusUrl, "_blank", "noopener,noreferrer");
   }
 
   function unclaim(casino: Casino) {
     saveCasinos(
       casinos.map((item) =>
         item.id === casino.id ? { ...item, lastClaimedAt: null } : item,
+      ),
+    );
+  }
+
+  function toggleHiddenCasino(casino: Casino) {
+    saveCasinos(
+      casinos.map((item) =>
+        item.id === casino.id ? { ...item, hidden: !item.hidden } : item,
       ),
     );
   }
@@ -448,7 +541,12 @@ export default function TrackerPage() {
       id: Date.now().toString(),
       name: name.trim(),
       dailyBonus: bonus.trim() || "Free daily",
-      url: url.startsWith("http") ? url : `https://${url}`,
+      siteUrl: url.startsWith("http") ? url : `https://${url}`,
+      claimUrl: newClaimUrl.trim()
+        ? newClaimUrl.trim().startsWith("http")
+          ? newClaimUrl.trim()
+          : `https://${newClaimUrl.trim()}`
+        : undefined,
       lastClaimedAt: null,
       intervalHours: 24,
       resetAtTime: useSpecificReset ? resetTime : null,
@@ -457,6 +555,7 @@ export default function TrackerPage() {
     setName("");
     setBonus("");
     setUrl("");
+    setNewClaimUrl("");
     setUse24HourReset(true);
     setUseSpecificReset(false);
     setResetTime("00:00");
@@ -472,13 +571,17 @@ export default function TrackerPage() {
       if (!stayOnList) showAddCasinosPage(false);
       return;
     }
+    const siteUrl =
+      directoryUrls[casinoName] ||
+      `https://www.google.com/search?q=${encodeURIComponent(`${casinoName} casino`)}`;
     const entry: Casino = {
       id: Date.now().toString(),
       name: casinoName,
       dailyBonus: "Free daily",
-      url:
-        directoryUrls[casinoName] ||
-        `https://www.google.com/search?q=${encodeURIComponent(`${casinoName} casino`)}`,
+      siteUrl,
+      affiliateUrl: directoryAffiliateUrls[casinoName],
+      claimUrl: directoryClaimUrls[casinoName],
+      bonusUrl: directoryBonusUrls[casinoName],
       lastClaimedAt: null,
       intervalHours: 24,
       trustpilotRating: directoryRatings[casinoName],
@@ -489,7 +592,8 @@ export default function TrackerPage() {
 
   function signUpForCasino(casinoName: string) {
     const casinoUrl =
-      directoryUrls[casinoName] ||
+      directoryAffiliateUrls[casinoName] ??
+      directoryUrls[casinoName] ??
       `https://www.google.com/search?q=${encodeURIComponent(`${casinoName} casino`)}`;
     addDirectoryCasino(casinoName, true);
     window.open(casinoUrl, "_blank", "noopener,noreferrer");
@@ -504,12 +608,16 @@ export default function TrackerPage() {
   function openCasinoEditor(casino: Casino) {
     editScrollPosition.current = window.scrollY;
     setEditingCasino(casino);
-    setEditUrl(casino.url);
+    setEditUrl(casino.siteUrl ?? casino.url ?? "");
     setEditDetails(casino.details || "Daily bonus available");
     setEditBonus(casino.dailyBonus);
     setEditTrustpilotRating(casino.trustpilotRating?.toString() || "");
     setEditUseSpecificReset(Boolean(casino.resetAtTime));
     setEditResetTime(casino.resetAtTime || "00:00");
+    setEditAffiliateUrl(casino.affiliateUrl ?? "");
+    setEditClaimUrl(casino.claimUrl ?? "");
+    setEditBonusUrl(casino.bonusUrl ?? "");
+    setEditBonusTitle(casino.bonusTitle ?? "");
   }
 
   function openDirectoryEditor(casinoName: string) {
@@ -517,27 +625,44 @@ export default function TrackerPage() {
       id: `directory:${casinoName}`,
       name: casinoName,
       dailyBonus: "Free daily",
-      url: directoryUrls[casinoName] || "",
+      siteUrl: directoryUrls[casinoName] || undefined,
+      affiliateUrl: directoryAffiliateUrls[casinoName] || undefined,
+      claimUrl: directoryClaimUrls[casinoName] || undefined,
+      bonusUrl: directoryBonusUrls[casinoName] || undefined,
       lastClaimedAt: null,
       intervalHours: 24,
       trustpilotRating: directoryRatings[casinoName],
+      bonusTitle: directoryBonusTitles[casinoName] || undefined,
     });
   }
 
   async function saveCasinoEdits(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editingCasino) return;
-    const normalizedUrl = isAdmin && editUrl.trim()
+    const normalizedSiteUrl = editUrl.trim()
       ? editUrl.trim().startsWith("http")
         ? editUrl.trim()
         : `https://${editUrl.trim()}`
-      : editingCasino.url;
-    const updatedDirectoryUrls = isAdmin
-      ? { ...directoryUrls, [editingCasino.name]: normalizedUrl }
-      : directoryUrls;
-    const rating = isAdmin && editTrustpilotRating.trim()
+      : (editingCasino.siteUrl ?? "");
+    const affiliateUrl = editAffiliateUrl.trim().startsWith("http") ? editAffiliateUrl.trim() : (editAffiliateUrl.trim() ? `https://${editAffiliateUrl.trim()}` : "");
+    const claimUrl = editClaimUrl.trim().startsWith("http") ? editClaimUrl.trim() : (editClaimUrl.trim() ? `https://${editClaimUrl.trim()}` : "");
+    const bonusUrl = editBonusUrl.trim().startsWith("http") ? editBonusUrl.trim() : (editBonusUrl.trim() ? `https://${editBonusUrl.trim()}` : "");
+    const bonusTitle = editBonusTitle.trim() || "";
+    const rating = editTrustpilotRating.trim()
       ? Number(editTrustpilotRating)
       : editingCasino.trustpilotRating;
+    const updatedDirectoryUrls = isAdmin
+      ? { ...directoryUrls, [editingCasino.name]: normalizedSiteUrl }
+      : directoryUrls;
+    const updatedDirectoryAffiliateUrls = isAdmin
+      ? { ...directoryAffiliateUrls, [editingCasino.name]: affiliateUrl }
+      : directoryAffiliateUrls;
+    const updatedDirectoryClaimUrls = isAdmin
+      ? { ...directoryClaimUrls, [editingCasino.name]: claimUrl }
+      : directoryClaimUrls;
+    const updatedDirectoryBonusUrls = isAdmin
+      ? { ...directoryBonusUrls, [editingCasino.name]: bonusUrl }
+      : directoryBonusUrls;
     const updatedDirectoryRatings = isAdmin && typeof rating === "number"
       ? { ...directoryRatings, [editingCasino.name]: rating }
       : directoryRatings;
@@ -547,7 +672,11 @@ export default function TrackerPage() {
           casino.id === editingCasino.id
             ? {
                 ...casino,
-                url: normalizedUrl,
+                siteUrl: normalizedSiteUrl,
+                affiliateUrl,
+                claimUrl,
+                bonusUrl,
+                bonusTitle,
                 resetAtTime: editUseSpecificReset ? editResetTime : null,
                 trustpilotRating: isAdmin ? rating : casino.trustpilotRating,
                 details: editDetails.trim(),
@@ -561,7 +690,11 @@ export default function TrackerPage() {
         casino.name.toLowerCase() === editingCasino.name.toLowerCase()
           ? {
               ...casino,
-              url: normalizedUrl,
+              siteUrl: normalizedSiteUrl,
+              affiliateUrl,
+              claimUrl,
+              bonusUrl,
+              bonusTitle,
               ...(typeof rating === "number" ? { trustpilotRating: rating } : {}),
             }
           : casino,
@@ -572,8 +705,26 @@ export default function TrackerPage() {
     }
     if (isAdmin) {
       setDirectoryUrls(updatedDirectoryUrls);
+      setDirectoryAffiliateUrls(updatedDirectoryAffiliateUrls);
+      setDirectoryClaimUrls(updatedDirectoryClaimUrls);
+      setDirectoryBonusUrls(updatedDirectoryBonusUrls);
       setDirectoryRatings(updatedDirectoryRatings);
-      await apiSaveDirectory({ urls: updatedDirectoryUrls, ratings: updatedDirectoryRatings });
+      await apiSaveDirectory({
+        urls: Object.fromEntries(
+          Object.entries(updatedDirectoryUrls).filter(([, v]) => v !== undefined),
+        ) as Record<string, string>,
+        affiliateUrls: Object.fromEntries(
+          Object.entries(updatedDirectoryAffiliateUrls).filter(([, v]) => v !== undefined),
+        ) as Record<string, string>,
+        claimUrls: Object.fromEntries(
+          Object.entries(updatedDirectoryClaimUrls).filter(([, v]) => v !== undefined),
+        ) as Record<string, string>,
+        bonusUrls: Object.fromEntries(
+          Object.entries(updatedDirectoryBonusUrls).filter(([, v]) => v !== undefined),
+        ) as Record<string, string>,
+        bonusTitles: isAdmin ? { ...directoryBonusTitles, [editingCasino.name]: bonusTitle } : directoryBonusTitles,
+        ratings: updatedDirectoryRatings,
+      });
     }
     if (isAdmin) {
       const users = await apiGetUsers();
@@ -583,7 +734,15 @@ export default function TrackerPage() {
           if (!userCasinos) return;
           const updatedUserCasinos = userCasinos.map((casino) =>
             casino.name.toLowerCase() === editingCasino.name.toLowerCase()
-              ? { ...casino, url: normalizedUrl, trustpilotRating: rating }
+              ? {
+                  ...casino,
+                  siteUrl: normalizedSiteUrl,
+                  affiliateUrl,
+                  claimUrl,
+                  bonusUrl,
+                  bonusTitle,
+                  trustpilotRating: rating,
+                }
               : casino,
           );
           await apiSaveCasinos(user.email, updatedUserCasinos);
@@ -604,15 +763,20 @@ export default function TrackerPage() {
   };
 
   const ratingForCasino = (casinoName: string, recordRating?: number) => {
-    if (typeof recordRating === "number") return recordRating;
     const matchingName = Object.keys(directoryRatings).find(
       (name) => name.toLowerCase() === casinoName.toLowerCase(),
     );
-    return matchingName ? directoryRatings[matchingName] : undefined;
+    if (matchingName) {
+      const numericDirectoryRating = Number(directoryRatings[matchingName]);
+      if (Number.isFinite(numericDirectoryRating)) return numericDirectoryRating;
+    }
+    const numericRecordRating = Number(recordRating);
+    return Number.isFinite(numericRecordRating) ? numericRecordRating : undefined;
   };
 
   const sortedCasinos = casinos
     .filter((casino) => {
+      if (!showHidden && casino.hidden) return false;
       if (casinoFilter === "ready") return statusFor(casino).ready;
       if (casinoFilter === "claimed") return !statusFor(casino).ready;
       return true;
@@ -639,7 +803,9 @@ export default function TrackerPage() {
   const visibleDirectory = [...directory]
     .filter((casinoName) => {
       const isAdded = casinos.some(
-        (casino) => casino.name.toLowerCase() === casinoName.toLowerCase(),
+        (casino) =>
+          casino.hidden !== true &&
+          casino.name.toLowerCase() === casinoName.toLowerCase(),
       );
       if (directoryFilter === "added") return isAdded;
       if (directoryFilter === "all" || showAlreadyAdded) return true;
@@ -659,6 +825,20 @@ export default function TrackerPage() {
   const actionCasino = openActionMenu
     ? casinos.find((casino) => casino.id === openActionMenu) || null
     : null;
+
+  const dailyTotals = casinos.reduce(
+    (totals, casino) => {
+      if (casino.hidden) return totals;
+      const value = bonusAmount(casino);
+      if (statusFor(casino).ready) {
+        totals.available += value;
+      } else if (casino.lastClaimedAt && isSameLocalDay(casino.lastClaimedAt, now)) {
+        totals.claimedToday += value;
+      }
+      return totals;
+    },
+    { available: 0, claimedToday: 0 },
+  );
 
   return (
     <main className="min-h-screen bg-[#101815] text-[#e6eee5]">
@@ -747,12 +927,24 @@ export default function TrackerPage() {
             <button
               type="button"
               onClick={() => {
+                setViewMode("social");
                 showAddCasinosPage(false);
                 setIsSidebarOpen(false);
               }}
-              className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors ${!isAddCasinosPage ? "border border-emerald-800/50 bg-emerald-900/40 text-emerald-300" : "text-gray-400 hover:bg-emerald-950/30 hover:text-white"}`}
+              className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors ${viewMode === "social" && !isAddCasinosPage ? "border border-emerald-800/50 bg-emerald-900/40 text-emerald-300" : "text-gray-400 hover:bg-emerald-950/30 hover:text-white"}`}
             >
-              <LayoutDashboard size={16} /> Rollcall
+              <MessageSquare size={16} /> Community Feed
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode("rollcall");
+                showAddCasinosPage(false);
+                setIsSidebarOpen(false);
+              }}
+              className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors ${viewMode === "rollcall" && !isAddCasinosPage ? "border border-emerald-800/50 bg-emerald-900/40 text-emerald-300" : "text-gray-400 hover:bg-emerald-950/30 hover:text-white"}`}
+            >
+              <LayoutDashboard size={16} /> My Rollcall
             </button>
             {!signedInUser && (
               <Link
@@ -773,6 +965,13 @@ export default function TrackerPage() {
             >
               <Plus size={16} /> Add Casinos to Roll
             </button>
+            <Link
+              href="/profile"
+              onClick={() => setIsSidebarOpen(false)}
+              className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium text-gray-400 transition-colors hover:bg-emerald-950/30 hover:text-white"
+            >
+              <Settings size={16} /> Profile settings
+            </Link>
             {!signedInUser && (
               <Link
                 href="/dashboard#sign-ups"
@@ -798,30 +997,94 @@ export default function TrackerPage() {
       >
         {isSidebarOpen ? <X size={18} /> : <Menu size={18} />}
       </button>
-      <div className="w-full px-5 py-8 sm:px-10">
-        <div className="mx-auto max-w-4xl">
-          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[#263a2c] pb-3">
-            <div className="flex items-center gap-3">
-              {isAddCasinosPage ? (
-                <h1
-                  className="text-xl font-normal uppercase tracking-[0.08em] text-[#f3f8f0] sm:text-2xl"
-                  style={{ fontFamily: "Rhinos, Impact, sans-serif" }}
-                >
-                  ADD CASINOS TO ROLL
-                </h1>
-              ) : (
-                <div>
-                  <h2 className="font-serif text-2xl font-semibold text-[#edf4ea]">
-                    Daily Casino Rollcall
-                  </h2>
-                </div>
-              )}
+      <div className="w-full px-4 py-6 sm:px-8">
+        <header className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-4 border-b border-[#263a2c] pb-3 mb-6">
+          <div className="flex items-center gap-3">
+            {isAddCasinosPage ? (
+              <h1
+                className="text-xl font-normal uppercase tracking-[0.08em] text-[#f3f8f0] sm:text-2xl"
+                style={{ fontFamily: "Rhinos, Impact, sans-serif" }}
+              >
+                ADD CASINOS TO ROLL
+              </h1>
+            ) : (
+              <div>
+                <h2 className="font-serif text-2xl font-semibold text-[#edf4ea]">
+                  {viewMode === "social" ? "Social Casino Feed" : "Daily Casino Rollcall"}
+                </h2>
+              </div>
+            )}
+          </div>
+
+          {!isAddCasinosPage && (
+            <div className="flex items-center gap-1 rounded-xl bg-[#0f1913] p-1 border border-[#263e2f]">
+              <button
+                type="button"
+                onClick={() => setViewMode("social")}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  viewMode === "social"
+                    ? "bg-[#254231] text-white shadow-sm"
+                    : "text-[#85a08b] hover:text-white"
+                }`}
+              >
+                <MessageSquare size={13} />
+                Community Feed
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode("rollcall")}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  viewMode === "rollcall"
+                    ? "bg-[#254231] text-white shadow-sm"
+                    : "text-[#85a08b] hover:text-white"
+                }`}
+              >
+                <LayoutDashboard size={13} />
+                Detailed Rollcall
+              </button>
             </div>
-          </header>
+          )}
+        </header>
+
+        {viewMode === "social" && !isAddCasinosPage ? (
+          <SocialFeed
+            currentUserEmail={signedInUser?.email}
+            currentUserName={signedInUser?.name}
+            currentUserAvatar={signedInUser?.avatarUrl || undefined}
+            isAdmin={isAdmin}
+            casinos={casinos}
+            onClaimCasino={handleClaimFromFeed}
+          />
+        ) : (
+          <div className="mx-auto max-w-4xl">
+
+          {!isAddCasinosPage && (
+            <div className="sticky top-20 z-20 mt-4 rounded-xl border border-[#2b4434] bg-[#13201a]/95 px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur">
+              <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs uppercase tracking-[0.14em] text-[#819487]">
+                    Available to claim
+                  </span>
+                  <span className="text-lg font-bold text-[#39ff6a]">
+                    {dailyTotals.available.toFixed(2)} SC
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs uppercase tracking-[0.14em] text-[#819487]">
+                    Claimed today
+                  </span>
+                  <span className="text-lg font-bold text-[#9bcf9c]">
+                    {dailyTotals.claimedToday.toFixed(2)} SC
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <section className="mt-4">
-            <div className="flex items-end justify-end gap-4">
-              <div className="flex flex-wrap items-center justify-end gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 {!isAddCasinosPage && (
                   <>
                     <label className="flex items-center gap-2 text-xs text-[#a9bbaa]">
@@ -852,23 +1115,18 @@ export default function TrackerPage() {
                         <option value="name-desc">Name Z-A</option>
                       </select>
                     </label>
+                  <label className="flex items-center gap-2 text-xs text-[#a9bbaa]">
+                      <span className="sr-only">Show hidden casinos</span>
+                      <input
+                        type="checkbox"
+                        checked={showHidden}
+                        onChange={(event) => setShowHidden(event.target.checked)}
+                        aria-label="Show hidden casinos"
+                        className="h-4 w-4 accent-[#79b77f]"
+                      />
+                      Show hidden
+                    </label>
                   </>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setIsAddOpen(true)}
-                  className="flex items-center gap-1 text-sm font-semibold text-[#9bcf9c] hover:text-[#c2e4bd]"
-                >
-                  <Plus size={15} /> Custom casino
-                </button>
-                {!isAddCasinosPage && (
-                  <button
-                    type="button"
-                    onClick={() => showAddCasinosPage(true)}
-                    className="flex items-center gap-1 text-sm font-semibold text-[#9bcf9c] hover:text-[#c2e4bd]"
-                  >
-                    <Plus size={15} /> Add Casinos to Roll
-                  </button>
                 )}
               </div>
             </div>
@@ -905,6 +1163,13 @@ export default function TrackerPage() {
                       Restore default casinos
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setIsAddOpen(true)}
+                    className="ml-auto flex h-9 items-center gap-1.5 rounded-lg bg-[#79b77f] px-3.5 text-sm font-semibold text-[#122519] shadow-[0_6px_16px_rgba(121,183,127,0.22)] transition hover:bg-[#91c991]"
+                  >
+                    <Plus size={15} /> Custom casino
+                  </button>
                 </div>
                 <div className="mt-5 grid grid-cols-1 gap-3">
                 {visibleDirectory.map((casinoName) => (
@@ -917,7 +1182,7 @@ export default function TrackerPage() {
                         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#294631] text-xs font-bold text-[#9bcf9c]">
                           <CasinoLogo
                             name={casinoName}
-                            url={directoryUrls[casinoName] || ""}
+                            siteUrl={directoryUrls[casinoName] || undefined}
                           />
                         </div>
                         <a
@@ -1015,6 +1280,7 @@ export default function TrackerPage() {
               <div className="mt-3 space-y-2">
                 {sortedCasinos.map((casino) => {
                   const status = statusFor(casino);
+                  const styles = STATUS_STYLES[status.state];
                   return (
                     <article
                       key={casino.id}
@@ -1030,20 +1296,22 @@ export default function TrackerPage() {
                       }}
                       role="link"
                       tabIndex={0}
-                      className={`group flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-xl border p-3.5 transition duration-200 hover:-translate-y-0.5 hover:border-[#6f9d73] hover:shadow-[0_10px_24px_rgba(0,0,0,0.2)] focus:outline-none focus:ring-2 focus:ring-[#79b77f]/60 ${status.ready ? "border-[#385e40] bg-[#192a20] hover:bg-[#203524]" : "border-[#293a30] bg-[#17211c] opacity-80 hover:bg-[#1d2a22]"}`}
+                      className={`group flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-xl border p-3.5 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(0,0,0,0.2)] focus:outline-none focus:ring-2 focus:ring-[#79b77f]/60 ${styles.card} ${casino.hidden ? "border-dashed opacity-60 grayscale hover:opacity-90" : ""}`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#294631] text-sm font-bold text-[#9bcf9c]">
-                          <CasinoLogo name={casino.name} url={casino.url} />
+                          <CasinoLogo name={casino.name} siteUrl={siteUrlFor(casino)} />
                         </div>
                         <div>
                           <div className="flex flex-wrap items-center gap-3">
                             <h2 className="font-semibold text-[#e5eee3]">
                               {casino.name}
                             </h2>
-                            <span className="rounded-full border border-[#355b3d] bg-[#1b3625] px-2 py-1 text-xs text-[#9bcf9c]">
-                              {casino.dailyBonus}
-                            </span>
+                            {casino.hidden && (
+                              <span className="rounded-full border border-[#4a5d51] bg-[#1f2218] px-2 py-1 text-xs text-[#a3b1a5]">
+                                Hidden
+                              </span>
+                            )}
                             <a
                               href={`https://www.trustpilot.com/search?query=${encodeURIComponent(casino.name)}`}
                               target="_blank"
@@ -1053,43 +1321,68 @@ export default function TrackerPage() {
                               <TrustpilotStars rating={ratingForCasino(casino.name, casino.trustpilotRating)} />
                             </a>
                           </div>
-                          <p className="mt-1 flex items-center gap-2 text-xs text-[#a0b2a3]">
-                            <Clock
-                              size={14}
-                              className={
-                                status.ready
-                                  ? "text-[#9bcf9c]"
-                                  : "text-[#819487]"
-                              }
+                          <p className="mt-1 flex items-center gap-2 text-xs">
+                            <span
+                              aria-hidden="true"
+                              className={`h-2.5 w-2.5 shrink-0 rounded-full ${styles.dot}`}
                             />
-                            {casino.details || status.label}
+                            <span className={`font-semibold ${styles.label}`}>
+                              {status.ready ? "Ready to claim" : `Available in ${status.shortLabel}`}
+                            </span>
                           </p>
                         </div>
                       </div>
-                      <div className="relative flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => claim(casino)}
-                          className={`flex min-w-28 items-center justify-center gap-2 rounded-lg bg-[#79b77f] px-3.5 py-2 text-sm font-bold text-[#122519] shadow-[0_6px_16px_rgba(121,183,127,0.2)] transition hover:-translate-y-0.5 hover:bg-[#91c991] hover:shadow-[0_10px_22px_rgba(145,201,145,0.32)] ${
-                            status.ready ? "ring-2 ring-[#39ff6a] ring-offset-2 ring-offset-[#0f1a14]" : ""
-                          }`}
-                        >
-                          {status.ready ? (
+                      <a
+                        href={casino.claimUrl ?? siteUrlFor(casino)}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => {
+                          if (status.ready) markClaimed(casino);
+                        }}
+                        aria-label={
+                          status.ready
+                            ? `Claim ${casino.dailyBonus} for ${casino.name}`
+                            : `Next claim for ${casino.name} in ${status.label}`
+                        }
+                        className={`ml-auto flex min-w-28 cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-bold transition ${
+                          status.ready
+                            ? "bg-[#79b77f] text-[#122519] shadow-[0_6px_16px_rgba(121,183,127,0.2)] hover:-translate-y-0.5 hover:bg-[#91c991] hover:shadow-[0_10px_22px_rgba(145,201,145,0.32)] ring-2 ring-[#39ff6a] ring-offset-2 ring-offset-[#0f1a14]"
+                            : "border border-[#3a4c40] bg-transparent text-[#f0a03c] hover:-translate-y-0.5 hover:border-[#556b5a] hover:bg-[#1d2a22]"
+                        }`}
+                      >
+                        {status.ready ? (
+                          <>
                             <CheckCircle2 size={16} strokeWidth={2.5} />
-                          ) : (
-                            <ExternalLink size={16} strokeWidth={2.5} />
-                          )}
-                          {status.ready ? "Claim!" : "Open link"}
-                        </button>
+                            Claim {casino.dailyBonus}!
+                          </>
+                        ) : (
+                          <>
+                            <Clock size={16} strokeWidth={2.5} />
+                            {status.label}
+                          </>
+                        )}
+                      </a>
+                      <div className="relative flex w-full items-center justify-between gap-2">
                         <button
                           type="button"
                           onClick={() => setOpenActionMenu((open) => open === casino.id ? null : casino.id)}
                           aria-label={`More actions for ${casino.name}`}
                           aria-expanded={openActionMenu === casino.id}
-                          className="grid h-9 w-9 place-items-center rounded-lg border border-[#4c6d50] text-[#b7d5b5] hover:bg-[#2a4230]"
+                          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#4c6d50] text-[#b7d5b5] hover:bg-[#2a4230]"
                         >
                           <MoreHorizontal size={18} />
                         </button>
+                        {casino.bonusUrl && (
+                          <button
+                            type="button"
+                            onClick={() => openBonus(casino)}
+                            aria-label={`Open ${casino.bonusTitle || "Bonus"} for ${casino.name}`}
+                            className="flex min-w-28 items-center justify-center gap-2 rounded-lg border border-[#4c6d50] bg-transparent px-3.5 py-2 text-sm font-bold text-[#b7d5b5] transition hover:-translate-y-0.5 hover:border-[#6f9d73] hover:bg-[#2a4230]"
+                          >
+                            <ExternalLink size={16} strokeWidth={2.5} />
+                            {casino.bonusTitle || "Bonus"}
+                          </button>
+                        )}
                       </div>
                     </article>
                   );
@@ -1098,6 +1391,7 @@ export default function TrackerPage() {
             )}
           </section>
         </div>
+      )}
       </div>
         {actionCasino && (
           <div
@@ -1131,18 +1425,26 @@ export default function TrackerPage() {
                 </button>
               </div>
               <div className="mt-6 grid gap-2">
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOpenActionMenu(null);
-                      openCasinoEditor(actionCasino);
-                    }}
-                    className="w-full rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-[#d4e4d2] hover:bg-[#2a4230]"
-                  >
-                    Edit casino
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenActionMenu(null);
+                    toggleHiddenCasino(actionCasino);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-[#d4e4d2] hover:bg-[#2a4230]"
+                >
+                  <EyeOff size={16} /> {actionCasino.hidden ? "Unhide casino" : "Hide casino"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenActionMenu(null);
+                    openCasinoEditor(actionCasino);
+                  }}
+                  className="w-full rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-[#d4e4d2] hover:bg-[#2a4230]"
+                >
+                  Edit casino
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -1204,20 +1506,18 @@ export default function TrackerPage() {
               </button>
             </div>
             <div className="mt-6 grid gap-3">
-              {isAdmin && (
-                <label className="text-xs font-semibold text-[#a9bbaa]">
-                  Casino URL
-                  <input
-                    type="text"
-                    required
-                    inputMode="url"
-                    value={editUrl}
-                    onChange={(event) => setEditUrl(event.target.value)}
-                    placeholder="https://casino.example"
-                    className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
-                  />
-                </label>
-              )}
+              <label className="text-xs font-semibold text-[#a9bbaa]">
+                Casino URL
+                <input
+                  type="text"
+                  required
+                  inputMode="url"
+                  value={editUrl}
+                  onChange={(event) => setEditUrl(event.target.value)}
+                  placeholder="https://casino.example"
+                  className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                />
+              </label>
               {isAdmin && (
                 <label className="text-xs font-semibold text-[#a9bbaa]">
                   Trustpilot rating
@@ -1229,6 +1529,57 @@ export default function TrackerPage() {
                     value={editTrustpilotRating}
                     onChange={(event) => setEditTrustpilotRating(event.target.value)}
                     placeholder="0 to 5"
+                    className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                  />
+                </label>
+              )}
+              {isAdmin && (
+                <label className="text-xs font-semibold text-[#a9bbaa]">
+                  Affiliate URL (Sign up link)
+                  <input
+                    type="text"
+                    inputMode="url"
+                    value={editAffiliateUrl}
+                    onChange={(event) => setEditAffiliateUrl(event.target.value)}
+                    placeholder="https://casino.example?ref=..."
+                    className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                  />
+                </label>
+              )}
+              {isAdmin && (
+                <label className="text-xs font-semibold text-[#a9bbaa]">
+                  Claim URL (Claim Now link)
+                  <input
+                    type="text"
+                    inputMode="url"
+                    value={editClaimUrl}
+                    onChange={(event) => setEditClaimUrl(event.target.value)}
+                    placeholder="https://casino.example"
+                    className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                  />
+                </label>
+              )}
+              {isAdmin && (
+                <label className="text-xs font-semibold text-[#a9bbaa]">
+                  Bonus URL (bonus details link)
+                  <input
+                    type="text"
+                    inputMode="url"
+                    value={editBonusUrl}
+                    onChange={(event) => setEditBonusUrl(event.target.value)}
+                    placeholder="https://casino.example/bonus"
+                    className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                  />
+                </label>
+              )}
+              {isAdmin && (
+                <label className="text-xs font-semibold text-[#a9bbaa]">
+                  Bonus button title
+                  <input
+                    type="text"
+                    value={editBonusTitle}
+                    onChange={(event) => setEditBonusTitle(event.target.value)}
+                    placeholder="e.g. Daily Bonus, 100% Match"
                     className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
                   />
                 </label>
@@ -1342,6 +1693,12 @@ export default function TrackerPage() {
                 value={url}
                 onChange={(event) => setUrl(event.target.value)}
                 placeholder="Website URL"
+                className="h-11 rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm outline-none placeholder:text-[#718275] focus:border-[#78ae7e]"
+              />
+              <input
+                value={newClaimUrl}
+                onChange={(event) => setNewClaimUrl(event.target.value)}
+                placeholder="Daily bonus link"
                 className="h-11 rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm outline-none placeholder:text-[#718275] focus:border-[#78ae7e]"
               />
             </div>

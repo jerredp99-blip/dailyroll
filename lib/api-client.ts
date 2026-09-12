@@ -1,4 +1,4 @@
-import type { Casino, UserProfile } from "@/lib/store";
+import type { Casino, UserPreferences, UserProfile } from "@/lib/store";
 
 async function readApiResponse<T>(response: Response): Promise<T> {
   const text = await response.text();
@@ -37,6 +37,27 @@ export async function apiSaveUsers(users: UserProfile[]): Promise<UserProfile[]>
   return data.users;
 }
 
+export type ProfileResponse = {
+  user: { name: string; email: string; avatarUrl?: string | null } | null;
+  preferences: UserPreferences | null;
+};
+
+export async function apiGetProfile(): Promise<ProfileResponse> {
+  const res = await fetch("/api/profile", { cache: "no-store" });
+  return readApiResponse<ProfileResponse>(res);
+}
+
+export async function apiSaveProfile(
+  preferences: UserPreferences,
+): Promise<ProfileResponse> {
+  const res = await fetch("/api/profile", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(preferences),
+  });
+  return readApiResponse<ProfileResponse>(res);
+}
+
 export async function apiGetCasinos(key?: string | null): Promise<Casino[] | null> {
   const res = await fetch(`/api/casinos?key=${encodeURIComponent(key || "admin")}`);
   const data = await readApiResponse<{ casinos: Casino[] | null }>(res);
@@ -60,6 +81,10 @@ export async function apiDeleteCasinos(key: string): Promise<void> {
 type DirectoryData = {
   list: string[] | null;
   urls: Record<string, string>;
+  affiliateUrls: Record<string, string>;
+  claimUrls: Record<string, string>;
+  bonusUrls: Record<string, string>;
+  bonusTitles: Record<string, string>;
   ratings: Record<string, number>;
 };
 
@@ -71,6 +96,10 @@ export async function apiGetDirectory(): Promise<DirectoryData> {
 export async function apiSaveDirectory(update: {
   list?: string[];
   urls?: Record<string, string>;
+  affiliateUrls?: Record<string, string>;
+  claimUrls?: Record<string, string>;
+  bonusUrls?: Record<string, string>;
+  bonusTitles?: Record<string, string>;
   ratings?: Record<string, number>;
 }): Promise<DirectoryData> {
   const res = await fetch("/api/directory", {

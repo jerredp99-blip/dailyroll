@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  ...(process.env.BUILD_STANDALONE === "true" && !process.env.VERCEL
+    ? { output: "standalone" }
+    : {}),
 };
 
 export default nextConfig;

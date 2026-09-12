@@ -1,0 +1,334 @@
+"use client";
+
+import { FormEvent, useEffect, useState } from "react";
+import { ArrowLeft, Pencil, Plus, Star, Trash2, X } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { apiGetCasinos, apiGetDirectory, apiGetUsers, apiSaveCasinos, apiSaveDirectory } from "@/lib/api-client";
+import { casinoDirectory, casinoDirectoryUrls } from "@/lib/casino-directory";
+
+type Casino = {
+  id: string;
+  name: string;
+  dailyBonus: string;
+  siteUrl?: string;
+  affiliateUrl?: string;
+  claimUrl?: string;
+  bonusUrl?: string;
+  lastClaimedAt: string | null;
+  intervalHours: number;
+  resetAtTime?: string | null;
+  trustpilotRating?: number;
+  details?: string;
+  hidden?: boolean;
+};
+
+type User = { id: string; name: string; email: string };
+type CasinoRecord = { user: User; casinos: Casino[] };
+
+function Stars({ rating }: { rating?: number }) {
+  const numericRating = Number(rating);
+  const value = Number.isFinite(numericRating) ? Math.max(0, Math.min(5, numericRating)) : 0;
+  return (
+    <span aria-label={`${value.toFixed(1)} out of 5 stars`} className="tracking-[0.08em] text-[#e5b85d]">
+      {Array.from({ length: 5 }, (_, index) => {
+        const fillPercent = Math.max(0, Math.min(1, value - index)) * 100;
+        return <span key={index} style={fillPercent > 0 && fillPercent < 100 ? { color: "transparent", backgroundImage: "linear-gradient(90deg, #e5b85d 50%, #536359 50%)", WebkitBackgroundClip: "text" } : { color: fillPercent === 100 ? "#e5b85d" : "#536359" }}>{fillPercent === 0 ? "☆" : "★"}</span>;
+      })}
+    </span>
+  );
+}
+
+export default function AdminCasinosPage() {
+  const router = useRouter();
+  const [records, setRecords] = useState<CasinoRecord[]>([]);
+  const [editing, setEditing] = useState<{ user: User; casino: Casino } | null>(null);
+  const [url, setUrl] = useState("");
+  const [affiliateUrl, setAffiliateUrl] = useState("");
+  const [claimUrl, setClaimUrl] = useState("");
+  const [bonusUrl, setBonusUrl] = useState("");
+  const [bonus, setBonus] = useState("");
+  const [details, setDetails] = useState("");
+  const [rating, setRating] = useState("");
+  const [resetTime, setResetTime] = useState("");
+  const [error, setError] = useState("");
+
+  const [directoryList, setDirectoryList] = useState<string[]>(casinoDirectory);
+  const [directoryUrls, setDirectoryUrls] = useState<Record<string, string | undefined>>(casinoDirectoryUrls);
+  const [directoryAffiliateUrls, setDirectoryAffiliateUrls] = useState<Record<string, string | undefined>>({});
+  const [directoryClaimUrls, setDirectoryClaimUrls] = useState<Record<string, string | undefined>>({});
+  const [directoryBonusUrls, setDirectoryBonusUrls] = useState<Record<string, string | undefined>>({});
+  const [directoryRatings, setDirectoryRatings] = useState<Record<string, number>>({});
+  const [directoryEditing, setDirectoryEditing] = useState<{ name: string; isNew: boolean } | null>(null);
+  const [directoryName, setDirectoryName] = useState("");
+  const [directoryUrl, setDirectoryUrl] = useState("");
+  const [directoryAffiliateUrl, setDirectoryAffiliateUrl] = useState("");
+  const [directoryClaimUrl, setDirectoryClaimUrl] = useState("");
+  const [directoryBonusUrl, setDirectoryBonusUrl] = useState("");
+  const [directoryRating, setDirectoryRating] = useState("");
+  const [directoryError, setDirectoryError] = useState("");
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const authResponse = await fetch("/api/auth/me", { cache: "no-store" });
+        const auth = (await authResponse.json()) as { user: User | null; isAdmin: boolean };
+        if (!auth.isAdmin || !auth.user) {
+          router.replace("/sign-in");
+          return;
+        }
+        const [users, directory] = await Promise.all([apiGetUsers(), apiGetDirectory()]);
+        const loaded = await Promise.all(users.map(async (user) => ({ user, casinos: (await apiGetCasinos(user.email)) ?? [] })));
+        if (cancelled) return;
+        setRecords(loaded);
+        setDirectoryList(directory.list ?? casinoDirectory);
+        setDirectoryUrls({ ...casinoDirectoryUrls, ...directory.urls });
+        setDirectoryAffiliateUrls(directory.affiliateUrls ?? {});
+        setDirectoryClaimUrls(directory.claimUrls ?? {});
+        setDirectoryBonusUrls(directory.bonusUrls ?? {});
+        setDirectoryRatings(directory.ratings);
+        setLoaded(true);
+      } catch {
+        if (!cancelled) router.replace("/sign-in");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [router]);
+
+  function openDirectoryEditor(name: string) {
+    setDirectoryEditing({ name, isNew: false });
+    setDirectoryName(name);
+    setDirectoryUrl(directoryUrls[name] || "");
+    setDirectoryAffiliateUrl(directoryAffiliateUrls[name] || "");
+    setDirectoryClaimUrl(directoryClaimUrls[name] || "");
+    setDirectoryBonusUrl(directoryBonusUrls[name] || "");
+    setDirectoryRating(typeof directoryRatings[name] === "number" ? String(directoryRatings[name]) : "");
+    setDirectoryError("");
+  }
+
+  function openNewDirectoryEntry() {
+    setDirectoryEditing({ name: "", isNew: true });
+    setDirectoryName("");
+    setDirectoryUrl("");
+    setDirectoryAffiliateUrl("");
+    setDirectoryClaimUrl("");
+    setDirectoryBonusUrl("");
+    setDirectoryRating("");
+    setDirectoryError("");
+  }
+
+  async function saveDirectoryEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!directoryEditing) return;
+    const trimmedName = directoryName.trim();
+    const normalizedUrl = directoryUrl.trim()
+      ? directoryUrl.trim().startsWith("http")
+        ? directoryUrl.trim()
+        : `https://${directoryUrl.trim()}`
+      : "";
+    const parsedRating = directoryRating.trim() ? Number(directoryRating) : undefined;
+    if (!trimmedName || !normalizedUrl || (parsedRating !== undefined && (Number.isNaN(parsedRating) || parsedRating < 0 || parsedRating > 5))) {
+      setDirectoryError("Enter a casino name, a valid URL, and a rating from 0 to 5.");
+      return;
+    }
+    if (directoryEditing.isNew && directoryList.some((name) => name.toLowerCase() === trimmedName.toLowerCase())) {
+      setDirectoryError("That casino is already in the list.");
+      return;
+    }
+    const updatedList = directoryEditing.isNew ? [...directoryList, trimmedName] : directoryList;
+    const updatedUrls = { ...directoryUrls, [trimmedName]: normalizedUrl };
+    const updatedAffiliateUrls = { ...directoryAffiliateUrls, [trimmedName]: directoryAffiliateUrl.trim() || undefined };
+    const updatedClaimUrls = { ...directoryClaimUrls, [trimmedName]: directoryClaimUrl.trim() || undefined };
+    const updatedBonusUrls = { ...directoryBonusUrls, [trimmedName]: directoryBonusUrl.trim() || undefined };
+    const updatedRatings = { ...directoryRatings };
+    if (parsedRating !== undefined) updatedRatings[trimmedName] = parsedRating;
+    setDirectoryList(updatedList);
+    setDirectoryUrls(updatedUrls);
+    setDirectoryAffiliateUrls(updatedAffiliateUrls);
+    setDirectoryClaimUrls(updatedClaimUrls);
+    setDirectoryBonusUrls(updatedBonusUrls);
+    setDirectoryRatings(updatedRatings);
+    try {
+      await apiSaveDirectory({
+        list: updatedList,
+        urls: { [trimmedName]: normalizedUrl },
+        ...(directoryAffiliateUrl.trim() ? { affiliateUrls: { [trimmedName]: directoryAffiliateUrl.trim() } } : {}),
+        ...(directoryClaimUrl.trim() ? { claimUrls: { [trimmedName]: directoryClaimUrl.trim() } } : {}),
+        ...(directoryBonusUrl.trim() ? { bonusUrls: { [trimmedName]: directoryBonusUrl.trim() } } : {}),
+        ratings: parsedRating !== undefined ? { [trimmedName]: parsedRating } : undefined,
+      });
+      setDirectoryEditing(null);
+    } catch (saveError) {
+      setDirectoryError(saveError instanceof Error ? saveError.message : "Unable to save the casino directory.");
+    }
+  }
+
+  async function removeDirectoryCasino(name: string) {
+    if (!window.confirm(`Remove ${name} from the master casino list?`)) return;
+    const updatedList = directoryList.filter((item) => item !== name);
+    setDirectoryList(updatedList);
+    await apiSaveDirectory({ list: updatedList });
+  }
+
+  function openEditor(user: User, casino: Casino) {
+    setEditing({ user, casino });
+    setUrl(casino.siteUrl ?? "");
+    setAffiliateUrl(casino.affiliateUrl ?? "");
+    setClaimUrl(casino.claimUrl ?? "");
+    setBonusUrl(casino.bonusUrl ?? "");
+    setBonus(casino.dailyBonus);
+    setDetails(casino.details || "");
+    setRating(typeof casino.trustpilotRating === "number" ? String(casino.trustpilotRating) : "");
+    setResetTime(casino.resetAtTime || "");
+    setError("");
+  }
+
+  async function saveEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editing) return;
+    const normalizedUrl = url.trim().startsWith("http") ? url.trim() : `https://${url.trim()}`;
+    const normalizedAffiliateUrl = affiliateUrl.trim().startsWith("http") ? affiliateUrl.trim() : (affiliateUrl.trim() ? `https://${affiliateUrl.trim()}` : "");
+    const normalizedClaimUrl = claimUrl.trim().startsWith("http") ? claimUrl.trim() : (claimUrl.trim() ? `https://${claimUrl.trim()}` : "");
+    const normalizedBonusUrl = bonusUrl.trim().startsWith("http") ? bonusUrl.trim() : (bonusUrl.trim() ? `https://${bonusUrl.trim()}` : "");
+    const parsedRating = rating.trim() ? Number(rating) : undefined;
+    if (!normalizedUrl || (parsedRating !== undefined && (Number.isNaN(parsedRating) || parsedRating < 0 || parsedRating > 5))) {
+      setError("Enter a valid URL and a rating from 0 to 5.");
+      return;
+    }
+    const updatedCasino = {
+      ...editing.casino,
+      siteUrl: normalizedUrl,
+      affiliateUrl: normalizedAffiliateUrl || undefined,
+      claimUrl: normalizedClaimUrl || undefined,
+      bonusUrl: normalizedBonusUrl || undefined,
+      dailyBonus: bonus.trim() || editing.casino.dailyBonus,
+      details: details.trim() || undefined,
+      trustpilotRating: parsedRating,
+      resetAtTime: resetTime || null,
+    };
+    const updatedRecords = records.map((record) => record.user.email === editing.user.email
+      ? { ...record, casinos: record.casinos.map((casino) => casino.id === editing.casino.id ? updatedCasino : casino) }
+      : record);
+    setRecords(updatedRecords);
+    try {
+      await apiSaveCasinos(editing.user.email, updatedRecords.find((record) => record.user.email === editing.user.email)?.casinos ?? []);
+      await apiSaveDirectory({
+        urls: { [editing.casino.name]: normalizedUrl },
+        ...(normalizedAffiliateUrl ? { affiliateUrls: { [editing.casino.name]: normalizedAffiliateUrl } } : {}),
+        ...(normalizedClaimUrl ? { claimUrls: { [editing.casino.name]: normalizedClaimUrl } } : {}),
+        ...(normalizedBonusUrl ? { bonusUrls: { [editing.casino.name]: normalizedBonusUrl } } : {}),
+        ...(parsedRating !== undefined ? { ratings: { [editing.casino.name]: parsedRating } } : {}),
+      });
+      setEditing(null);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Unable to save casino changes.");
+    }
+  }
+
+  if (!loaded) {
+    return <main className="grid min-h-screen place-items-center bg-[#101815] text-[#9bcf9c]">Loading casino workspace...</main>;
+  }
+
+  return (
+    <main className="min-h-screen bg-[#101815] px-5 py-8 text-[#e6eee5] sm:px-10 lg:px-16">
+      <div className="mx-auto max-w-7xl">
+        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-semibold text-[#9bcf9c] hover:text-[#c2e4bd]"><ArrowLeft size={16} /> Admin workspace</Link>
+        <section className="mt-8">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">Admin casino workspace</p>
+          <h1 className="mt-3 font-serif text-4xl font-semibold tracking-[-0.05em] text-[#edf4ea] sm:text-5xl">Every profile, every casino.</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#9aa99c]">Review and edit casino cards for every user without changing their sign-in or claim history.</p>
+        </section>
+        <section className="mt-8 rounded-2xl border border-[#2b4434] bg-[#19251f] p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-[#e5eee3]">Master casino list</h2>
+              <p className="mt-1 text-sm text-[#93a495]">The full directory of casinos available to every user. Edit a casino&apos;s URL or rating here to update it everywhere at once.</p>
+            </div>
+            <button type="button" onClick={openNewDirectoryEntry} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[#79b77f] px-3 py-2 text-xs font-semibold text-[#122519] hover:bg-[#91c991]"><Plus size={14} /> Add casino</button>
+          </div>
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+            {directoryList.map((name) => (
+              <article key={name} className="flex items-center justify-between gap-4 rounded-xl border border-[#304638] bg-[#1f3027] p-4">
+                <div className="min-w-0">
+                  <h3 className="truncate font-semibold text-[#e5eee3]">{name}</h3>
+                  <p className="mt-1 truncate text-xs text-[#a9bbaa]">{directoryUrls[name] || "No URL set"}</p>
+                  <Stars rating={directoryRatings[name]} />
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button type="button" onClick={() => openDirectoryEditor(name)} className="inline-flex items-center gap-2 rounded-lg border border-[#4c6d50] px-3 py-2 text-xs font-semibold text-[#b7d5b5] hover:bg-[#2a4230]"><Pencil size={14} /> Edit</button>
+                  <button type="button" onClick={() => removeDirectoryCasino(name)} aria-label={`Remove ${name}`} className="text-[#718275] hover:text-[#e69b91]"><Trash2 size={15} /></button>
+                </div>
+              </article>
+            ))}
+            {directoryList.length === 0 && <p className="text-sm text-[#819487]">No casinos in the master list yet.</p>}
+          </div>
+        </section>
+        <div className="mt-8 space-y-5">
+          {records.map((record) => (
+            <section key={record.user.email} className="rounded-2xl border border-[#2b4434] bg-[#19251f] p-5 sm:p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div><h2 className="text-lg font-semibold text-[#e5eee3]">{record.user.name}</h2><p className="mt-1 text-sm text-[#93a495]">{record.user.email}</p></div>
+                <span className="rounded-full border border-[#355b3d] bg-[#1b3625] px-3 py-1 text-xs font-semibold text-[#9bcf9c]">{record.casinos.length} casinos</span>
+              </div>
+              <div className="mt-5 grid gap-3 lg:grid-cols-2">
+                {record.casinos.map((casino) => (
+                  <article key={casino.id} className="flex items-center justify-between gap-4 rounded-xl border border-[#304638] bg-[#1f3027] p-4">
+                    <div className="min-w-0"><h3 className="truncate font-semibold text-[#e5eee3]">{casino.name}</h3><p className="mt-1 text-xs text-[#a9bbaa]">{casino.dailyBonus}</p><Stars rating={casino.trustpilotRating} /></div>
+                    <button type="button" onClick={() => openEditor(record.user, casino)} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[#4c6d50] px-3 py-2 text-xs font-semibold text-[#b7d5b5] hover:bg-[#2a4230]"><Pencil size={14} /> Edit</button>
+                  </article>
+                ))}
+                {record.casinos.length === 0 && <p className="text-sm text-[#819487]">No casinos saved for this profile.</p>}
+              </div>
+            </section>
+          ))}
+        </div>
+      </div>
+      {editing && (
+        <div className="fixed inset-0 z-20 grid place-items-center bg-black/65 p-5" role="presentation" onMouseDown={() => setEditing(null)}>
+          <form onSubmit={saveEdit} className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#38503d] bg-[#19251f] p-6 shadow-2xl" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">Edit profile casino</p><h2 className="mt-2 font-serif text-2xl font-semibold text-[#e5eee3]">{editing.casino.name}</h2><p className="mt-1 text-xs text-[#93a495]">{editing.user.email}</p></div><button type="button" onClick={() => setEditing(null)} aria-label="Close editor" className="text-[#91a595] hover:text-white"><X size={20} /></button></div>
+            <div className="mt-6 grid gap-3">
+              <label className="text-xs font-semibold text-[#a9bbaa]">Site URL (card click / logo)<input required value={url} onChange={(event) => setUrl(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+              <label className="text-xs font-semibold text-[#a9bbaa]">Affiliate URL (Sign up link)<input value={affiliateUrl} onChange={(event) => setAffiliateUrl(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+              <label className="text-xs font-semibold text-[#a9bbaa]">Claim URL (Claim Now link)<input value={claimUrl} onChange={(event) => setClaimUrl(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+              <label className="text-xs font-semibold text-[#a9bbaa]">Bonus URL (bonus details link)<input value={bonusUrl} onChange={(event) => setBonusUrl(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+              <label className="text-xs font-semibold text-[#a9bbaa]">Trustpilot rating<input type="number" min="0" max="5" step="0.1" value={rating} onChange={(event) => setRating(event.target.value)} placeholder="0 to 5" className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+              <label className="text-xs font-semibold text-[#a9bbaa]">Bonus label<input value={bonus} onChange={(event) => setBonus(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+              <label className="text-xs font-semibold text-[#a9bbaa]">Details<textarea value={details} onChange={(event) => setDetails(event.target.value)} rows={3} className="mt-2 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 py-2 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+              <label className="text-xs font-semibold text-[#a9bbaa]">Daily reset time<input type="time" value={resetTime} onChange={(event) => setResetTime(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+            </div>
+            {error && <p role="alert" className="mt-3 text-sm text-[#e69b91]">{error}</p>}
+            <button type="submit" className="mt-6 flex h-11 w-full items-center justify-center rounded-xl bg-[#79b77f] text-sm font-semibold text-[#122519] hover:bg-[#91c991]">Save changes</button>
+          </form>
+        </div>
+      )}
+      {directoryEditing && (
+        <div className="fixed inset-0 z-20 grid place-items-center bg-black/65 p-5" role="presentation" onMouseDown={() => setDirectoryEditing(null)}>
+          <form onSubmit={saveDirectoryEdit} className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#38503d] bg-[#19251f] p-6 shadow-2xl" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">{directoryEditing.isNew ? "Add casino" : "Edit master casino"}</p>
+                <h2 className="mt-2 font-serif text-2xl font-semibold text-[#e5eee3]">{directoryEditing.isNew ? "New casino" : directoryEditing.name}</h2>
+              </div>
+              <button type="button" onClick={() => setDirectoryEditing(null)} aria-label="Close editor" className="text-[#91a595] hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="mt-6 grid gap-3">
+              {directoryEditing.isNew && (
+                <label className="text-xs font-semibold text-[#a9bbaa]">Casino name<input required value={directoryName} onChange={(event) => setDirectoryName(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+              )}
+              <label className="text-xs font-semibold text-[#a9bbaa]">Site URL (card click / logo)<input required value={directoryUrl} onChange={(event) => setDirectoryUrl(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+              <label className="text-xs font-semibold text-[#a9bbaa]">Affiliate URL (Sign up link)<input value={directoryAffiliateUrl} onChange={(event) => setDirectoryAffiliateUrl(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+              <label className="text-xs font-semibold text-[#a9bbaa]">Claim URL (Claim Now link)<input value={directoryClaimUrl} onChange={(event) => setDirectoryClaimUrl(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+              <label className="text-xs font-semibold text-[#a9bbaa]">Bonus URL (bonus details link)<input value={directoryBonusUrl} onChange={(event) => setDirectoryBonusUrl(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+              <label className="text-xs font-semibold text-[#a9bbaa]">Trustpilot rating<input type="number" min="0" max="5" step="0.1" value={directoryRating} onChange={(event) => setDirectoryRating(event.target.value)} placeholder="0 to 5" className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+            </div>
+            {directoryError && <p role="alert" className="mt-3 text-sm text-[#e69b91]">{directoryError}</p>}
+            <button type="submit" className="mt-6 flex h-11 w-full items-center justify-center rounded-xl bg-[#79b77f] text-sm font-semibold text-[#122519] hover:bg-[#91c991]">Save changes</button>
+          </form>
+        </div>
+      )}
+    </main>
+  );
+}
