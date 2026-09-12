@@ -38,8 +38,10 @@ export function PostComposer({
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -159,6 +161,7 @@ export function PostComposer({
       setDropCode("");
       handleRemoveMedia();
       setShowUrlInput(false);
+      setIsExpanded(false);
     } catch (err: any) {
       setError(err.message || "Failed to post");
     } finally {
@@ -166,47 +169,162 @@ export function PostComposer({
     }
   };
 
+  // Minimized state: sleek, compact bar that expands upon clicking the typebox
+  if (!isExpanded) {
+    return (
+      <div className="rounded-2xl border border-[#243d2e] bg-[#122018]/95 p-3 sm:p-4 shadow-sm backdrop-blur transition hover:border-[#335640]">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          {currentUserAvatar ? (
+            <img
+              src={currentUserAvatar}
+              alt={currentUserName || "Avatar"}
+              className="h-8 w-8 sm:h-9 sm:w-9 rounded-full object-cover border border-emerald-500/40 shrink-0"
+            />
+          ) : (
+            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-800 text-xs font-bold text-white shrink-0">
+              {(currentUserName || "U").slice(0, 2).toUpperCase()}
+            </div>
+          )}
+
+          {/* Minimized typebox trigger */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsExpanded(true);
+              setTimeout(() => textareaRef.current?.focus(), 50);
+            }}
+            className="flex-1 rounded-xl border border-[#243d2e] bg-[#0d1611] px-3.5 py-2 sm:py-2.5 text-left text-xs sm:text-sm text-[#66806c] transition hover:border-emerald-500/50 hover:bg-[#111e17] hover:text-[#90ad98] flex items-center justify-between cursor-pointer"
+          >
+            <span className="truncate">Share a win, bonus code, or discuss...</span>
+            <span className="hidden sm:inline text-[11px] font-semibold text-emerald-400/80 bg-[#16271e] px-2 py-0.5 rounded-md border border-emerald-500/20 shrink-0 ml-2">
+              Post
+            </span>
+          </button>
+        </div>
+
+        {/* Quick action buttons row */}
+        <div className="flex items-center justify-between border-t border-[#1a2e22] mt-2.5 pt-2 px-0.5">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                handleSelectType("big_win");
+                setIsExpanded(true);
+                setTimeout(() => textareaRef.current?.focus(), 50);
+              }}
+              className="flex items-center gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 text-xs font-medium text-amber-300 hover:bg-amber-950/40 transition"
+            >
+              <Trophy size={13} className="text-amber-400" />
+              <span className="text-[11px] sm:text-xs">Big Win</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                handleSelectType("drop_code");
+                setIsExpanded(true);
+                setTimeout(() => textareaRef.current?.focus(), 50);
+              }}
+              className="flex items-center gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 text-xs font-medium text-teal-300 hover:bg-teal-950/40 transition"
+            >
+              <Gift size={13} className="text-teal-400" />
+              <span className="text-[11px] sm:text-xs">Drop Code</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsExpanded(true);
+                setTimeout(() => fileInputRef.current?.click(), 100);
+              }}
+              className="flex items-center gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 text-xs font-medium text-[#8ca892] hover:bg-[#182a1f] hover:text-emerald-300 transition"
+            >
+              <ImageIcon size={13} />
+              <span className="text-[11px] sm:text-xs">Media</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsExpanded(true);
+              setTimeout(() => textareaRef.current?.focus(), 50);
+            }}
+            className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition pr-1"
+          >
+            Create ✍️
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Expanded state: full composer with focus
   return (
-    <div className="rounded-2xl border border-[#243d2e] bg-[#122018]/95 p-4 sm:p-5 shadow-sm backdrop-blur">
-      {/* Post Type Selector */}
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-[#1f3527] pb-3 mb-3.5">
-        <button
-          type="button"
-          onClick={() => handleSelectType("discussion")}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-            type === "discussion"
-              ? "bg-[#274433] text-white border border-emerald-500/30"
-              : "text-[#859d8b] hover:text-white hover:bg-[#18291f]"
-          }`}
-        >
-          <MessageSquare size={13} />
-          Discussion
-        </button>
+    <div className="rounded-2xl border border-emerald-600/40 bg-[#122018] p-3.5 sm:p-5 shadow-lg backdrop-blur animate-in fade-in zoom-in-95 duration-150">
+      {/* Post Type Selector & Minimize Button */}
+      <div className="flex items-center justify-between border-b border-[#1f3527] pb-2.5 sm:pb-3 mb-3">
+        <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
+          <button
+            type="button"
+            onClick={() => handleSelectType("discussion")}
+            className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition ${
+              type === "discussion"
+                ? "bg-[#274433] text-white border border-emerald-500/30"
+                : "text-[#859d8b] hover:text-white hover:bg-[#18291f]"
+            }`}
+          >
+            <MessageSquare size={13} />
+            Discussion
+          </button>
 
-        <button
-          type="button"
-          onClick={() => handleSelectType("big_win")}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-            type === "big_win"
-              ? "bg-amber-950/60 text-amber-200 border border-amber-600/40"
-              : "text-[#859d8b] hover:text-white hover:bg-[#18291f]"
-          }`}
-        >
-          <Trophy size={13} className="text-amber-400" />
-          Flex Big Win
-        </button>
+          <button
+            type="button"
+            onClick={() => handleSelectType("big_win")}
+            className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition ${
+              type === "big_win"
+                ? "bg-amber-950/60 text-amber-200 border border-amber-600/40"
+                : "text-[#859d8b] hover:text-white hover:bg-[#18291f]"
+            }`}
+          >
+            <Trophy size={13} className="text-amber-400" />
+            Big Win
+          </button>
 
+          <button
+            type="button"
+            onClick={() => handleSelectType("drop_code")}
+            className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition ${
+              type === "drop_code"
+                ? "bg-teal-950/60 text-teal-200 border border-teal-600/40"
+                : "text-[#859d8b] hover:text-white hover:bg-[#18291f]"
+            }`}
+          >
+            <Gift size={13} className="text-teal-400" />
+            Drop Code
+          </button>
+        </div>
+
+        {/* Minimize / Cancel Button */}
         <button
           type="button"
-          onClick={() => handleSelectType("drop_code")}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-            type === "drop_code"
-              ? "bg-teal-950/60 text-teal-200 border border-teal-600/40"
-              : "text-[#859d8b] hover:text-white hover:bg-[#18291f]"
-          }`}
+          onClick={() => {
+            if (!content.trim() || window.confirm("Discard post draft?")) {
+              setContent("");
+              setSelectedTags([]);
+              setWinAmount("");
+              setMultiplier("");
+              setDropCode("");
+              handleRemoveMedia();
+              setShowUrlInput(false);
+              setIsExpanded(false);
+            }
+          }}
+          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[#78937e] hover:bg-[#192b20] hover:text-white transition shrink-0 ml-2"
+          title="Minimize post composer"
         >
-          <Gift size={13} className="text-teal-400" />
-          Drop Code
+          <X size={14} />
+          <span className="hidden sm:inline">Cancel</span>
         </button>
       </div>
 
@@ -257,7 +375,7 @@ export function PostComposer({
         )}
 
         {/* Text Area */}
-        <div className="flex gap-3">
+        <div className="flex gap-2.5 sm:gap-3">
           {currentUserAvatar ? (
             <img
               src={currentUserAvatar}
@@ -270,6 +388,8 @@ export function PostComposer({
             </div>
           )}
           <textarea
+            ref={textareaRef}
+            autoFocus
             rows={3}
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -280,7 +400,7 @@ export function PostComposer({
                 ? "Where did you find this drop? How many SC/GC is it worth?"
                 : "Share bonus strategies, ask a question, or talk slots..."
             }
-            className="w-full rounded-xl border border-[#274230] bg-[#0d1611] p-3 text-sm text-white placeholder-[#5c7261] outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+            className="w-full rounded-xl border border-[#274230] bg-[#0d1611] p-3 text-xs sm:text-sm text-white placeholder-[#5c7261] outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
           />
         </div>
 
@@ -316,7 +436,7 @@ export function PostComposer({
           <div className="flex gap-2 animate-in fade-in duration-150">
             <input
               type="url"
-              placeholder="Paste image or video URL (e.g. https://.../image.png or .mp4)"
+              placeholder="Paste image or video URL"
               onChange={(e) => {
                 const val = e.target.value.trim();
                 setMediaUrl(val);
@@ -348,8 +468,9 @@ export function PostComposer({
         />
 
         {/* Bottom Bar: Tags Selector + Media buttons + Submit Button */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-[#1a2e21]">
+          {/* Tags section */}
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <span className="text-xs font-semibold text-[#829c88]">Tags:</span>
 
             {/* Selected Tag Badges with remove buttons */}
@@ -378,7 +499,7 @@ export function PostComposer({
               className="rounded-lg border border-[#274230] bg-[#0e1913] px-2.5 py-1 text-xs font-medium text-[#e1ece0] outline-none focus:border-emerald-500 cursor-pointer"
             >
               <option value="" disabled className="bg-[#122018] text-[#8ca592]">
-                {selectedTags.length === 0 ? "+ Add Tag" : "+ Add Another Tag..."}
+                {selectedTags.length === 0 ? "+ Add Tag" : "+ Add Tag..."}
               </option>
               <optgroup label="Categories" className="bg-[#122018] text-emerald-400 font-bold">
                 {CATEGORY_TAGS.filter((cat) => !selectedTags.includes(cat.id)).map((cat) => (
@@ -397,45 +518,45 @@ export function PostComposer({
             </select>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Media Upload Buttons */}
-            <div className="flex items-center gap-1 border-l border-[#1f3527] pl-3">
+          {/* Action Row: Media Attachment & Submit */}
+          <div className="flex items-center justify-between sm:justify-end gap-2.5 pt-1 sm:pt-0">
+            <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[#8ca892] transition hover:bg-[#182a1f] hover:text-emerald-300"
+                className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-[#8ca892] transition hover:bg-[#182a1f] hover:text-emerald-300"
                 title="Attach photo or video"
               >
-                <ImageIcon size={15} />
-                <span className="hidden sm:inline">Photo/Video</span>
+                <ImageIcon size={14} />
+                <span className="text-[11px] sm:text-xs">Photo/Video</span>
               </button>
               <button
                 type="button"
                 onClick={() => setShowUrlInput(!showUrlInput)}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[#8ca892] transition hover:bg-[#182a1f] hover:text-teal-300"
+                className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-[#8ca892] transition hover:bg-[#182a1f] hover:text-teal-300"
                 title="Add media by URL"
               >
-                <LinkIcon size={14} />
-                <span className="hidden sm:inline">URL</span>
+                <LinkIcon size={13} />
+                <span className="text-[11px] sm:text-xs">URL</span>
               </button>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={!content.trim() || isSubmitting}
-            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 size={13} className="animate-spin" /> Posting...
-              </>
-            ) : (
-              <>
-                <Send size={13} /> Post
-              </>
-            )}
-          </button>
+            <button
+              type="submit"
+              disabled={!content.trim() || isSubmitting}
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" /> Posting...
+                </>
+              ) : (
+                <>
+                  <Send size={13} /> Post
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {error && (

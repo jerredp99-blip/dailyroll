@@ -153,3 +153,4 @@ export function recordAiUsage(identifier: string, isAdmin: boolean = false): voi
     userRecord.lastRequestAt = now;
   }
 }
+

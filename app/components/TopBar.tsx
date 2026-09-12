@@ -42,13 +42,13 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-[#1e2f24]/80 bg-[#101815]/90 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4 sm:px-10 lg:px-16">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-8 sm:py-4 lg:px-16">
         <Logo />
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           {(signedInUser || isAdmin) && pathname !== "/tracker" && (
             <Link
               href="/tracker"
-              className="text-sm font-semibold text-[#9bcf9c] hover:text-[#c2e4bd]"
+              className="text-xs sm:text-sm font-semibold text-[#9bcf9c] hover:text-[#c2e4bd]"
             >
               Feed & Tracker
             </Link>
@@ -56,7 +56,7 @@ export function TopBar() {
           {(signedInUser || isAdmin) && pathname !== "/profile" && (
             <Link
               href="/profile"
-              className="hidden text-sm font-semibold text-[#8ca892] hover:text-[#c2e4bd] sm:block"
+              className="text-xs sm:text-sm font-semibold text-[#8ca892] hover:text-[#c2e4bd]"
             >
               Profile
             </Link>
@@ -64,7 +64,7 @@ export function TopBar() {
           {isAdmin && pathname !== "/dashboard" && (
             <Link
               href="/dashboard"
-              className="hidden text-sm font-semibold text-amber-300 hover:text-amber-200 sm:block"
+              className="text-xs sm:text-sm font-semibold text-amber-300 hover:text-amber-200"
             >
               Admin
             </Link>

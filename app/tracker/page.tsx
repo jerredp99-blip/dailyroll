@@ -997,19 +997,19 @@ export default function TrackerPage() {
       >
         {isSidebarOpen ? <X size={18} /> : <Menu size={18} />}
       </button>
-      <div className="w-full px-4 py-6 sm:px-8">
-        <header className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-4 border-b border-[#263a2c] pb-3 mb-6">
+      <div className="w-full px-2.5 py-4 sm:px-8 sm:py-6">
+        <header className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3 border-b border-[#263a2c] pb-3 mb-4 sm:mb-6">
           <div className="flex items-center gap-3">
             {isAddCasinosPage ? (
               <h1
-                className="text-xl font-normal uppercase tracking-[0.08em] text-[#f3f8f0] sm:text-2xl"
+                className="text-lg font-normal uppercase tracking-[0.08em] text-[#f3f8f0] sm:text-2xl"
                 style={{ fontFamily: "Rhinos, Impact, sans-serif" }}
               >
                 ADD CASINOS TO ROLL
               </h1>
             ) : (
               <div>
-                <h2 className="font-serif text-2xl font-semibold text-[#edf4ea]">
+                <h2 className="font-serif text-lg sm:text-2xl font-semibold text-[#edf4ea]">
                   {viewMode === "social" ? "Social Casino Feed" : "Daily Casino Rollcall"}
                 </h2>
               </div>
@@ -1021,7 +1021,7 @@ export default function TrackerPage() {
               <button
                 type="button"
                 onClick={() => setViewMode("social")}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
                   viewMode === "social"
                     ? "bg-[#254231] text-white shadow-sm"
                     : "text-[#85a08b] hover:text-white"
@@ -1034,7 +1034,7 @@ export default function TrackerPage() {
               <button
                 type="button"
                 onClick={() => setViewMode("rollcall")}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
                   viewMode === "rollcall"
                     ? "bg-[#254231] text-white shadow-sm"
                     : "text-[#85a08b] hover:text-white"

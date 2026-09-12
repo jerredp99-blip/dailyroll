@@ -280,43 +280,101 @@ export function PostCard({
   };
 
   return (
-    <article className="rounded-2xl border border-[#22392b] bg-[#121f17]/90 p-4 sm:p-5 shadow-sm backdrop-blur transition hover:border-[#32543d]">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
+    <article className="rounded-2xl border border-[#22392b] bg-[#121f17]/90 p-3.5 sm:p-5 shadow-sm backdrop-blur transition hover:border-[#32543d]">
+      {/* Header: Author + Timestamp + Menu Button */}
+      <div className="flex items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           {/* Author Avatar or Initials */}
           {currentPost.authorAvatar ? (
             <img
               src={currentPost.authorAvatar}
               alt={currentPost.authorName}
-              className="h-10 w-10 rounded-full object-cover border border-emerald-500/40 shadow-sm"
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full object-cover border border-emerald-500/40 shadow-sm shrink-0"
             />
           ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-800 text-sm font-bold text-white shadow-sm">
+            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-800 text-xs sm:text-sm font-bold text-white shadow-sm shrink-0">
               {currentPost.authorName.slice(0, 2).toUpperCase()}
             </div>
           )}
 
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-[#edf5ec]">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-1.5 truncate">
+              <span className="text-xs sm:text-sm font-semibold text-[#edf5ec] truncate">
                 {currentPost.authorName}
               </span>
-              <span className="text-xs text-[#718776]">
+              <span className="text-[11px] text-[#718776] shrink-0">
                 • {timeAgo(currentPost.createdAt)}
                 {currentPost.updatedAt && (
                   <span className="ml-1 text-[10px] text-emerald-400/80">(edited)</span>
                 )}
               </span>
             </div>
-            <p className="text-[11px] text-[#869f8c]">
+            <p className="text-[10px] sm:text-[11px] text-[#869f8c] truncate">
               @{currentPost.authorEmail.split("@")[0]}
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-1.5">
-          {/* Tag Badges (Casino Logo or Category Badge, NO $) */}
+        {/* Edit / Delete Menu for Author or Admin */}
+        {canManage && (
+          <div className="relative shrink-0" ref={menuRef}>
+            <button
+              type="button"
+              onClick={() => setMenuVisible(!isMenuVisible)}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
+                isMenuVisible
+                  ? "bg-[#192b20] text-emerald-400"
+                  : "text-[#829c88] hover:bg-[#192b20] hover:text-white"
+              }`}
+              title="Post options"
+            >
+              <MoreHorizontal size={16} />
+            </button>
+
+            {isMenuVisible && (
+              <div className="absolute right-0 top-9 z-20 w-36 rounded-xl border border-[#2b4835] bg-[#0f1b14] p-1 shadow-xl animate-in fade-in zoom-in-95 duration-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(true);
+                    setEditContent(currentPost.content);
+                    setEditTags(
+                      currentPost.tags && currentPost.tags.length > 0
+                        ? currentPost.tags
+                        : currentPost.casinoTag
+                        ? [currentPost.casinoTag]
+                        : []
+                    );
+                    setEditWinAmount(currentPost.winAmount || "");
+                    setEditMultiplier(currentPost.multiplier || "");
+                    setEditDropCode(currentPost.dropCode || "");
+                    setMenuVisible(false);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-[#cbe0d0] hover:bg-[#1a2f22] hover:text-white"
+                >
+                  <Edit3 size={13} className="text-emerald-400" />
+                  <span>Edit Post</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmDelete(true);
+                    setMenuVisible(false);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-red-300 hover:bg-red-950/40 hover:text-red-200"
+                >
+                  <Trash2 size={13} className="text-red-400" />
+                  <span>Delete Post</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Tag Badges: Dedicated clean row for mobile and desktop */}
+      {((currentPost.tags && currentPost.tags.length > 0) || currentPost.casinoTag) && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           {(currentPost.tags && currentPost.tags.length > 0
             ? currentPost.tags
             : currentPost.casinoTag
@@ -329,64 +387,8 @@ export function PostCard({
               onClick={() => onSelectTag?.(t)}
             />
           ))}
-
-          {/* Edit / Delete Menu for Author or Admin */}
-          {canManage && (
-            <div className="relative" ref={menuRef}>
-              <button
-                type="button"
-                onClick={() => setMenuVisible(!isMenuVisible)}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
-                  isMenuVisible
-                    ? "bg-[#192b20] text-emerald-400"
-                    : "text-[#829c88] hover:bg-[#192b20] hover:text-white"
-                }`}
-                title="Post options"
-              >
-                <MoreHorizontal size={16} />
-              </button>
-
-              {isMenuVisible && (
-                <div className="absolute right-0 top-9 z-20 w-36 rounded-xl border border-[#2b4835] bg-[#0f1b14] p-1 shadow-xl animate-in fade-in zoom-in-95 duration-100">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsEditing(true);
-                      setEditContent(currentPost.content);
-                      setEditTags(
-                        currentPost.tags && currentPost.tags.length > 0
-                          ? currentPost.tags
-                          : currentPost.casinoTag
-                          ? [currentPost.casinoTag]
-                          : []
-                      );
-                      setEditWinAmount(currentPost.winAmount || "");
-                      setEditMultiplier(currentPost.multiplier || "");
-                      setEditDropCode(currentPost.dropCode || "");
-                      setMenuVisible(false);
-                    }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-[#cbe0d0] hover:bg-[#1a2f22] hover:text-white"
-                  >
-                    <Edit3 size={13} className="text-emerald-400" />
-                    <span>Edit Post</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setConfirmDelete(true);
-                      setMenuVisible(false);
-                    }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-red-300 hover:bg-red-950/40 hover:text-red-200"
-                  >
-                    <Trash2 size={13} className="text-red-400" />
-                    <span>Delete Post</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
-      </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       {confirmDelete && (
@@ -615,58 +617,61 @@ export function PostCard({
       )}
 
       {/* Social Interactions Bar */}
-      <div className="mt-4 flex flex-wrap items-center justify-between border-t border-[#1d3224] pt-3 gap-2 text-xs">
-        <div className="flex items-center gap-1.5">
+      <div className="mt-3.5 flex items-center justify-between border-t border-[#1d3224] pt-2.5 sm:pt-3 gap-2 text-xs">
+        <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
           {/* Like button */}
           <button
             type="button"
             onClick={handleToggleLike}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 transition ${
+            className={`flex items-center gap-1 rounded-lg px-2 sm:px-2.5 py-1.5 transition text-xs shrink-0 ${
               hasLiked
                 ? "bg-red-950/40 text-red-400 font-semibold border border-red-800/40"
                 : "text-[#869f8c] hover:bg-[#182a1f] hover:text-white"
             }`}
           >
             <Heart size={14} className={hasLiked ? "fill-red-400" : ""} />
-            <span>{currentPost.likes?.length || 0}</span>
+            <span className="font-semibold text-[11px] sm:text-xs">{currentPost.likes?.length || 0}</span>
           </button>
 
           {/* Emoji Reactions - Enforces Single Reaction */}
-          {EMOJI_OPTIONS.map((emoji) => {
-            const count = currentPost.reactions?.[emoji]?.length || 0;
-            const userReacted = currentUserEmail
-              ? currentPost.reactions?.[emoji]?.includes(currentUserEmail.toLowerCase())
-              : false;
+          <div className="flex items-center gap-0.5 sm:gap-1">
+            {EMOJI_OPTIONS.map((emoji) => {
+              const count = currentPost.reactions?.[emoji]?.length || 0;
+              const userReacted = currentUserEmail
+                ? currentPost.reactions?.[emoji]?.includes(currentUserEmail.toLowerCase())
+                : false;
 
-            return (
-              <button
-                key={emoji}
-                type="button"
-                onClick={() => handleAddReaction(emoji)}
-                className={`flex items-center gap-1 rounded-lg px-2 py-1 transition text-xs ${
-                  userReacted
-                    ? "bg-emerald-900/60 border border-emerald-500 font-bold scale-105"
-                    : count > 0
-                    ? "bg-[#18291f] text-[#c0d4c3] hover:bg-[#1f3629]"
-                    : "opacity-60 hover:opacity-100 hover:bg-[#18291f]"
-                }`}
-                title={userReacted ? `Remove ${emoji}` : `React with ${emoji} (single reaction)`}
-              >
-                <span>{emoji}</span>
-                {count > 0 && <span className="font-semibold text-[11px]">{count}</span>}
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => handleAddReaction(emoji)}
+                  className={`flex items-center gap-0.5 sm:gap-1 rounded-lg px-1.5 sm:px-2 py-1 transition text-xs shrink-0 ${
+                    userReacted
+                      ? "bg-emerald-900/60 border border-emerald-500 font-bold scale-105"
+                      : count > 0
+                      ? "bg-[#18291f] text-[#c0d4c3] hover:bg-[#1f3629]"
+                      : "opacity-60 hover:opacity-100 hover:bg-[#18291f]"
+                  }`}
+                  title={userReacted ? `Remove ${emoji}` : `React with ${emoji} (single reaction)`}
+                >
+                  <span className="text-xs sm:text-sm">{emoji}</span>
+                  {count > 0 && <span className="font-semibold text-[10px] sm:text-[11px]">{count}</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Comment toggle button */}
         <button
           type="button"
           onClick={handleToggleComments}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[#869f8c] transition hover:bg-[#182a1f] hover:text-[#d3e5d5]"
+          className="flex items-center gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-xs text-[#869f8c] transition hover:bg-[#182a1f] hover:text-[#d3e5d5] shrink-0 ml-auto"
         >
           <MessageSquare size={14} />
-          <span>{currentPost.commentCount || 0} Comments</span>
+          <span className="font-semibold text-[11px] sm:text-xs">{currentPost.commentCount || 0}</span>
+          <span className="hidden sm:inline">Comments</span>
         </button>
       </div>
 
