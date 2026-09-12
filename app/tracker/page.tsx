@@ -863,11 +863,19 @@ export default function TrackerPage() {
                   aria-expanded={isProfileMenuOpen}
                   aria-haspopup="menu"
                   aria-label="Open profile menu"
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#385e40] bg-[#1b3625] p-1 transition hover:border-[#79b77f]"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#385e40] bg-[#1b3625] p-0.5 transition hover:border-[#79b77f] overflow-hidden"
                 >
-                  <span className="grid h-8 w-8 place-items-center rounded-full bg-[#79b77f] text-sm font-bold text-[#122519]">
-                    {profileInitial}
-                  </span>
+                  {signedInUser?.avatarUrl ? (
+                    <img
+                      src={signedInUser.avatarUrl}
+                      alt={signedInUser.name || "Profile"}
+                      className="h-full w-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-[#79b77f] text-sm font-bold text-[#122519]">
+                      {profileInitial}
+                    </span>
+                  )}
                 </button>
                 {isSidebarOpen && (
                   <div className="min-w-0">
@@ -993,7 +1001,7 @@ export default function TrackerPage() {
         onClick={() => setIsSidebarOpen((open) => !open)}
         aria-label={isSidebarOpen ? "Close menu" : "Open menu"}
         aria-expanded={isSidebarOpen}
-        className="fixed right-5 top-5 z-40 grid h-9 w-9 place-items-center rounded-lg border border-[#344d3b] bg-[#101815]/90 text-[#b7d5b5] shadow-lg backdrop-blur transition hover:border-[#6b916f] hover:bg-[#1b2a20] sm:right-8"
+        className="fixed right-3.5 top-2.5 z-40 grid h-9 w-9 place-items-center rounded-lg border border-[#344d3b] bg-[#101815]/90 text-[#b7d5b5] shadow-lg backdrop-blur transition hover:border-[#6b916f] hover:bg-[#1b2a20] sm:right-6 sm:top-3.5 lg:right-8"
       >
         {isSidebarOpen ? <X size={18} /> : <Menu size={18} />}
       </button>

@@ -1,9 +1,16 @@
 import { Suspense } from "react";
 import { Check } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getCurrentSession } from "@/lib/auth";
 import { SignInForm } from "@/app/components/SignInForm";
 
-export default function SignInPage() {
+export default async function SignInPage() {
+  const session = await getCurrentSession();
+  if (session) {
+    redirect("/tracker");
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#101815] text-[#e6eee5]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(55,103,71,0.32),transparent_28%),radial-gradient(circle_at_88%_82%,rgba(156,113,47,0.18),transparent_27%)]" />
