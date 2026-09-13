@@ -482,7 +482,12 @@ export function PostCard({
           : currentPost.casinoTag
           ? [currentPost.casinoTag]
           : []
-        ).filter((t) => t !== "BONUS_CODE");
+        ).filter(
+          (t) =>
+            !["BONUS_CODE", "BONUS_DROP", "DROP_CODE", "PROMO_CODE", "DISCUSSION", "BIG_WIN"].includes(
+              t.toUpperCase()
+            )
+        );
 
         if (rawTags.length === 0) return null;
 
@@ -735,9 +740,27 @@ export function PostCard({
 
           {/* 2. Post Body Text: User description/instructions rendered ABOVE the code banner (raw URLs hidden if destinationUrl is present) */}
           {displayContent && (
-            <p className="mt-3 text-sm leading-relaxed text-[#d7e4d8] whitespace-pre-wrap">
-              {renderFormattedContent(displayContent)}
-            </p>
+            isBonusDrop ? (() => {
+              const lines = displayContent.split("\n").map((l) => l.trim()).filter(Boolean);
+              const headline = lines[0] || displayContent;
+              const secondary = lines.slice(1).join("\n");
+              return (
+                <div className="mb-3 mt-1.5 space-y-1">
+                  <h3 className="text-lg font-bold sm:text-xl tracking-tight leading-snug text-white">
+                    {headline}
+                  </h3>
+                  {secondary && (
+                    <p className="text-sm text-zinc-400 font-normal leading-relaxed whitespace-pre-wrap">
+                      {renderFormattedContent(secondary)}
+                    </p>
+                  )}
+                </div>
+              );
+            })() : (
+              <p className="mt-3 text-sm leading-relaxed text-[#d7e4d8] whitespace-pre-wrap">
+                {renderFormattedContent(displayContent)}
+              </p>
+            )
           )}
 
           {/* Attached Media (Photo, Video, or Link Preview Card) */}
@@ -798,11 +821,17 @@ export function PostCard({
           {/* 3. Dedicated High-Impact Bonus Drop Banner */}
           {isBonusDrop && (currentPost.dropCode || destinationUrl) && (
             <BonusDropBanner
+              postId={currentPost.id}
               dropCode={currentPost.dropCode}
               targetUrl={destinationUrl}
               casinoTag={
                 currentPost.casinoTag ||
-                currentPost.tags?.find((t) => !["BONUS_CODE", "PROMO_CODE"].includes(t))
+                currentPost.tags?.find(
+                  (t) =>
+                    !["BONUS_CODE", "PROMO_CODE", "BONUS_DROP", "DROP_CODE", "DISCUSSION", "BIG_WIN"].includes(
+                      t.toUpperCase()
+                    )
+                )
               }
               className="mt-3.5"
             />

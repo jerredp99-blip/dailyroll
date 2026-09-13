@@ -148,3 +148,4 @@ export function calculateCasinoStatus(casino: Casino, now: number = Date.now()):
     remainingMs: Math.max(0, remaining),
   };
 }
+

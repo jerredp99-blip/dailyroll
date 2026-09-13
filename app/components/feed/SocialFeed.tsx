@@ -335,6 +335,7 @@ export function SocialFeed({
             currentUserEmail={currentUserEmail}
             currentUserName={currentUserName}
             currentUserAvatar={currentUserAvatar}
+            isAdmin={isAdmin}
             onPostCreated={handleNewPost}
           />
 

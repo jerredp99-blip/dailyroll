@@ -20,11 +20,13 @@ export function PostComposer({
   currentUserEmail,
   currentUserName,
   currentUserAvatar,
+  isAdmin = false,
   onPostCreated,
 }: {
   currentUserEmail?: string;
   currentUserName?: string;
   currentUserAvatar?: string;
+  isAdmin?: boolean;
   onPostCreated: (post: Post) => void;
 }) {
   const [type, setType] = useState<PostType>("discussion");
@@ -84,6 +86,7 @@ export function PostComposer({
   };
 
   const handleSelectType = (newType: PostType) => {
+    if (newType === "drop_code" && !isAdmin) return;
     setType(newType);
     if (newType === "big_win" && !selectedTags.includes("BIG_WIN")) {
       setSelectedTags((prev) => [
@@ -222,18 +225,20 @@ export function PostComposer({
               <span className="text-[11px] sm:text-xs">Big Win</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                handleSelectType("drop_code");
-                setIsExpanded(true);
-                setTimeout(() => textareaRef.current?.focus(), 50);
-              }}
-              className="flex items-center gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 text-xs font-medium text-teal-300 hover:bg-teal-950/40 transition"
-            >
-              <Gift size={13} className="text-teal-400" />
-              <span className="text-[11px] sm:text-xs">Drop Code</span>
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  handleSelectType("drop_code");
+                  setIsExpanded(true);
+                  setTimeout(() => textareaRef.current?.focus(), 50);
+                }}
+                className="flex items-center gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 text-xs font-medium text-teal-300 hover:bg-teal-950/40 transition"
+              >
+                <Gift size={13} className="text-teal-400" />
+                <span className="text-[11px] sm:text-xs">Drop Code</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -295,18 +300,20 @@ export function PostComposer({
             Big Win
           </button>
 
-          <button
-            type="button"
-            onClick={() => handleSelectType("drop_code")}
-            className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition ${
-              type === "drop_code"
-                ? "bg-teal-950/60 text-teal-200 border border-teal-600/40"
-                : "text-[#859d8b] hover:text-white hover:bg-[#18291f]"
-            }`}
-          >
-            <Gift size={13} className="text-teal-400" />
-            Bonus Drop
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => handleSelectType("drop_code")}
+              className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition ${
+                type === "drop_code"
+                  ? "bg-teal-950/60 text-teal-200 border border-teal-600/40"
+                  : "text-[#859d8b] hover:text-white hover:bg-[#18291f]"
+              }`}
+            >
+              <Gift size={13} className="text-teal-400" />
+              Bonus Drop
+            </button>
+          )}
         </div>
 
         {/* Minimize / Cancel Button */}

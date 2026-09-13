@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { getCurrentSession } from "@/lib/auth";
+import { getCurrentSession, isAdminEmail } from "@/lib/auth";
 import { createPost, getPosts, getUsers, type PostType } from "@/lib/store";
 
 export async function GET(request: NextRequest) {
@@ -54,6 +54,26 @@ export async function POST(request: NextRequest) {
         { error: "Post content cannot be empty." },
         { status: 400 }
       );
+    }
+
+    const isBonusDropPost =
+      type === "drop_code" ||
+      type === "bonus_drop" ||
+      Boolean(dropCode) ||
+      (Array.isArray(tags) &&
+        tags.some((t: string) =>
+          typeof t === "string" &&
+          ["BONUS_CODE", "BONUS_DROP", "DROP_CODE", "PROMO_CODE"].includes(t.toUpperCase())
+        ));
+
+    if (isBonusDropPost) {
+      const isAdmin = session?.role === "admin" || isAdminEmail(session?.email);
+      if (!isAdmin) {
+        return NextResponse.json(
+          { error: "Only admins can post Bonus Drops" },
+          { status: 403 }
+        );
+      }
     }
 
     const effectiveEmail = session?.email || authorEmail || "guest@dailyroll.app";
