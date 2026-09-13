@@ -1,13 +1,24 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { PostCard } from "@/app/components/feed/PostCard";
 import { PostComposer } from "@/app/components/feed/PostComposer";
 import { CompactTrackerSidebar } from "@/app/components/feed/CompactTrackerSidebar";
 import { FeedNavRail } from "@/app/components/feed/FeedNavRail";
 import { TagBadge } from "@/app/components/feed/TagBadge";
-import { Loader2, RefreshCw, X, Radio, Trophy, Gift, MessageSquare } from "lucide-react";
+import { Loader2, RefreshCw, X, Radio, Trophy, Gift, MessageSquare, ChevronDown } from "lucide-react";
 import type { Post, PostType, Casino } from "@/lib/store";
+
+const DEFAULT_TAGS = [
+  "BIG_WIN",
+  "BONUS_CODE",
+  "STAKE",
+  "CROWN",
+  "WOW",
+  "PULSZ",
+  "HIGH5",
+  "MCLUCK",
+];
 
 export function SocialFeed({
   currentUserEmail,
@@ -30,6 +41,7 @@ export function SocialFeed({
   const [loading, setLoading] = useState(true);
   const [currentType, setCurrentType] = useState<PostType | "all">("all");
   const [selectedTag, setSelectedTag] = useState<string | undefined>(undefined);
+  const [sortBy, setSortBy] = useState<"newest" | "likes" | "comments">("newest");
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null);
@@ -169,88 +181,154 @@ export function SocialFeed({
     }
   };
 
+  const availableTags = useMemo(() => {
+    const set = new Set<string>(DEFAULT_TAGS);
+    if (casinos) {
+      for (const c of casinos) {
+        if (c.name) set.add(c.name.replace(/\s+/g, "").toUpperCase());
+      }
+    }
+    for (const p of posts) {
+      if (p.casinoTag) set.add(p.casinoTag.replace(/^[$#]+/, "").toUpperCase());
+      if (p.tags) {
+        for (const t of p.tags) set.add(t.replace(/^[$#]+/, "").toUpperCase());
+      }
+    }
+    if (selectedTag) {
+      set.add(selectedTag.replace(/^[$#]+/, "").toUpperCase());
+    }
+    return Array.from(set);
+  }, [casinos, posts, selectedTag]);
+
+  const dropdownValue = useMemo(() => {
+    if (selectedTag) {
+      return `tag:${selectedTag.replace(/^[$#]+/, "").toUpperCase()}`;
+    }
+    if (currentType === "drop_code") {
+      return "type:drop_code";
+    }
+    if (currentType === "big_win") {
+      return "type:big_win";
+    }
+    if (currentType === "discussion") {
+      return "type:discussion";
+    }
+    if (currentType === "daily_claim") {
+      return "type:daily_claim";
+    }
+    if (sortBy === "likes") {
+      return "sort:likes";
+    }
+    if (sortBy === "comments") {
+      return "sort:comments";
+    }
+    return "all";
+  }, [selectedTag, currentType, sortBy]);
+
+  const handleDropdownChange = (value: string) => {
+    if (value === "all") {
+      setSelectedTag(undefined);
+      setCurrentType("all");
+      setSortBy("newest");
+    } else if (value === "sort:newest") {
+      setSortBy("newest");
+    } else if (value === "sort:likes") {
+      setSortBy("likes");
+    } else if (value === "sort:comments") {
+      setSortBy("comments");
+    } else if (value.startsWith("type:")) {
+      const type = value.replace("type:", "") as PostType;
+      setSelectedTag(undefined);
+      setCurrentType(type);
+    } else if (value.startsWith("tag:")) {
+      const tag = value.replace("tag:", "");
+      setSelectedTag(tag);
+      setCurrentType("all");
+    }
+  };
+
+  const sortedPosts = useMemo(() => {
+    const list = [...posts];
+    if (sortBy === "likes") {
+      return list.sort((a, b) => (b.likes?.length || 0) - (a.likes?.length || 0));
+    }
+    if (sortBy === "comments") {
+      return list.sort((a, b) => (b.commentCount || 0) - (a.commentCount || 0));
+    }
+    return list.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }, [posts, sortBy]);
+
   const feedContent = (
     <main className="space-y-3.5">
-      {/* Category Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-none -mx-1 px-1">
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedTag(undefined);
-                setCurrentType("all");
-              }}
-              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition shrink-0 ${
-                currentType === "all" && !selectedTag
-                  ? "bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400"
-                  : "bg-[#132219] text-[#8ca892] border border-[#223b2c] hover:bg-[#192c21] hover:text-white"
-              }`}
-            >
-              All Posts
-            </button>
+      {/* Category Controls: Bonus Codes Quick Button + Sort/Filter Dropdown */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
+        {/* Bonus Codes View Button */}
+        <button
+          type="button"
+          onClick={() => {
+            if (currentType === "drop_code" && !selectedTag) {
+              setCurrentType("all");
+              setSelectedTag(undefined);
+            } else {
+              setCurrentType("drop_code");
+              setSelectedTag(undefined);
+            }
+          }}
+          className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition shadow-sm ${
+            currentType === "drop_code" && !selectedTag
+              ? "bg-teal-600 text-white shadow-[0_4px_14px_rgba(20,184,166,0.35)] ring-1 ring-teal-400"
+              : "bg-[#132219] text-teal-300 border border-teal-800/40 hover:bg-[#192c21] hover:text-white"
+          }`}
+        >
+          <Gift size={14} className="text-teal-400" />
+          <span>Bonus Codes</span>
+          {currentType === "drop_code" && !selectedTag && (
+            <span className="ml-0.5 rounded-full bg-teal-400/20 px-1.5 py-0.2 text-[10px] text-teal-200">
+              Active
+            </span>
+          )}
+        </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedTag(undefined);
-                setCurrentType("drop_code");
-              }}
-              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition shrink-0 ${
-                currentType === "drop_code"
-                  ? "bg-teal-600 text-white shadow-sm ring-1 ring-teal-400"
-                  : "bg-[#132219] text-teal-300 border border-teal-800/40 hover:bg-[#192c21] hover:text-white"
-              }`}
+        {/* Sort & Filter Dropdown Menu */}
+        <div className="relative flex items-center">
+          <label htmlFor="feed-sort-filter" className="sr-only">
+            Sort and filter posts
+          </label>
+          <div className="relative">
+            <select
+              id="feed-sort-filter"
+              value={dropdownValue}
+              onChange={(e) => handleDropdownChange(e.target.value)}
+              className="h-9 rounded-xl border border-[#263e2f] bg-[#111e16] pl-3 pr-8 text-xs font-semibold text-[#d4e4d2] outline-none transition hover:border-[#3d634a] focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer appearance-none"
             >
-              <Gift size={13} className="text-teal-400" />
-              Bonus Codes
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedTag(undefined);
-                setCurrentType("big_win");
-              }}
-              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition shrink-0 ${
-                currentType === "big_win"
-                  ? "bg-amber-600 text-white shadow-sm ring-1 ring-amber-400"
-                  : "bg-[#132219] text-amber-300 border border-amber-800/40 hover:bg-[#192c21] hover:text-white"
-              }`}
-            >
-              <Trophy size={13} className="text-amber-400" />
-              Big Wins
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedTag(undefined);
-                setCurrentType("discussion");
-              }}
-              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition shrink-0 ${
-                currentType === "discussion"
-                  ? "bg-emerald-700 text-white shadow-sm ring-1 ring-emerald-400"
-                  : "bg-[#132219] text-[#9bcf9c] border border-[#223b2c] hover:bg-[#192c21] hover:text-white"
-              }`}
-            >
-              <MessageSquare size={13} />
-              Discussions
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedTag(undefined);
-                setCurrentType("daily_claim");
-              }}
-              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition shrink-0 ${
-                currentType === "daily_claim"
-                  ? "bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400"
-                  : "bg-[#132219] text-[#8ca892] border border-[#223b2c] hover:bg-[#192c21] hover:text-white"
-              }`}
-            >
-              ⚡ Claims
-            </button>
+              <optgroup label="Feed">
+                <option value="all">All Posts</option>
+                <option value="type:drop_code">🎁 Bonus Codes</option>
+                <option value="type:big_win">🏆 Big Wins</option>
+                <option value="type:discussion">💬 Discussions</option>
+                <option value="type:daily_claim">⚡ Daily Claims</option>
+              </optgroup>
+              <optgroup label="Sort Order">
+                <option value="sort:newest">🕒 Newest First</option>
+                <option value="sort:likes">🔥 Most Liked</option>
+                <option value="sort:comments">💬 Most Comments</option>
+              </optgroup>
+              <optgroup label="Tags">
+                {availableTags.map((tag) => (
+                  <option key={tag} value={`tag:${tag}`}>
+                    #{tag}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-[#738e7a]">
+              <ChevronDown size={14} />
+            </div>
           </div>
+        </div>
+      </div>
 
           {/* Post Composer (Minimized by default, expands on typebox click) */}
           <PostComposer
@@ -281,6 +359,7 @@ export function SocialFeed({
                     onClick={() => {
                       setSelectedTag(undefined);
                       setCurrentType("all");
+                      setSortBy("newest");
                     }}
                     className="flex items-center gap-1 rounded-md bg-[#192b20] px-2 py-0.5 text-[11px] text-[#93ab98] hover:text-white"
                   >
@@ -290,7 +369,11 @@ export function SocialFeed({
               ) : (
                 <span className="font-bold text-emerald-300">
                   {currentType === "all"
-                    ? "All Posts"
+                    ? sortBy === "likes"
+                      ? "All Posts (Most Liked 🔥)"
+                      : sortBy === "comments"
+                      ? "All Posts (Most Comments 💬)"
+                      : "All Posts"
                     : currentType === "big_win"
                     ? "Big Win Flexes 🏆"
                     : currentType === "drop_code"
@@ -301,12 +384,13 @@ export function SocialFeed({
                 </span>
               )}
 
-              {currentType !== "all" && !selectedTag && (
+              {(currentType !== "all" || sortBy !== "newest") && !selectedTag && (
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedTag(undefined);
                     setCurrentType("all");
+                    setSortBy("newest");
                   }}
                   className="flex items-center gap-1 rounded-md bg-[#192b20] px-2 py-0.5 text-[11px] text-[#93ab98] hover:text-white"
                 >
@@ -333,14 +417,14 @@ export function SocialFeed({
               <Loader2 size={24} className="animate-spin" />
               <p className="text-xs text-[#7d9985]">Loading social feed...</p>
             </div>
-          ) : posts.length === 0 ? (
+          ) : sortedPosts.length === 0 ? (
             <div className="rounded-2xl border border-[#203728] bg-[#122017] p-8 text-center text-xs text-[#7d9985]">
               <p className="text-sm font-semibold text-white mb-1">No posts found</p>
               <p>Be the first to post a bonus drop, win flex, or discussion!</p>
             </div>
           ) : (
             <div className="space-y-3.5">
-              {posts.map((post) => (
+              {sortedPosts.map((post) => (
                 <PostCard
                   key={post.id}
                   post={post}
