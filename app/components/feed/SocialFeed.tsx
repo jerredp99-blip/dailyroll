@@ -260,11 +260,62 @@ export function SocialFeed({
     );
   }, [posts, sortBy]);
 
+  const bonusDropsCount = useMemo(() => {
+    return posts.filter(
+      (p) =>
+        p.type === "drop_code" ||
+        Boolean(p.dropCode) ||
+        p.tags?.some((t) =>
+          ["BONUS_CODE", "PROMO_CODE", "BONUS_DROP", "DROP_CODE"].includes(t.toUpperCase())
+        )
+    ).length;
+  }, [posts]);
+
   const feedContent = (
     <main className="space-y-3.5">
-      {/* Category Controls: Bonus Codes Quick Button + Sort/Filter Dropdown */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
-        {/* Bonus Codes View Button */}
+      {/* Category Controls: Filter Dropdown (LEFT) + Bonus Drops Quick Button (RIGHT) */}
+      <div className="flex items-center justify-between w-full gap-2 pb-1">
+        {/* Sort & Filter Dropdown Menu (LEFT) */}
+        <div className="relative flex items-center">
+          <label htmlFor="feed-sort-filter" className="sr-only">
+            Sort and filter posts
+          </label>
+          <div className="relative">
+            <select
+              id="feed-sort-filter"
+              value={dropdownValue}
+              onChange={(e) => handleDropdownChange(e.target.value)}
+              className="h-9 rounded-lg border border-white/10 bg-[#121815] pl-3 pr-8 text-sm text-zinc-300 outline-none transition hover:border-white/20 focus:border-emerald-500/50 cursor-pointer appearance-none"
+            >
+              <optgroup label="Feed" className="bg-[#121815] text-emerald-400 font-bold">
+                <option value="all" className="bg-[#121815] text-white">All Posts</option>
+                <option value="type:drop_code" className="bg-[#121815] text-white">🎁 Bonus Drops</option>
+                <option value="type:big_win" className="bg-[#121815] text-white">🏆 Big Wins</option>
+                <option value="type:discussion" className="bg-[#121815] text-white">💬 Discussions</option>
+                <option value="type:daily_claim" className="bg-[#121815] text-white">⚡ Daily Claims</option>
+              </optgroup>
+              <optgroup label="Sort Order" className="bg-[#121815] text-emerald-400 font-bold">
+                <option value="sort:newest" className="bg-[#121815] text-white">🕒 Newest First</option>
+                <option value="sort:likes" className="bg-[#121815] text-white">🔥 Most Liked</option>
+                <option value="sort:comments" className="bg-[#121815] text-white">💬 Most Comments</option>
+              </optgroup>
+              {availableTags.length > 0 && (
+                <optgroup label="Tags" className="bg-[#121815] text-emerald-400 font-bold">
+                  {availableTags.map((tag) => (
+                    <option key={tag} value={`tag:${tag}`} className="bg-[#121815] text-white">
+                      #{tag}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-zinc-400">
+              <ChevronDown size={14} />
+            </div>
+          </div>
+        </div>
+
+        {/* Bonus Drops Quick-Filter Pill (RIGHT) */}
         <button
           type="button"
           onClick={() => {
@@ -276,58 +327,29 @@ export function SocialFeed({
               setSelectedTag(undefined);
             }
           }}
-          className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition shadow-sm ${
+          className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer ${
             currentType === "drop_code" && !selectedTag
-              ? "bg-teal-600 text-white shadow-[0_4px_14px_rgba(20,184,166,0.35)] ring-1 ring-teal-400"
-              : "bg-[#132219] text-teal-300 border border-teal-800/40 hover:bg-[#192c21] hover:text-white"
+              ? "bg-emerald-500 text-zinc-950 shadow-[0_0_16px_rgba(16,185,129,0.4)] border border-emerald-400 ring-2 ring-emerald-400/40"
+              : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 shadow-[0_0_12px_rgba(16,185,129,0.2)] hover:border-emerald-500/50"
           }`}
         >
-          <Gift size={14} className="text-teal-400" />
-          <span>Bonus Drops</span>
-          {currentType === "drop_code" && !selectedTag && (
-            <span className="ml-0.5 rounded-full bg-teal-400/20 px-1.5 py-0.2 text-[10px] text-teal-200">
-              Active
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#39ff6a]" />
+          </span>
+          <span>🎁 Bonus Drops</span>
+          {bonusDropsCount > 0 && (
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                currentType === "drop_code" && !selectedTag
+                  ? "bg-zinc-950/20 text-zinc-950"
+                  : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+              }`}
+            >
+              {bonusDropsCount}
             </span>
           )}
         </button>
-
-        {/* Sort & Filter Dropdown Menu */}
-        <div className="relative flex items-center">
-          <label htmlFor="feed-sort-filter" className="sr-only">
-            Sort and filter posts
-          </label>
-          <div className="relative">
-            <select
-              id="feed-sort-filter"
-              value={dropdownValue}
-              onChange={(e) => handleDropdownChange(e.target.value)}
-              className="h-9 rounded-xl border border-[#263e2f] bg-[#111e16] pl-3 pr-8 text-xs font-semibold text-[#d4e4d2] outline-none transition hover:border-[#3d634a] focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer appearance-none"
-            >
-              <optgroup label="Feed">
-                <option value="all">All Posts</option>
-                <option value="type:drop_code">🎁 Bonus Drops</option>
-                <option value="type:big_win">🏆 Big Wins</option>
-                <option value="type:discussion">💬 Discussions</option>
-                <option value="type:daily_claim">⚡ Daily Claims</option>
-              </optgroup>
-              <optgroup label="Sort Order">
-                <option value="sort:newest">🕒 Newest First</option>
-                <option value="sort:likes">🔥 Most Liked</option>
-                <option value="sort:comments">💬 Most Comments</option>
-              </optgroup>
-              <optgroup label="Tags">
-                {availableTags.map((tag) => (
-                  <option key={tag} value={`tag:${tag}`}>
-                    #{tag}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-[#738e7a]">
-              <ChevronDown size={14} />
-            </div>
-          </div>
-        </div>
       </div>
 
           {/* Post Composer (Minimized by default, expands on typebox click) */}
