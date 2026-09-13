@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { PostCard } from "@/app/components/feed/PostCard";
 import { PostComposer } from "@/app/components/feed/PostComposer";
 import { CompactTrackerSidebar } from "@/app/components/feed/CompactTrackerSidebar";
@@ -31,9 +31,23 @@ export function SocialFeed({
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const fetchPosts = async (silent = false) => {
+  const fetchPosts = useCallback(async (silent = false) => {
+    // If the browser tab is hidden and this is a background auto-refresh, skip it
+    if (silent && typeof document !== "undefined" && document.hidden) {
+      return;
+    }
+
     if (!silent) setRefreshing(true);
+
+    // Cancel any previous pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const params = new URLSearchParams();
       if (currentType && currentType !== "all") {
@@ -43,25 +57,50 @@ export function SocialFeed({
         params.set("casinoTag", selectedTag);
       }
 
-      const res = await fetch(`/api/posts?${params.toString()}`);
+      const res = await fetch(`/api/posts?${params.toString()}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        if (!silent) {
+          console.warn(`Posts API responded with status ${res.status}`);
+        }
+        return;
+      }
+
       const data = await res.json();
-      if (data.success && data.posts) {
+      if (data.success && Array.isArray(data.posts)) {
         setPosts(data.posts);
         setLastUpdated(new Date());
       }
-    } catch (err) {
-      console.error("Failed to load posts", err);
+    } catch (err: unknown) {
+      // Ignore normal abort errors from cancelled requests
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return;
+      }
+      // For background auto-polls, fail quietly so dev overlays or brief offline periods don't crash the UI
+      if (silent) {
+        return;
+      }
+      console.warn("Failed to load posts:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [currentType, selectedTag]);
 
   // Initial load or filter change
   useEffect(() => {
     setLoading(true);
-    fetchPosts();
-  }, [currentType, selectedTag]);
+    fetchPosts(false);
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [fetchPosts]);
 
   // Requirement: Auto-refresh posts automatically in background
   useEffect(() => {
@@ -69,8 +108,19 @@ export function SocialFeed({
       fetchPosts(true);
     }, 12000); // 12 seconds auto-refresh
 
-    return () => clearInterval(timer);
-  }, [currentType, selectedTag]);
+    // Also auto-refresh when user switches back to this tab
+    const handleVisibilityChange = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        fetchPosts(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchPosts]);
 
   const handleManualRefresh = () => {
     fetchPosts(false);
