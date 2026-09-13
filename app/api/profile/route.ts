@@ -33,15 +33,25 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = (await request.json()) as Partial<UserPreferences>;
-    const user = await saveUserPreferences(session.email, {
-      notifications: Boolean(body.notifications),
-      amoe: Boolean(body.amoe),
-      sortOrder: body.sortOrder ?? "status",
-      name: typeof body.name === "string" ? body.name : undefined,
-      contactEmail:
-        typeof body.contactEmail === "string" ? body.contactEmail : undefined,
-      avatarUrl: typeof body.avatarUrl === "string" ? body.avatarUrl : undefined,
-    });
+    const prefUpdate: Partial<UserPreferences> = {};
+    if ("notifications" in body) prefUpdate.notifications = Boolean(body.notifications);
+    if ("amoe" in body) prefUpdate.amoe = Boolean(body.amoe);
+    if ("sortOrder" in body) prefUpdate.sortOrder = body.sortOrder ?? "status";
+    if ("name" in body) prefUpdate.name = body.name ? String(body.name).trim() : "";
+    if ("contactEmail" in body) {
+      prefUpdate.contactEmail =
+        body.contactEmail === "" || body.contactEmail === null
+          ? undefined
+          : String(body.contactEmail).trim();
+    }
+    if ("avatarUrl" in body) {
+      prefUpdate.avatarUrl =
+        body.avatarUrl === "" || body.avatarUrl === null
+          ? undefined
+          : String(body.avatarUrl).trim();
+    }
+
+    const user = await saveUserPreferences(session.email, prefUpdate as UserPreferences);
 
     if (!user) {
       return NextResponse.json({ error: "Profile not found." }, { status: 404 });
@@ -63,3 +73,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const PUT = POST;
+export const PATCH = POST;

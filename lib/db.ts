@@ -35,17 +35,17 @@ export type { Casino, UserProfile };
  */
 export async function updateCasinoMetadata(data: {
   name: string;
-  siteUrl?: string;
-  affiliateUrl?: string;
-  claimUrl?: string;
-  bonusUrl?: string;
-  bonusTitle?: string;
-  trustpilotRating?: number;
-  dailyBonus?: string;
-  details?: string;
+  siteUrl?: string | null;
+  affiliateUrl?: string | null;
+  claimUrl?: string | null;
+  bonusUrl?: string | null;
+  bonusTitle?: string | null;
+  trustpilotRating?: number | string | null;
+  dailyBonus?: string | null;
+  details?: string | null;
   resetAtTime?: string | null;
-  intervalHours?: number;
-  provider?: string;
+  intervalHours?: number | string | null;
+  provider?: string | null;
 }) {
   const trimmedName = data.name.trim();
   const lowerName = trimmedName.toLowerCase();
@@ -60,47 +60,87 @@ export async function updateCasinoMetadata(data: {
     }
 
     // 2. Update shared canonical directory maps
-    if (data.siteUrl !== undefined) {
-      store.directoryUrls = { ...(store.directoryUrls || {}), [trimmedName]: data.siteUrl };
+    if ("siteUrl" in data) {
+      if (data.siteUrl === "" || data.siteUrl === null || data.siteUrl === undefined) {
+        delete store.directoryUrls?.[trimmedName];
+      } else {
+        store.directoryUrls = { ...(store.directoryUrls || {}), [trimmedName]: data.siteUrl };
+      }
     }
-    if (data.affiliateUrl !== undefined) {
-      store.affiliateUrls = { ...(store.affiliateUrls || {}), [trimmedName]: data.affiliateUrl };
+    if ("affiliateUrl" in data) {
+      if (data.affiliateUrl === "" || data.affiliateUrl === null || data.affiliateUrl === undefined) {
+        delete store.affiliateUrls?.[trimmedName];
+      } else {
+        store.affiliateUrls = { ...(store.affiliateUrls || {}), [trimmedName]: data.affiliateUrl };
+      }
     }
-    if (data.claimUrl !== undefined) {
-      store.claimUrls = { ...(store.claimUrls || {}), [trimmedName]: data.claimUrl };
+    if ("claimUrl" in data) {
+      if (data.claimUrl === "" || data.claimUrl === null || data.claimUrl === undefined) {
+        delete store.claimUrls?.[trimmedName];
+      } else {
+        store.claimUrls = { ...(store.claimUrls || {}), [trimmedName]: data.claimUrl };
+      }
     }
-    if (data.bonusUrl !== undefined) {
-      store.bonusUrls = { ...(store.bonusUrls || {}), [trimmedName]: data.bonusUrl };
+    if ("bonusUrl" in data) {
+      if (data.bonusUrl === "" || data.bonusUrl === null || data.bonusUrl === undefined) {
+        delete store.bonusUrls?.[trimmedName];
+      } else {
+        store.bonusUrls = { ...(store.bonusUrls || {}), [trimmedName]: data.bonusUrl };
+      }
     }
-    if (data.bonusTitle !== undefined) {
-      store.bonusTitles = { ...(store.bonusTitles || {}), [trimmedName]: data.bonusTitle };
+    if ("bonusTitle" in data) {
+      if (data.bonusTitle === "" || data.bonusTitle === null || data.bonusTitle === undefined) {
+        delete store.bonusTitles?.[trimmedName];
+      } else {
+        store.bonusTitles = { ...(store.bonusTitles || {}), [trimmedName]: data.bonusTitle };
+      }
     }
-    if (data.trustpilotRating !== undefined) {
-      store.directoryRatings = { ...(store.directoryRatings || {}), [trimmedName]: data.trustpilotRating };
+    if ("trustpilotRating" in data) {
+      if (data.trustpilotRating === "" || data.trustpilotRating === null || data.trustpilotRating === undefined || Number.isNaN(Number(data.trustpilotRating))) {
+        delete store.directoryRatings?.[trimmedName];
+      } else {
+        store.directoryRatings = { ...(store.directoryRatings || {}), [trimmedName]: Number(data.trustpilotRating) };
+      }
     }
-    if (data.dailyBonus !== undefined) {
-      store.directoryDailyBonuses = {
-        ...(store.directoryDailyBonuses || {}),
-        [trimmedName]: data.dailyBonus,
-      };
+    if ("dailyBonus" in data) {
+      if (data.dailyBonus === "" || data.dailyBonus === null || data.dailyBonus === undefined) {
+        delete store.directoryDailyBonuses?.[trimmedName];
+      } else {
+        store.directoryDailyBonuses = {
+          ...(store.directoryDailyBonuses || {}),
+          [trimmedName]: data.dailyBonus,
+        };
+      }
     }
-    if (data.resetAtTime !== undefined) {
-      store.directoryResetTimes = {
-        ...(store.directoryResetTimes || {}),
-        [trimmedName]: data.resetAtTime,
-      };
+    if ("resetAtTime" in data) {
+      if (data.resetAtTime === "" || data.resetAtTime === null || data.resetAtTime === undefined) {
+        delete store.directoryResetTimes?.[trimmedName];
+      } else {
+        store.directoryResetTimes = {
+          ...(store.directoryResetTimes || {}),
+          [trimmedName]: data.resetAtTime,
+        };
+      }
     }
-    if (data.details !== undefined) {
-      store.directoryDetails = {
-        ...(store.directoryDetails || {}),
-        [trimmedName]: data.details,
-      };
+    if ("details" in data) {
+      if (data.details === "" || data.details === null || data.details === undefined) {
+        delete store.directoryDetails?.[trimmedName];
+      } else {
+        store.directoryDetails = {
+          ...(store.directoryDetails || {}),
+          [trimmedName]: data.details,
+        };
+      }
     }
-    if (data.provider !== undefined) {
-      store.directoryProviders = {
-        ...(store.directoryProviders || {}),
-        [trimmedName]: data.provider,
-      };
+    if ("provider" in data) {
+      if (data.provider === "" || data.provider === null || data.provider === undefined) {
+        delete store.directoryProviders?.[trimmedName];
+      } else {
+        store.directoryProviders = {
+          ...(store.directoryProviders || {}),
+          [trimmedName]: data.provider,
+        };
+      }
     }
 
     // 3. Atomically update all user records in store.casinos
@@ -120,20 +160,28 @@ export async function updateCasinoMetadata(data: {
         if (casino.name.trim().toLowerCase() !== lowerName) return casino;
 
         const updated: Casino = { ...casino };
-        if (data.siteUrl !== undefined) {
-          updated.siteUrl = data.siteUrl;
-          updated.url = data.siteUrl;
+        if ("siteUrl" in data) {
+          updated.siteUrl = data.siteUrl || undefined;
+          updated.url = data.siteUrl || undefined;
         }
-        if (data.affiliateUrl !== undefined) updated.affiliateUrl = data.affiliateUrl;
-        if (data.claimUrl !== undefined) updated.claimUrl = data.claimUrl;
-        if (data.bonusUrl !== undefined) updated.bonusUrl = data.bonusUrl;
-        if (data.bonusTitle !== undefined) updated.bonusTitle = data.bonusTitle;
-        if (data.trustpilotRating !== undefined) updated.trustpilotRating = data.trustpilotRating;
-        if (data.dailyBonus !== undefined) updated.dailyBonus = data.dailyBonus;
-        if (data.details !== undefined) updated.details = data.details;
-        if (data.resetAtTime !== undefined) updated.resetAtTime = data.resetAtTime;
-        if (data.intervalHours !== undefined) updated.intervalHours = data.intervalHours;
-        if (data.provider !== undefined) updated.provider = data.provider;
+        if ("affiliateUrl" in data) updated.affiliateUrl = data.affiliateUrl || undefined;
+        if ("claimUrl" in data) updated.claimUrl = data.claimUrl || undefined;
+        if ("bonusUrl" in data) updated.bonusUrl = data.bonusUrl || undefined;
+        if ("bonusTitle" in data) updated.bonusTitle = data.bonusTitle || undefined;
+        if ("trustpilotRating" in data) {
+          updated.trustpilotRating = (data.trustpilotRating === null || data.trustpilotRating === "" || data.trustpilotRating === undefined)
+            ? undefined
+            : Number(data.trustpilotRating);
+        }
+        if ("dailyBonus" in data) updated.dailyBonus = data.dailyBonus || "Free daily";
+        if ("details" in data) updated.details = data.details || undefined;
+        if ("resetAtTime" in data) updated.resetAtTime = data.resetAtTime || null;
+        if ("intervalHours" in data) {
+          updated.intervalHours = (data.intervalHours === null || data.intervalHours === "" || data.intervalHours === undefined)
+            ? 24
+            : Number(data.intervalHours);
+        }
+        if ("provider" in data) updated.provider = data.provider || undefined;
         return updated;
       });
     }

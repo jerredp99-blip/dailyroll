@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { getCurrentSession, isAdminEmail } from "@/lib/auth";
 import { getPostById, updatePost, deletePost, type PostType } from "@/lib/store";
 
@@ -55,42 +56,73 @@ export async function PUT(
       );
     }
 
-    const updatedTags = Array.isArray(body.tags)
-      ? body.tags.map((t: string) => String(t).trim().toUpperCase()).filter(Boolean)
-      : undefined;
+    const updateData: Record<string, any> = {};
 
-    const updated = await updatePost(id, {
-      content: body.content !== undefined ? body.content.trim() : post.content,
-      tags: updatedTags !== undefined ? updatedTags : post.tags,
-      casinoTag:
-        body.casinoTag !== undefined
-          ? body.casinoTag ? body.casinoTag.trim().toUpperCase() : undefined
-          : updatedTags !== undefined
-          ? updatedTags[0]
-          : post.casinoTag,
-      type: (body.type as PostType) || post.type,
-      winAmount: body.winAmount !== undefined ? body.winAmount.trim() : post.winAmount,
-      multiplier:
-        body.multiplier !== undefined ? body.multiplier.trim() : post.multiplier,
-      dropCode:
-        body.dropCode !== undefined
-          ? body.dropCode ? body.dropCode.trim().toUpperCase() : undefined
-          : post.dropCode,
-      targetUrl:
-        body.targetUrl !== undefined
-          ? body.targetUrl ? body.targetUrl.trim() : undefined
-          : body.linkUrl !== undefined
-          ? body.linkUrl ? body.linkUrl.trim() : undefined
-          : post.targetUrl,
-      linkUrl:
-        body.targetUrl !== undefined
-          ? body.targetUrl ? body.targetUrl.trim() : undefined
-          : body.linkUrl !== undefined
-          ? body.linkUrl ? body.linkUrl.trim() : undefined
-          : post.linkUrl,
-      mediaUrl: body.mediaUrl !== undefined ? body.mediaUrl : post.mediaUrl,
-      mediaType: body.mediaType !== undefined ? body.mediaType : post.mediaType,
-    });
+    if ("content" in body) {
+      updateData.content =
+        body.content !== null && body.content !== undefined ? String(body.content).trim() : "";
+    }
+    if ("tags" in body) {
+      updateData.tags = Array.isArray(body.tags)
+        ? body.tags.map((t: string) => String(t).trim().toUpperCase()).filter(Boolean)
+        : [];
+    }
+    if ("casinoTag" in body) {
+      updateData.casinoTag = body.casinoTag ? String(body.casinoTag).trim().toUpperCase() : null;
+    }
+    if ("type" in body) {
+      updateData.type = (body.type as PostType) || post.type || "discussion";
+    }
+    if ("winAmount" in body) {
+      updateData.winAmount =
+        body.winAmount === "" || body.winAmount === null ? null : String(body.winAmount).trim();
+    }
+    if ("multiplier" in body) {
+      updateData.multiplier =
+        body.multiplier === "" || body.multiplier === null ? null : String(body.multiplier).trim();
+    }
+    if ("dropCode" in body) {
+      updateData.dropCode =
+        body.dropCode === "" || body.dropCode === null
+          ? null
+          : String(body.dropCode).trim().toUpperCase();
+    }
+    if ("targetUrl" in body) {
+      const val =
+        body.targetUrl === "" || body.targetUrl === null ? null : String(body.targetUrl).trim();
+      updateData.targetUrl = val;
+      if (!("linkUrl" in body)) {
+        updateData.linkUrl = val;
+      }
+    }
+    if ("linkUrl" in body) {
+      const val =
+        body.linkUrl === "" || body.linkUrl === null ? null : String(body.linkUrl).trim();
+      updateData.linkUrl = val;
+      if (!("targetUrl" in body)) {
+        updateData.targetUrl = val;
+      }
+    }
+    if ("mediaUrl" in body) {
+      updateData.mediaUrl =
+        body.mediaUrl === "" || body.mediaUrl === null ? null : String(body.mediaUrl).trim();
+    }
+    if ("mediaType" in body) {
+      updateData.mediaType =
+        body.mediaType === "" || body.mediaType === null ? null : body.mediaType;
+    }
+
+    const updated = await updatePost(id, updateData);
+
+    try {
+      revalidatePath("/tracker");
+      revalidatePath("/dashboard");
+      try {
+        revalidateTag("posts", "default");
+      } catch {}
+    } catch (revalErr) {
+      console.warn("Revalidation warning for posts:", revalErr);
+    }
 
     return NextResponse.json({ success: true, post: updated });
   } catch (error: any) {
@@ -101,6 +133,8 @@ export async function PUT(
     );
   }
 }
+
+export const PATCH = PUT;
 
 export async function DELETE(
   request: NextRequest,

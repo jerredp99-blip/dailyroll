@@ -123,7 +123,7 @@ function isSameLocalDay(iso: string, referenceMs: number) {
   );
 }
 
-function TrustpilotStars({ rating }: { rating?: number }) {
+function TrustpilotStars({ rating }: { rating?: number | null }) {
   const numericRating = Number(rating);
   if (!Number.isFinite(numericRating)) {
     return <span className="text-[#718275]">☆☆☆☆☆</span>;
@@ -606,7 +606,7 @@ export default function TrackerPage() {
 
   function siteUrlFor(casino?: Casino | null): string | undefined {
     if (!casino) return undefined;
-    return casino.siteUrl ?? casino.url;
+    return (casino.siteUrl ?? casino.url) || undefined;
   }
 
   function markClaimed(casino: Casino) {
@@ -904,34 +904,34 @@ export default function TrackerPage() {
       ? editUrl.trim().startsWith("http")
         ? editUrl.trim()
         : `https://${editUrl.trim()}`
-      : (editingCasino.siteUrl ?? "");
-    const affiliateUrl = editAffiliateUrl.trim().startsWith("http") ? editAffiliateUrl.trim() : (editAffiliateUrl.trim() ? `https://${editAffiliateUrl.trim()}` : "");
-    const claimUrl = editClaimUrl.trim().startsWith("http") ? editClaimUrl.trim() : (editClaimUrl.trim() ? `https://${editClaimUrl.trim()}` : "");
-    const bonusUrl = editBonusUrl.trim().startsWith("http") ? editBonusUrl.trim() : (editBonusUrl.trim() ? `https://${editBonusUrl.trim()}` : "");
-    const bonusTitle = editBonusTitle.trim() || "";
-    const rating = editTrustpilotRating.trim()
+      : null;
+    const affiliateUrl = editAffiliateUrl.trim().startsWith("http") ? editAffiliateUrl.trim() : (editAffiliateUrl.trim() ? `https://${editAffiliateUrl.trim()}` : null);
+    const claimUrl = editClaimUrl.trim().startsWith("http") ? editClaimUrl.trim() : (editClaimUrl.trim() ? `https://${editClaimUrl.trim()}` : null);
+    const bonusUrl = editBonusUrl.trim().startsWith("http") ? editBonusUrl.trim() : (editBonusUrl.trim() ? `https://${editBonusUrl.trim()}` : null);
+    const bonusTitle = editBonusTitle.trim() || null;
+    const rating = editTrustpilotRating.trim() !== ""
       ? Number(editTrustpilotRating)
-      : editingCasino.trustpilotRating;
+      : null;
     const resetTime = editUseSpecificReset ? editResetTime : null;
-    const dailyBonus = editBonus.trim() || editingCasino.dailyBonus;
-    const details = editDetails.trim() || undefined;
-    const provider = editProvider.trim() || undefined;
+    const dailyBonus = editBonus.trim() || "Free daily";
+    const details = editDetails.trim() || null;
+    const provider = editProvider.trim() || null;
 
     if (isAdmin) {
       // 1. Authoritative global update for admin: writes to Upstash Redis master directory AND all user lists atomically
       try {
         const response = await apiUpdateAdminCasino({
           name: editingCasino.name,
-          siteUrl: normalizedSiteUrl || undefined,
-          affiliateUrl: affiliateUrl || undefined,
-          claimUrl: claimUrl || undefined,
-          bonusUrl: bonusUrl || undefined,
-          bonusTitle: bonusTitle || undefined,
+          siteUrl: normalizedSiteUrl,
+          affiliateUrl,
+          claimUrl,
+          bonusUrl,
+          bonusTitle,
           trustpilotRating: rating,
           dailyBonus,
           details,
           resetAtTime: resetTime,
-          provider: provider || "",
+          provider,
         });
 
         if (response.ok && response.directory) {
@@ -1006,7 +1006,7 @@ export default function TrackerPage() {
     return match ? Number(match[0]) : 0;
   };
 
-  const ratingForCasino = (casinoName: string, recordRating?: number) => {
+  const ratingForCasino = (casinoName: string, recordRating?: number | null) => {
     const matchingName = Object.keys(directoryRatings).find(
       (name) => name.toLowerCase() === casinoName.toLowerCase(),
     );

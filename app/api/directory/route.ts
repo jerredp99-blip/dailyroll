@@ -19,7 +19,7 @@ const NO_CACHE_HEADERS = {
 };
 
 function effectiveSiteUrl(casino: Casino): string | undefined {
-  return casino.siteUrl ?? casino.url;
+  return (casino.siteUrl ?? casino.url) || undefined;
 }
 
 export async function GET() {

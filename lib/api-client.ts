@@ -131,17 +131,17 @@ export async function apiSaveDirectory(update: {
 
 export async function apiUpdateAdminCasino(data: {
   name: string;
-  siteUrl?: string;
-  affiliateUrl?: string;
-  claimUrl?: string;
-  bonusUrl?: string;
-  bonusTitle?: string;
-  trustpilotRating?: number;
-  dailyBonus?: string;
-  details?: string;
+  siteUrl?: string | null;
+  affiliateUrl?: string | null;
+  claimUrl?: string | null;
+  bonusUrl?: string | null;
+  bonusTitle?: string | null;
+  trustpilotRating?: number | null;
+  dailyBonus?: string | null;
+  details?: string | null;
   resetAtTime?: string | null;
-  intervalHours?: number;
-  provider?: string;
+  intervalHours?: number | null;
+  provider?: string | null;
 }): Promise<{ ok: boolean; directory: DirectoryData }> {
   const res = await fetch("/api/admin/casinos", {
     method: "POST",

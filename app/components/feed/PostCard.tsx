@@ -22,6 +22,7 @@ import { TagBadge } from "@/app/components/feed/TagBadge";
 import { CATEGORY_TAGS, CASINO_TAGS } from "@/lib/casino-tags";
 import type { Post, Comment } from "@/lib/store";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
+import { BonusDropBanner } from "@/components/BonusDropBanner";
 
 const EMOJI_OPTIONS = ["🔥", "🎰", "💎", "🚀"];
 
@@ -201,29 +202,33 @@ export function PostCard({
     setEditError("");
 
     try {
+      const payload = {
+        content: editContent.trim(),
+        tags: editTags,
+        casinoTag: editTags[0] || null,
+        winAmount: editWinAmount.trim() === "" ? null : editWinAmount.trim(),
+        multiplier: editMultiplier.trim() === "" ? null : editMultiplier.trim(),
+        dropCode: editDropCode.trim() === "" ? null : editDropCode.trim().toUpperCase(),
+        targetUrl: editTargetUrl.trim() === "" ? null : editTargetUrl.trim(),
+        linkUrl: editTargetUrl.trim() === "" ? null : editTargetUrl.trim(),
+        mediaUrl: editMediaUrl.trim() === "" ? null : editMediaUrl.trim(),
+        mediaType:
+          editMediaUrl.trim() === ""
+            ? null
+            : editMediaUrl.match(/\.(mp4|webm|mov)(\?.*)?$/i)
+            ? "video"
+            : editMediaUrl.match(/\.(png|jpg|jpeg|gif|webp|svg|avif)(\?.*)?$/i) ||
+              editMediaUrl.startsWith("data:image/")
+            ? "image"
+            : "link",
+        authorEmail: currentUserEmail,
+        isAdmin,
+      };
+
       const res = await fetch(`/api/posts/${currentPost.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: editContent.trim(),
-          tags: editTags,
-          casinoTag: editTags[0] || undefined,
-          winAmount: editWinAmount ? editWinAmount.trim() : undefined,
-          multiplier: editMultiplier ? editMultiplier.trim() : undefined,
-          dropCode: editDropCode ? editDropCode.trim().toUpperCase() : undefined,
-          targetUrl: editTargetUrl.trim() || undefined,
-          linkUrl: editTargetUrl.trim() || undefined,
-          mediaUrl: editMediaUrl ? editMediaUrl.trim() : undefined,
-          mediaType: editMediaUrl
-            ? editMediaUrl.match(/\.(mp4|webm|mov)(\?.*)?$/i)
-              ? "video"
-              : editMediaUrl.match(/\.(png|jpg|jpeg|gif|webp|svg|avif)(\?.*)?$/i) || editMediaUrl.startsWith("data:image/")
-              ? "image"
-              : "link"
-            : undefined,
-          authorEmail: currentUserEmail,
-          isAdmin,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -333,6 +338,14 @@ export function PostCard({
 
   const destinationUrl = currentPost.targetUrl || currentPost.linkUrl;
 
+  const isBonusDrop = Boolean(
+    currentPost.type === "drop_code" ||
+      Boolean(currentPost.dropCode) ||
+      currentPost.tags?.some((t) =>
+        ["BONUS_CODE", "PROMO_CODE", "BONUS_DROP", "DROP_CODE"].includes(t.toUpperCase())
+      )
+  );
+
   const displayContent = useMemo(() => {
     if (!currentPost.content) return "";
     if (!destinationUrl) return currentPost.content;
@@ -356,13 +369,17 @@ export function PostCard({
   return (
     <article
       onClick={handleArticleClick}
-      className={`rounded-2xl border border-[#22392b] bg-[#121f17]/90 p-3.5 sm:p-5 shadow-sm backdrop-blur transition hover:border-[#32543d] ${
-        destinationUrl ? "cursor-pointer hover:border-emerald-500/50 hover:bg-[#14261c]" : ""
+      className={`rounded-2xl border p-3.5 sm:p-5 backdrop-blur transition ${
+        isBonusDrop
+          ? "border-emerald-500/40 bg-gradient-to-b from-[#13271c]/95 via-[#0e1d15]/95 to-[#0b1610]/95 shadow-[0_4px_24px_rgba(16,185,129,0.08)] hover:border-emerald-400/60"
+          : "border-[#22392b] bg-[#121f17]/90 hover:border-[#32543d]"
+      } ${
+        destinationUrl ? "cursor-pointer hover:bg-[#14261c]" : ""
       }`}
     >
       {/* Header: Author + Timestamp + Menu Button */}
       <div className="flex items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0" data-stop-propagation="true" onClick={(e) => e.stopPropagation()}>
           {/* Author Avatar or Initials */}
           {currentPost.authorAvatar ? (
             <img
@@ -387,8 +404,8 @@ export function PostCard({
                   <span className="ml-1 text-[10px] text-emerald-400/80">(edited)</span>
                 )}
               </span>
-              {(currentPost.type === "drop_code" || currentPost.tags?.includes("BONUS_CODE")) && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-teal-500/40 bg-teal-950/60 px-2 py-0.5 text-[10px] sm:text-[11px] font-bold text-teal-300 shadow-sm">
+              {isBonusDrop && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/20 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-bold text-emerald-300 shadow-sm">
                   🎁 Bonus Drop
                 </span>
               )}
@@ -539,24 +556,57 @@ export function PostCard({
             </div>
           )}
 
-          {currentPost.type === "drop_code" && (
-            <div className="space-y-2">
-              <input
-                type="text"
-                value={editDropCode}
-                onChange={(e) => setEditDropCode(e.target.value)}
-                placeholder="Drop Code"
-                className="h-8 w-full rounded-lg border border-[#274230] bg-[#122018] px-2.5 text-xs font-mono uppercase text-teal-300 outline-none focus:border-teal-500"
-              />
-              <input
-                type="url"
-                value={editTargetUrl}
-                onChange={(e) => setEditTargetUrl(e.target.value)}
-                placeholder="Destination URL (optional)"
-                className="h-8 w-full rounded-lg border border-[#274230] bg-[#122018] px-2.5 text-xs text-[#cbe0d0] placeholder-[#5e7463] outline-none focus:border-teal-500"
-              />
+          {/* Drop Code & Target URL in Edit Mode */}
+          <div className="space-y-2">
+            {(currentPost.type === "drop_code" || isBonusDrop || editDropCode) && (
+              <div>
+                <label className="mb-1 block text-[11px] font-semibold text-[#8ca592]">
+                  Bonus / Drop Code
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editDropCode}
+                    onChange={(e) => setEditDropCode(e.target.value)}
+                    placeholder="Drop Code"
+                    className="h-8 flex-1 rounded-lg border border-[#274230] bg-[#122018] px-2.5 text-xs font-mono uppercase text-teal-300 outline-none focus:border-teal-500"
+                  />
+                  {editDropCode && (
+                    <button
+                      type="button"
+                      onClick={() => setEditDropCode("")}
+                      className="rounded-lg bg-[#1a2d21] px-2.5 text-xs text-red-300 hover:text-white"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-[#8ca592]">
+                Destination / Action URL
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={editTargetUrl}
+                  onChange={(e) => setEditTargetUrl(e.target.value)}
+                  placeholder="Destination URL (e.g. https://...)"
+                  className="h-8 flex-1 rounded-lg border border-[#274230] bg-[#122018] px-2.5 text-xs text-[#cbe0d0] placeholder-[#5e7463] outline-none focus:border-teal-500"
+                />
+                {editTargetUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setEditTargetUrl("")}
+                    className="rounded-lg bg-[#1a2d21] px-2.5 text-xs text-red-300 hover:text-white"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
-          )}
+          </div>
 
           {/* Tag Selector in Edit Mode */}
           {/* Tags Selector in Edit Mode */}
@@ -607,14 +657,14 @@ export function PostCard({
           {/* Media / Link URL in Edit Mode */}
           <div>
             <label className="mb-1 block text-[11px] font-semibold text-[#8ca592]">
-              Attached Link or Media URL
+              Attached Image/Media URL
             </label>
             <div className="flex gap-2">
               <input
                 type="url"
                 value={editMediaUrl}
                 onChange={(e) => setEditMediaUrl(e.target.value)}
-                placeholder="Paste link or image URL..."
+                placeholder="Paste direct image or video URL..."
                 className="h-8 flex-1 rounded-lg border border-[#274230] bg-[#122018] px-2.5 text-xs text-white placeholder-[#5c7261] outline-none focus:border-emerald-500"
               />
               {editMediaUrl && (
@@ -714,7 +764,7 @@ export function PostCard({
                     className="max-h-80 sm:max-h-96 w-full object-contain transition hover:opacity-95"
                   />
                 </div>
-              ) : (
+              ) : !isBonusDrop ? (
                 <a
                   href={currentPost.mediaUrl}
                   target="_blank"
@@ -741,67 +791,21 @@ export function PostCard({
                     <ExternalLink size={13} />
                   </div>
                 </a>
-              )}
+              ) : null}
             </>
           )}
 
-          {/* 3. Active Drop Code Banner: Slim layout with code + action buttons rendered BELOW post body text */}
-          {currentPost.type === "drop_code" && currentPost.dropCode && (
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className="mt-3 flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-teal-500/40 bg-teal-950/30 py-2 px-3 sm:px-3.5 shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)]"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <Gift size={15} className="text-teal-400 shrink-0" />
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-teal-300/90 shrink-0">
-                    Active Drop Code:
-                  </span>
-                  <code className="rounded-lg bg-black/40 px-2 py-0.5 font-mono text-xs sm:text-sm font-bold tracking-wider text-white select-all border border-teal-500/20">
-                    {currentPost.dropCode}
-                  </code>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                {/* [Copy] Button */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCopyCode(currentPost.dropCode!);
-                  }}
-                  className="flex items-center gap-1.5 rounded-lg border border-teal-500/40 bg-teal-800/40 px-2.5 py-1 text-xs font-semibold text-teal-200 transition hover:bg-teal-700/50 active:scale-95"
-                >
-                  {copiedCode ? (
-                    <>
-                      <Check size={13} className="text-emerald-400" />
-                      <span>Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={13} />
-                      <span>Copy</span>
-                    </>
-                  )}
-                </button>
-
-                {/* [Claim Bonus] Button */}
-                {destinationUrl && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openInExternalBrowser(destinationUrl);
-                    }}
-                    className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#79b77f] to-[#39ff6a] px-2.5 py-1 text-xs font-bold text-[#0c1a10] shadow-[0_2px_10px_rgba(57,255,106,0.3)] hover:brightness-110 active:scale-95 transition"
-                  >
-                    <ExternalLink size={13} />
-                    <span>Claim Bonus</span>
-                  </button>
-                )}
-              </div>
-            </div>
+          {/* 3. Dedicated High-Impact Bonus Drop Banner */}
+          {isBonusDrop && (currentPost.dropCode || destinationUrl) && (
+            <BonusDropBanner
+              dropCode={currentPost.dropCode}
+              targetUrl={destinationUrl}
+              casinoTag={
+                currentPost.casinoTag ||
+                currentPost.tags?.find((t) => !["BONUS_CODE", "PROMO_CODE"].includes(t))
+              }
+              className="mt-3.5"
+            />
           )}
         </>
       )}

@@ -71,17 +71,17 @@ export type Post = {
   authorName: string;
   authorEmail: string;
   authorAvatar?: string;
-  casinoTag?: string;
+  casinoTag?: string | null;
   tags?: string[];
   type: PostType;
   content: string;
-  winAmount?: string;
-  multiplier?: string;
-  dropCode?: string;
-  targetUrl?: string;
-  linkUrl?: string;
-  mediaUrl?: string;
-  mediaType?: "image" | "video" | "link";
+  winAmount?: string | null;
+  multiplier?: string | null;
+  dropCode?: string | null;
+  targetUrl?: string | null;
+  linkUrl?: string | null;
+  mediaUrl?: string | null;
+  mediaType?: "image" | "video" | "link" | null;
   createdAt: string;
   updatedAt?: string;
   likes: string[];
@@ -407,7 +407,9 @@ export async function saveUserPreferences(
     user.preferences = { ...user.preferences, ...preferences };
     const nextName = preferences.name?.trim();
     if (nextName) user.name = nextName;
-    if (preferences.avatarUrl !== undefined) user.avatarUrl = preferences.avatarUrl;
+    if ("avatarUrl" in preferences) {
+      user.avatarUrl = preferences.avatarUrl === "" ? undefined : (preferences.avatarUrl ?? undefined);
+    }
     return user;
   });
 }
@@ -684,7 +686,10 @@ export async function updatePost(
       ...existing,
       ...updateData,
       tags: effectiveTags,
-      casinoTag: effectiveTags?.[0] ?? updateData.casinoTag ?? existing.casinoTag,
+      casinoTag:
+        "casinoTag" in updateData
+          ? updateData.casinoTag
+          : effectiveTags?.[0] ?? existing.casinoTag,
       updatedAt: new Date().toISOString(),
     };
     store.posts[postIndex] = updated;

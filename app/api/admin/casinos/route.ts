@@ -38,25 +38,38 @@ export async function POST(request: NextRequest) {
 
     const body = (await request.json()) as {
       name: string;
-      siteUrl?: string;
-      affiliateUrl?: string;
-      claimUrl?: string;
-      bonusUrl?: string;
-      bonusTitle?: string;
-      trustpilotRating?: number;
-      dailyBonus?: string;
-      details?: string;
+      siteUrl?: string | null;
+      affiliateUrl?: string | null;
+      claimUrl?: string | null;
+      bonusUrl?: string | null;
+      bonusTitle?: string | null;
+      trustpilotRating?: number | string | null;
+      dailyBonus?: string | null;
+      details?: string | null;
       resetAtTime?: string | null;
-      intervalHours?: number;
-      provider?: string;
+      intervalHours?: number | string | null;
+      provider?: string | null;
     };
 
     if (!body?.name?.trim()) {
       return NextResponse.json({ error: "Casino name is required." }, { status: 400 });
     }
 
+    const updateData: Record<string, any> = { name: body.name.trim() };
+    if ("siteUrl" in body) updateData.siteUrl = body.siteUrl === "" ? null : body.siteUrl;
+    if ("affiliateUrl" in body) updateData.affiliateUrl = body.affiliateUrl === "" ? null : body.affiliateUrl;
+    if ("claimUrl" in body) updateData.claimUrl = body.claimUrl === "" ? null : body.claimUrl;
+    if ("bonusUrl" in body) updateData.bonusUrl = body.bonusUrl === "" ? null : body.bonusUrl;
+    if ("bonusTitle" in body) updateData.bonusTitle = body.bonusTitle === "" ? null : body.bonusTitle;
+    if ("trustpilotRating" in body) updateData.trustpilotRating = (body.trustpilotRating === "" || body.trustpilotRating === null) ? null : Number(body.trustpilotRating);
+    if ("dailyBonus" in body) updateData.dailyBonus = body.dailyBonus === "" ? null : body.dailyBonus;
+    if ("details" in body) updateData.details = body.details === "" ? null : body.details;
+    if ("resetAtTime" in body) updateData.resetAtTime = body.resetAtTime === "" ? null : body.resetAtTime;
+    if ("intervalHours" in body) updateData.intervalHours = (body.intervalHours === "" || body.intervalHours === null) ? 24 : Number(body.intervalHours);
+    if ("provider" in body) updateData.provider = body.provider === "" ? null : body.provider;
+
     // 1. Audit Persistence: Write directly to shared Upstash Redis / DB
-    const directory = await updateCasinoMetadata(body);
+    const directory = await updateCasinoMetadata(updateData as any);
 
     // 2. Invalidate Cache: Immediately revalidate /tracker and 'casinos' tag
     try {
@@ -64,11 +77,7 @@ export async function POST(request: NextRequest) {
       revalidatePath("/dashboard/casinos");
       try {
         revalidateTag("casinos", "default");
-      } catch {
-        // Fallback if single argument overload
-        // @ts-expect-error fallback
-        revalidateTag("casinos");
-      }
+      } catch {}
     } catch (cacheErr) {
       console.warn("Cache revalidation warning:", cacheErr);
     }

@@ -73,28 +73,28 @@ export function EditCasinoModal({
         ? siteUrl.trim().startsWith("http")
           ? siteUrl.trim()
           : `https://${siteUrl.trim()}`
-        : undefined;
+        : null;
 
       const normalizedAffiliate = affiliateUrl.trim()
         ? affiliateUrl.trim().startsWith("http")
           ? affiliateUrl.trim()
           : `https://${affiliateUrl.trim()}`
-        : undefined;
+        : null;
 
       const normalizedClaim = claimUrl.trim()
         ? claimUrl.trim().startsWith("http")
           ? claimUrl.trim()
           : `https://${claimUrl.trim()}`
-        : undefined;
+        : null;
 
       const normalizedBonusUrl = bonusUrl.trim()
         ? bonusUrl.trim().startsWith("http")
           ? bonusUrl.trim()
           : `https://${bonusUrl.trim()}`
-        : undefined;
+        : null;
 
-      const parsedRating = trustpilotRating.trim() ? Number(trustpilotRating) : undefined;
-      if (parsedRating !== undefined && (Number.isNaN(parsedRating) || parsedRating < 0 || parsedRating > 5)) {
+      const parsedRating = trustpilotRating.trim() ? Number(trustpilotRating) : null;
+      if (parsedRating !== null && (Number.isNaN(parsedRating) || parsedRating < 0 || parsedRating > 5)) {
         setError("Trustpilot rating must be between 0 and 5.");
         setSaving(false);
         return;
@@ -102,16 +102,16 @@ export function EditCasinoModal({
 
       await onSave({
         name: name.trim() || casino?.name,
-        provider: provider.trim() || undefined,
+        provider: provider.trim() === "" ? null : provider.trim(),
         siteUrl: normalizedSite,
         url: normalizedSite,
         affiliateUrl: normalizedAffiliate,
         claimUrl: normalizedClaim,
         bonusUrl: normalizedBonusUrl,
-        bonusTitle: bonusTitle.trim() || undefined,
-        dailyBonus: dailyBonus.trim() || casino?.dailyBonus,
+        bonusTitle: bonusTitle.trim() === "" ? null : bonusTitle.trim(),
+        dailyBonus: dailyBonus.trim() === "" ? "Free daily" : dailyBonus.trim(),
         trustpilotRating: parsedRating,
-        details: details.trim() || undefined,
+        details: details.trim() === "" ? null : details.trim(),
         resetAtTime: useSpecificReset ? resetTime : null,
       });
 

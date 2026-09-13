@@ -152,9 +152,9 @@ export const CASINO_DEEP_LINKS: Record<string, CasinoLinkConfig> = {
 export function getCasinoDeepLink(casino: {
   id?: string;
   name: string;
-  claimUrl?: string;
-  siteUrl?: string;
-  url?: string;
+  claimUrl?: string | null;
+  siteUrl?: string | null;
+  url?: string | null;
 }): string {
   if (casino.claimUrl && casino.claimUrl.trim()) {
     return casino.claimUrl.trim();

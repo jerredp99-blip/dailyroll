@@ -14,27 +14,12 @@ import {
 } from "@/lib/api-client";
 import { casinoDirectory, casinoDirectoryUrls } from "@/lib/casino-directory";
 
-type Casino = {
-  id: string;
-  name: string;
-  dailyBonus: string;
-  provider?: string;
-  siteUrl?: string;
-  affiliateUrl?: string;
-  claimUrl?: string;
-  bonusUrl?: string;
-  lastClaimedAt: string | null;
-  intervalHours: number;
-  resetAtTime?: string | null;
-  trustpilotRating?: number;
-  details?: string;
-  hidden?: boolean;
-};
+import type { Casino } from "@/types/casino";
 
 type User = { id: string; name: string; email: string };
 type CasinoRecord = { user: User; casinos: Casino[] };
 
-function Stars({ rating }: { rating?: number }) {
+function Stars({ rating }: { rating?: number | null }) {
   const numericRating = Number(rating);
   const value = Number.isFinite(numericRating) ? Math.max(0, Math.min(5, numericRating)) : 0;
   return (
@@ -153,12 +138,26 @@ export default function AdminCasinosPage() {
     }
     const updatedList = directoryEditing.isNew ? [...directoryList, trimmedName] : directoryList;
     const updatedUrls = { ...directoryUrls, [trimmedName]: normalizedUrl };
-    const updatedProviders = { ...directoryProviders, [trimmedName]: directoryProvider.trim() || undefined };
-    const updatedAffiliateUrls = { ...directoryAffiliateUrls, [trimmedName]: directoryAffiliateUrl.trim() || undefined };
-    const updatedClaimUrls = { ...directoryClaimUrls, [trimmedName]: directoryClaimUrl.trim() || undefined };
-    const updatedBonusUrls = { ...directoryBonusUrls, [trimmedName]: directoryBonusUrl.trim() || undefined };
+    const updatedProviders = { ...directoryProviders };
+    if (directoryProvider.trim()) updatedProviders[trimmedName] = directoryProvider.trim();
+    else delete updatedProviders[trimmedName];
+
+    const updatedAffiliateUrls = { ...directoryAffiliateUrls };
+    if (directoryAffiliateUrl.trim()) updatedAffiliateUrls[trimmedName] = directoryAffiliateUrl.trim();
+    else delete updatedAffiliateUrls[trimmedName];
+
+    const updatedClaimUrls = { ...directoryClaimUrls };
+    if (directoryClaimUrl.trim()) updatedClaimUrls[trimmedName] = directoryClaimUrl.trim();
+    else delete updatedClaimUrls[trimmedName];
+
+    const updatedBonusUrls = { ...directoryBonusUrls };
+    if (directoryBonusUrl.trim()) updatedBonusUrls[trimmedName] = directoryBonusUrl.trim();
+    else delete updatedBonusUrls[trimmedName];
+
     const updatedRatings = { ...directoryRatings };
     if (parsedRating !== undefined) updatedRatings[trimmedName] = parsedRating;
+    else delete updatedRatings[trimmedName];
+
     setDirectoryList(updatedList);
     setDirectoryUrls(updatedUrls);
     setDirectoryProviders(updatedProviders);
@@ -169,12 +168,12 @@ export default function AdminCasinosPage() {
     try {
       await apiUpdateAdminCasino({
         name: trimmedName,
-        provider: directoryProvider.trim() || undefined,
-        siteUrl: normalizedUrl,
-        affiliateUrl: directoryAffiliateUrl.trim() || undefined,
-        claimUrl: directoryClaimUrl.trim() || undefined,
-        bonusUrl: directoryBonusUrl.trim() || undefined,
-        trustpilotRating: parsedRating,
+        provider: directoryProvider.trim() || null,
+        siteUrl: normalizedUrl || null,
+        affiliateUrl: directoryAffiliateUrl.trim() || null,
+        claimUrl: directoryClaimUrl.trim() || null,
+        bonusUrl: directoryBonusUrl.trim() || null,
+        trustpilotRating: parsedRating ?? null,
       });
       if (directoryEditing.isNew) {
         await apiSaveDirectory({ list: updatedList, providers: updatedProviders as Record<string, string> });
@@ -220,14 +219,14 @@ export default function AdminCasinosPage() {
     }
     const updatedCasino = {
       ...editing.casino,
-      provider: provider.trim() || undefined,
-      siteUrl: normalizedUrl,
-      affiliateUrl: normalizedAffiliateUrl || undefined,
-      claimUrl: normalizedClaimUrl || undefined,
-      bonusUrl: normalizedBonusUrl || undefined,
-      dailyBonus: bonus.trim() || editing.casino.dailyBonus,
-      details: details.trim() || undefined,
-      trustpilotRating: parsedRating,
+      provider: provider.trim() || null,
+      siteUrl: normalizedUrl || null,
+      affiliateUrl: normalizedAffiliateUrl || null,
+      claimUrl: normalizedClaimUrl || null,
+      bonusUrl: normalizedBonusUrl || null,
+      dailyBonus: bonus.trim() || "Free daily",
+      details: details.trim() || null,
+      trustpilotRating: parsedRating ?? null,
       resetAtTime: resetTime || null,
     };
     const updatedRecords = records.map((record) => record.user.email === editing.user.email
@@ -237,14 +236,14 @@ export default function AdminCasinosPage() {
     try {
       await apiUpdateAdminCasino({
         name: editing.casino.name,
-        provider: provider.trim() || undefined,
-        siteUrl: normalizedUrl,
-        affiliateUrl: normalizedAffiliateUrl || undefined,
-        claimUrl: normalizedClaimUrl || undefined,
-        bonusUrl: normalizedBonusUrl || undefined,
-        trustpilotRating: parsedRating,
-        dailyBonus: bonus.trim() || editing.casino.dailyBonus,
-        details: details.trim() || undefined,
+        provider: provider.trim() || null,
+        siteUrl: normalizedUrl || null,
+        affiliateUrl: normalizedAffiliateUrl || null,
+        claimUrl: normalizedClaimUrl || null,
+        bonusUrl: normalizedBonusUrl || null,
+        trustpilotRating: parsedRating ?? null,
+        dailyBonus: bonus.trim() || "Free daily",
+        details: details.trim() || null,
         resetAtTime: resetTime || null,
       });
       setEditing(null);

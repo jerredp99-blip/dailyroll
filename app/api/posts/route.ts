@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { getCurrentSession } from "@/lib/auth";
 import { createPost, getPosts, getUsers, type PostType } from "@/lib/store";
 
@@ -90,6 +91,16 @@ export async function POST(request: NextRequest) {
       mediaUrl: mediaUrl ? mediaUrl.trim() : undefined,
       mediaType: mediaType || undefined,
     });
+
+    try {
+      revalidatePath("/tracker");
+      revalidatePath("/dashboard");
+      try {
+        revalidateTag("posts", "default");
+      } catch {}
+    } catch (revalErr) {
+      console.warn("Revalidation warning:", revalErr);
+    }
 
     return NextResponse.json({ success: true, post: newPost }, { status: 201 });
   } catch (error: any) {
