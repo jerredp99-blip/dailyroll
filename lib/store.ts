@@ -78,6 +78,8 @@ export type Post = {
   winAmount?: string;
   multiplier?: string;
   dropCode?: string;
+  targetUrl?: string;
+  linkUrl?: string;
   mediaUrl?: string;
   mediaType?: "image" | "video" | "link";
   createdAt: string;
@@ -651,6 +653,8 @@ export async function updatePost(
       | "winAmount"
       | "multiplier"
       | "dropCode"
+      | "targetUrl"
+      | "linkUrl"
       | "mediaUrl"
       | "mediaType"
     >

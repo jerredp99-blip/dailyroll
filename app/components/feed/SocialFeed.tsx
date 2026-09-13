@@ -283,7 +283,7 @@ export function SocialFeed({
           }`}
         >
           <Gift size={14} className="text-teal-400" />
-          <span>Bonus Codes</span>
+          <span>Bonus Drops</span>
           {currentType === "drop_code" && !selectedTag && (
             <span className="ml-0.5 rounded-full bg-teal-400/20 px-1.5 py-0.2 text-[10px] text-teal-200">
               Active
@@ -305,7 +305,7 @@ export function SocialFeed({
             >
               <optgroup label="Feed">
                 <option value="all">All Posts</option>
-                <option value="type:drop_code">🎁 Bonus Codes</option>
+                <option value="type:drop_code">🎁 Bonus Drops</option>
                 <option value="type:big_win">🏆 Big Wins</option>
                 <option value="type:discussion">💬 Discussions</option>
                 <option value="type:daily_claim">⚡ Daily Claims</option>

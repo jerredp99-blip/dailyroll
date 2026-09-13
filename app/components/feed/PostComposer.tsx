@@ -33,6 +33,7 @@ export function PostComposer({
   const [winAmount, setWinAmount] = useState("");
   const [multiplier, setMultiplier] = useState("");
   const [dropCode, setDropCode] = useState("");
+  const [targetUrl, setTargetUrl] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
   const [mediaType, setMediaType] = useState<"image" | "video" | "link" | undefined>(undefined);
   const [showUrlInput, setShowUrlInput] = useState(false);
@@ -140,6 +141,8 @@ export function PostComposer({
           winAmount: type === "big_win" ? winAmount : undefined,
           multiplier: type === "big_win" ? multiplier : undefined,
           dropCode: type === "drop_code" ? dropCode : undefined,
+          targetUrl: type === "drop_code" && targetUrl.trim() ? targetUrl.trim() : undefined,
+          linkUrl: type === "drop_code" && targetUrl.trim() ? targetUrl.trim() : undefined,
           authorEmail: currentUserEmail,
           authorName: currentUserName,
           authorAvatar: currentUserAvatar,
@@ -159,6 +162,7 @@ export function PostComposer({
       setWinAmount("");
       setMultiplier("");
       setDropCode("");
+      setTargetUrl("");
       handleRemoveMedia();
       setShowUrlInput(false);
       setIsExpanded(false);
@@ -301,7 +305,7 @@ export function PostComposer({
             }`}
           >
             <Gift size={13} className="text-teal-400" />
-            Drop Code
+            Bonus Drop
           </button>
         </div>
 
@@ -315,6 +319,7 @@ export function PostComposer({
               setWinAmount("");
               setMultiplier("");
               setDropCode("");
+              setTargetUrl("");
               handleRemoveMedia();
               setShowUrlInput(false);
               setIsExpanded(false);
@@ -360,17 +365,31 @@ export function PostComposer({
         )}
 
         {type === "drop_code" && (
-          <div className="animate-in fade-in duration-200">
-            <label className="mb-1 block text-[11px] font-semibold text-teal-300">
-              Promo / Drop Code
-            </label>
-            <input
-              type="text"
-              value={dropCode}
-              onChange={(e) => setDropCode(e.target.value)}
-              placeholder="e.g. CROWN25DROP"
-              className="h-9 w-full font-mono rounded-lg border border-teal-800/40 bg-[#0e1712] px-3 text-xs text-white uppercase placeholder-[#5a6e60] outline-none focus:border-teal-500"
-            />
+          <div className="space-y-2 animate-in fade-in duration-200">
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-teal-300">
+                Promo / Drop Code
+              </label>
+              <input
+                type="text"
+                value={dropCode}
+                onChange={(e) => setDropCode(e.target.value)}
+                placeholder="e.g. CROWN25DROP"
+                className="h-9 w-full font-mono rounded-lg border border-teal-800/40 bg-[#0e1712] px-3 text-xs text-white uppercase placeholder-[#5a6e60] outline-none focus:border-teal-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-teal-300">
+                Destination URL (optional)
+              </label>
+              <input
+                type="url"
+                value={targetUrl}
+                onChange={(e) => setTargetUrl(e.target.value)}
+                placeholder="https://... (opens on card click or Claim Bonus)"
+                className="h-9 w-full rounded-lg border border-teal-800/40 bg-[#0e1712] px-3 text-xs text-white placeholder-[#5a6e60] outline-none focus:border-teal-500"
+              />
+            </div>
           </div>
         )}
 

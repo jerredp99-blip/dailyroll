@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   Heart,
   MessageSquare,
@@ -102,6 +102,7 @@ export function PostCard({
   const [editWinAmount, setEditWinAmount] = useState(post.winAmount || "");
   const [editMultiplier, setEditMultiplier] = useState(post.multiplier || "");
   const [editDropCode, setEditDropCode] = useState(post.dropCode || "");
+  const [editTargetUrl, setEditTargetUrl] = useState(post.targetUrl || post.linkUrl || "");
   const [editMediaUrl, setEditMediaUrl] = useState(post.mediaUrl || "");
   const [mediaError, setMediaError] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -210,6 +211,8 @@ export function PostCard({
           winAmount: editWinAmount ? editWinAmount.trim() : undefined,
           multiplier: editMultiplier ? editMultiplier.trim() : undefined,
           dropCode: editDropCode ? editDropCode.trim().toUpperCase() : undefined,
+          targetUrl: editTargetUrl.trim() || undefined,
+          linkUrl: editTargetUrl.trim() || undefined,
           mediaUrl: editMediaUrl ? editMediaUrl.trim() : undefined,
           mediaType: editMediaUrl
             ? editMediaUrl.match(/\.(mp4|webm|mov)(\?.*)?$/i)
@@ -328,8 +331,35 @@ export function PostCard({
     return `${Math.floor(diff / 86400)}d ago`;
   };
 
+  const destinationUrl = currentPost.targetUrl || currentPost.linkUrl;
+
+  const displayContent = useMemo(() => {
+    if (!currentPost.content) return "";
+    if (!destinationUrl) return currentPost.content;
+    // Strip raw URLs from post body text so raw links like https://d10xl.com/... do not render as messy text
+    return currentPost.content
+      .replace(/https?:\/\/[^\s]+/gi, "")
+      .replace(/\n\s*\n/g, "\n")
+      .trim();
+  }, [currentPost.content, destinationUrl]);
+
+  const handleArticleClick = (e: React.MouseEvent<HTMLElement>) => {
+    if (!destinationUrl) return;
+    const target = e.target as HTMLElement;
+    // Prevent card navigation if an interactive control was clicked
+    if (target.closest("button, a, input, select, textarea, [role='button'], [data-stop-propagation]")) {
+      return;
+    }
+    openInExternalBrowser(destinationUrl);
+  };
+
   return (
-    <article className="rounded-2xl border border-[#22392b] bg-[#121f17]/90 p-3.5 sm:p-5 shadow-sm backdrop-blur transition hover:border-[#32543d]">
+    <article
+      onClick={handleArticleClick}
+      className={`rounded-2xl border border-[#22392b] bg-[#121f17]/90 p-3.5 sm:p-5 shadow-sm backdrop-blur transition hover:border-[#32543d] ${
+        destinationUrl ? "cursor-pointer hover:border-emerald-500/50 hover:bg-[#14261c]" : ""
+      }`}
+    >
       {/* Header: Author + Timestamp + Menu Button */}
       <div className="flex items-center justify-between gap-2.5">
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
@@ -347,7 +377,7 @@ export function PostCard({
           )}
 
           <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-1.5 truncate">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
               <span className="text-xs sm:text-sm font-semibold text-[#edf5ec] truncate">
                 {currentPost.authorName}
               </span>
@@ -357,6 +387,11 @@ export function PostCard({
                   <span className="ml-1 text-[10px] text-emerald-400/80">(edited)</span>
                 )}
               </span>
+              {(currentPost.type === "drop_code" || currentPost.tags?.includes("BONUS_CODE")) && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-teal-500/40 bg-teal-950/60 px-2 py-0.5 text-[10px] sm:text-[11px] font-bold text-teal-300 shadow-sm">
+                  🎁 Bonus Drop
+                </span>
+              )}
             </div>
             <p className="text-[10px] sm:text-[11px] text-[#869f8c] truncate">
               @{currentPost.authorEmail.split("@")[0]}
@@ -397,6 +432,7 @@ export function PostCard({
                     setEditWinAmount(currentPost.winAmount || "");
                     setEditMultiplier(currentPost.multiplier || "");
                     setEditDropCode(currentPost.dropCode || "");
+                    setEditTargetUrl(currentPost.targetUrl || currentPost.linkUrl || "");
                     setEditMediaUrl(currentPost.mediaUrl || "");
                     setMenuVisible(false);
                   }}
@@ -422,23 +458,29 @@ export function PostCard({
         )}
       </div>
 
-      {/* Tag Badges: Dedicated clean row for mobile and desktop */}
-      {((currentPost.tags && currentPost.tags.length > 0) || currentPost.casinoTag) && (
-        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-          {(currentPost.tags && currentPost.tags.length > 0
-            ? currentPost.tags
-            : currentPost.casinoTag
-            ? [currentPost.casinoTag]
-            : []
-          ).map((t) => (
-            <TagBadge
-              key={t}
-              tag={t}
-              onClick={() => onSelectTag?.(t)}
-            />
-          ))}
-        </div>
-      )}
+      {/* Tag Badges: Dedicated clean row for casino/other tags (BONUS_CODE is in meta line) */}
+      {(() => {
+        const rawTags = (currentPost.tags && currentPost.tags.length > 0
+          ? currentPost.tags
+          : currentPost.casinoTag
+          ? [currentPost.casinoTag]
+          : []
+        ).filter((t) => t !== "BONUS_CODE");
+
+        if (rawTags.length === 0) return null;
+
+        return (
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            {rawTags.map((t) => (
+              <TagBadge
+                key={t}
+                tag={t}
+                onClick={() => onSelectTag?.(t)}
+              />
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Delete Confirmation Dialog */}
       {confirmDelete && (
@@ -498,13 +540,22 @@ export function PostCard({
           )}
 
           {currentPost.type === "drop_code" && (
-            <input
-              type="text"
-              value={editDropCode}
-              onChange={(e) => setEditDropCode(e.target.value)}
-              placeholder="Drop Code"
-              className="h-8 w-full rounded-lg border border-[#274230] bg-[#122018] px-2.5 text-xs font-mono uppercase text-teal-300 outline-none focus:border-teal-500"
-            />
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={editDropCode}
+                onChange={(e) => setEditDropCode(e.target.value)}
+                placeholder="Drop Code"
+                className="h-8 w-full rounded-lg border border-[#274230] bg-[#122018] px-2.5 text-xs font-mono uppercase text-teal-300 outline-none focus:border-teal-500"
+              />
+              <input
+                type="url"
+                value={editTargetUrl}
+                onChange={(e) => setEditTargetUrl(e.target.value)}
+                placeholder="Destination URL (optional)"
+                className="h-8 w-full rounded-lg border border-[#274230] bg-[#122018] px-2.5 text-xs text-[#cbe0d0] placeholder-[#5e7463] outline-none focus:border-teal-500"
+              />
+            </div>
           )}
 
           {/* Tag Selector in Edit Mode */}
@@ -605,7 +656,7 @@ export function PostCard({
         </div>
       ) : (
         <>
-          {/* Special Badges (Big Win, Drop Code, Daily Claim) */}
+          {/* Special Badges (Big Win, Daily Claim) */}
           {currentPost.type === "big_win" && (
             <div className="mt-3.5 flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-950/40 to-yellow-950/20 px-3.5 py-2 text-xs">
               <div className="flex items-center gap-1 font-bold text-amber-300">
@@ -625,37 +676,6 @@ export function PostCard({
             </div>
           )}
 
-          {currentPost.type === "drop_code" && currentPost.dropCode && (
-            <div className="mt-3.5 flex items-center justify-between gap-3 rounded-xl border border-teal-500/40 bg-teal-950/30 p-3">
-              <div className="flex items-center gap-2">
-                <Gift size={16} className="text-teal-400" />
-                <div>
-                  <p className="text-[10px] uppercase font-bold tracking-wider text-teal-300">
-                    Active Drop Code
-                  </p>
-                  <p className="font-mono text-sm font-bold tracking-wider text-white">
-                    {currentPost.dropCode}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleCopyCode(currentPost.dropCode!)}
-                className="flex items-center gap-1.5 rounded-lg border border-teal-500/40 bg-teal-800/40 px-3 py-1.5 text-xs font-semibold text-teal-200 transition hover:bg-teal-700/50"
-              >
-                {copiedCode ? (
-                  <>
-                    <Check size={13} className="text-emerald-400" /> Copied!
-                  </>
-                ) : (
-                  <>
-                    <Copy size={13} /> Copy
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
           {currentPost.type === "daily_claim" && (
             <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-600/30 bg-emerald-950/30 px-3 py-1.5 text-xs text-emerald-300 font-medium">
               <Zap size={14} className="text-emerald-400" />
@@ -663,10 +683,12 @@ export function PostCard({
             </div>
           )}
 
-          {/* Main Content */}
-          <p className="mt-3 text-sm leading-relaxed text-[#d7e4d8] whitespace-pre-wrap">
-            {renderFormattedContent(currentPost.content)}
-          </p>
+          {/* 2. Post Body Text: User description/instructions rendered ABOVE the code banner (raw URLs hidden if destinationUrl is present) */}
+          {displayContent && (
+            <p className="mt-3 text-sm leading-relaxed text-[#d7e4d8] whitespace-pre-wrap">
+              {renderFormattedContent(displayContent)}
+            </p>
+          )}
 
           {/* Attached Media (Photo, Video, or Link Preview Card) */}
           {currentPost.mediaUrl && (
@@ -712,22 +734,83 @@ export function PostCard({
                       <p className="font-semibold text-white group-hover:text-emerald-300 truncate">
                         {cleanDomain(currentPost.mediaUrl)}
                       </p>
-                      <p className="text-[11px] text-[#718c77] truncate">{currentPost.mediaUrl}</p>
+                      <p className="text-[11px] text-[#789680] truncate">{currentPost.mediaUrl}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 text-xs font-semibold text-emerald-400 group-hover:text-emerald-300 shrink-0">
-                    <span>Visit Link</span>
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#14281c] text-[#82a48b] group-hover:text-white shrink-0">
                     <ExternalLink size={13} />
                   </div>
                 </a>
               )}
             </>
           )}
+
+          {/* 3. Active Drop Code Banner: Slim layout with code + action buttons rendered BELOW post body text */}
+          {currentPost.type === "drop_code" && currentPost.dropCode && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="mt-3 flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-teal-500/40 bg-teal-950/30 py-2 px-3 sm:px-3.5 shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)]"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Gift size={15} className="text-teal-400 shrink-0" />
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-teal-300/90 shrink-0">
+                    Active Drop Code:
+                  </span>
+                  <code className="rounded-lg bg-black/40 px-2 py-0.5 font-mono text-xs sm:text-sm font-bold tracking-wider text-white select-all border border-teal-500/20">
+                    {currentPost.dropCode}
+                  </code>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {/* [Copy] Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCopyCode(currentPost.dropCode!);
+                  }}
+                  className="flex items-center gap-1.5 rounded-lg border border-teal-500/40 bg-teal-800/40 px-2.5 py-1 text-xs font-semibold text-teal-200 transition hover:bg-teal-700/50 active:scale-95"
+                >
+                  {copiedCode ? (
+                    <>
+                      <Check size={13} className="text-emerald-400" />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={13} />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+
+                {/* [Claim Bonus] Button */}
+                {destinationUrl && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openInExternalBrowser(destinationUrl);
+                    }}
+                    className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#79b77f] to-[#39ff6a] px-2.5 py-1 text-xs font-bold text-[#0c1a10] shadow-[0_2px_10px_rgba(57,255,106,0.3)] hover:brightness-110 active:scale-95 transition"
+                  >
+                    <ExternalLink size={13} />
+                    <span>Claim Bonus</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </>
       )}
 
       {/* Social Interactions Bar */}
-      <div className="mt-3.5 flex items-center justify-between border-t border-[#1d3224] pt-2.5 sm:pt-3 gap-2 text-xs">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="mt-3.5 flex items-center justify-between border-t border-[#1d3224] pt-2.5 sm:pt-3 gap-2 text-xs"
+      >
         <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
           {/* Like button */}
           <button
@@ -787,7 +870,10 @@ export function PostCard({
 
       {/* Expanded Comments Thread */}
       {showComments && (
-        <div className="mt-3 border-t border-[#1d3224] pt-3 space-y-3 animate-in fade-in duration-200">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="mt-3 border-t border-[#1d3224] pt-3 space-y-3 animate-in fade-in duration-200"
+        >
           {loadingComments ? (
             <div className="flex items-center justify-center py-4 text-xs text-[#7f9883]">
               <Loader2 size={16} className="animate-spin mr-2" /> Loading comments...

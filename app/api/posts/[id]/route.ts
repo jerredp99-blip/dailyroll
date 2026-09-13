@@ -76,6 +76,18 @@ export async function PUT(
         body.dropCode !== undefined
           ? body.dropCode ? body.dropCode.trim().toUpperCase() : undefined
           : post.dropCode,
+      targetUrl:
+        body.targetUrl !== undefined
+          ? body.targetUrl ? body.targetUrl.trim() : undefined
+          : body.linkUrl !== undefined
+          ? body.linkUrl ? body.linkUrl.trim() : undefined
+          : post.targetUrl,
+      linkUrl:
+        body.targetUrl !== undefined
+          ? body.targetUrl ? body.targetUrl.trim() : undefined
+          : body.linkUrl !== undefined
+          ? body.linkUrl ? body.linkUrl.trim() : undefined
+          : post.linkUrl,
       mediaUrl: body.mediaUrl !== undefined ? body.mediaUrl : post.mediaUrl,
       mediaType: body.mediaType !== undefined ? body.mediaType : post.mediaType,
     });

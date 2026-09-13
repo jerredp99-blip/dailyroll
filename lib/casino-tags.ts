@@ -19,7 +19,7 @@ export const CATEGORY_TAGS: TagDefinition[] = [
   },
   {
     id: "BONUS_CODE",
-    name: "Bonus Code",
+    name: "Bonus Drop",
     category: "category",
     emoji: "🎁",
     postType: "drop_code",

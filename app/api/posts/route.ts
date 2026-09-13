@@ -38,11 +38,15 @@ export async function POST(request: NextRequest) {
       winAmount,
       multiplier,
       dropCode,
+      targetUrl,
+      linkUrl,
       authorName,
       authorEmail,
       mediaUrl,
       mediaType,
     } = body;
+
+    const resolvedDestinationUrl = (targetUrl || linkUrl || "").trim() || undefined;
 
     if (!content || !content.trim()) {
       return NextResponse.json(
@@ -81,6 +85,8 @@ export async function POST(request: NextRequest) {
       winAmount: winAmount ? winAmount.trim() : undefined,
       multiplier: multiplier ? multiplier.trim() : undefined,
       dropCode: dropCode ? dropCode.trim().toUpperCase() : undefined,
+      targetUrl: resolvedDestinationUrl,
+      linkUrl: resolvedDestinationUrl,
       mediaUrl: mediaUrl ? mediaUrl.trim() : undefined,
       mediaType: mediaType || undefined,
     });
