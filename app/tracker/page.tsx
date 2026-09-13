@@ -16,13 +16,12 @@ import {
   Trash2,
   X,
   MessageSquare,
-  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
-import { SpeedRunModal } from "@/app/components/SpeedRunModal";
+// import { SpeedRunModal } from "@/app/components/SpeedRunModal";
 // import { BankrollSummary } from "@/app/components/BankrollSummary";
 import {
   apiGetCasinos,
@@ -277,7 +276,7 @@ export default function TrackerPage() {
   const [casinoSort, setCasinoSort] = useState<"status" | "f2p" | "trustpilot" | "name-asc" | "name-desc">("status");
   const [viewMode, setViewMode] = useState<"social" | "rollcall">("social");
   const [mobileTab, setMobileTab] = useState<"rollcall" | "feed">("feed");
-  const [isSpeedRunOpen, setIsSpeedRunOpen] = useState(false);
+  // const [isSpeedRunOpen, setIsSpeedRunOpen] = useState(false);
   const editScrollPosition = useRef<number | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -1375,8 +1374,9 @@ export default function TrackerPage() {
                     </div>
                   </div>
 
-                  {/* Action Buttons: Speed-Run & Open All Ready */}
+                  {/* Action Buttons: Batch Claim (Speed-Run temporarily hidden) */}
                   <div className="flex flex-wrap items-center gap-2">
+                    {/* Speed-Run button (temporarily hidden)
                     <button
                       type="button"
                       onClick={() => setIsSpeedRunOpen(true)}
@@ -1388,9 +1388,9 @@ export default function TrackerPage() {
                           : "border border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
                       }`}
                     >
-                      <Zap size={13} fill={readyCount > 0 ? "currentColor" : "none"} />
                       <span>⚡ Start Speed-Run</span>
                     </button>
+                    */}
 
                     <button
                       type="button"
@@ -1852,6 +1852,7 @@ export default function TrackerPage() {
         </div>
       )}
 
+      {/* Speed-Run Modal (temporarily hidden)
       <SpeedRunModal
         isOpen={isSpeedRunOpen}
         onClose={() => setIsSpeedRunOpen(false)}
@@ -1859,6 +1860,7 @@ export default function TrackerPage() {
         onClaim={markClaimed}
         renderLogo={(casino) => <CasinoLogo name={casino.name} siteUrl={siteUrlFor(casino)} />}
       />
+      */}
     </main>
   );
 }
