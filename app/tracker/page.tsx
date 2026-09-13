@@ -34,6 +34,7 @@ import {
   apiGetUsers,
   apiSaveCasinos,
   apiSaveDirectory,
+  apiUpdateAdminCasino,
 } from "@/lib/api-client";
 import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 import { casinoDirectory, casinoDirectoryUrls } from "@/lib/casino-directory";
@@ -436,32 +437,43 @@ export default function TrackerPage() {
         // Ignore malformed localStorage
       }
       const hydratedCasinos = loadedCasinos.map((casino) => {
-        // Preserve each profile's own saved URLs unless the field is missing.
-        // For the four built-in default casinos, when the user has never edited
-        // their URL we pull the current master URL from the shared directory so
-        // admin URL edits reach them; a user- or admin-written siteUrl always
-        // wins. Legacy records that only have `url` keep using it as their site
-        // URL until an admin or the user sets a dedicated siteUrl.
-        const defaultUrl = defaultUrlByName[casino.name.toLowerCase()];
-        const isDefaultCasinoWithUneditedUrl =
-          defaultUrl !== undefined && casino.url === defaultUrl;
-        const siteUrl = casino.siteUrl ??
-          (casino.url && !isDefaultCasinoWithUneditedUrl
-            ? casino.url
-            : defaultUrl !== undefined
-              ? sharedUrlsByName[casino.name.toLowerCase()]
-              : undefined);
+        const lowerName = casino.name.trim().toLowerCase();
+
+        // Authoritative Casino Metadata (Decoupled from user personal state):
+        // Remote shared directory is always authoritative for links, titles, and ratings.
+        const siteUrl =
+          sharedUrlsByName[lowerName] ||
+          casino.siteUrl ||
+          (casino.url && casino.url !== defaultUrlByName[lowerName] ? casino.url : undefined) ||
+          defaultUrlByName[lowerName];
+
+        const claimUrl =
+          sharedClaimUrlsByName[lowerName] ?? casino.claimUrl;
+
+        const affiliateUrl =
+          sharedAffiliateUrlsByName[lowerName] ?? casino.affiliateUrl;
+
+        const bonusUrl =
+          sharedBonusUrlsByName[lowerName] ?? casino.bonusUrl;
+
+        const bonusTitle =
+          sharedBonusTitlesByName[lowerName] ?? casino.bonusTitle;
+
+        const trustpilotRating =
+          sharedRatingsByName[lowerName] ?? casino.trustpilotRating;
+
+        // User Claim & Display State (Personal to this user, decoupled from static metadata):
         const lastClaimedAt = casino.lastClaimedAt || localClaimedTimes[casino.id] || null;
+
         return {
           ...casino,
-          lastClaimedAt,
           siteUrl,
-          affiliateUrl: casino.affiliateUrl ?? sharedAffiliateUrlsByName[casino.name.toLowerCase()],
-          claimUrl: casino.claimUrl ?? sharedClaimUrlsByName[casino.name.toLowerCase()],
-          bonusUrl: casino.bonusUrl ?? sharedBonusUrlsByName[casino.name.toLowerCase()],
-          bonusTitle: casino.bonusTitle ?? sharedBonusTitlesByName[casino.name.toLowerCase()],
-          trustpilotRating:
-            sharedRatingsByName[casino.name.toLowerCase()] ?? casino.trustpilotRating,
+          claimUrl,
+          affiliateUrl,
+          bonusUrl,
+          bonusTitle,
+          trustpilotRating,
+          lastClaimedAt,
         };
       });
       if (cancelled) return;
@@ -881,45 +893,29 @@ export default function TrackerPage() {
       setDirectoryClaimUrls(updatedDirectoryClaimUrls);
       setDirectoryBonusUrls(updatedDirectoryBonusUrls);
       setDirectoryRatings(updatedDirectoryRatings);
-      await apiSaveDirectory({
-        urls: Object.fromEntries(
-          Object.entries(updatedDirectoryUrls).filter(([, v]) => v !== undefined),
-        ) as Record<string, string>,
-        affiliateUrls: Object.fromEntries(
-          Object.entries(updatedDirectoryAffiliateUrls).filter(([, v]) => v !== undefined),
-        ) as Record<string, string>,
-        claimUrls: Object.fromEntries(
-          Object.entries(updatedDirectoryClaimUrls).filter(([, v]) => v !== undefined),
-        ) as Record<string, string>,
-        bonusUrls: Object.fromEntries(
-          Object.entries(updatedDirectoryBonusUrls).filter(([, v]) => v !== undefined),
-        ) as Record<string, string>,
-        bonusTitles: isAdmin ? { ...directoryBonusTitles, [editingCasino.name]: bonusTitle } : directoryBonusTitles,
-        ratings: updatedDirectoryRatings,
-      });
-    }
-    if (isAdmin) {
-      const users = await apiGetUsers();
-      await Promise.all(
-        users.map(async (user) => {
-          const userCasinos = await apiGetCasinos(user.email);
-          if (!userCasinos) return;
-          const updatedUserCasinos = userCasinos.map((casino) =>
-            casino.name.toLowerCase() === editingCasino.name.toLowerCase()
-              ? {
-                  ...casino,
-                  siteUrl: normalizedSiteUrl,
-                  affiliateUrl,
-                  claimUrl,
-                  bonusUrl,
-                  bonusTitle,
-                  trustpilotRating: rating,
-                }
-              : casino,
-          );
-          await apiSaveCasinos(user.email, updatedUserCasinos);
-        }),
-      );
+      if (bonusTitle) {
+        setDirectoryBonusTitles({
+          ...directoryBonusTitles,
+          [editingCasino.name]: bonusTitle,
+        });
+      }
+
+      // Write directly to shared DB (Upstash Redis) and trigger cache revalidation
+      try {
+        await apiUpdateAdminCasino({
+          name: editingCasino.name,
+          siteUrl: normalizedSiteUrl || undefined,
+          affiliateUrl: affiliateUrl || undefined,
+          claimUrl: claimUrl || undefined,
+          bonusUrl: bonusUrl || undefined,
+          bonusTitle: bonusTitle || undefined,
+          trustpilotRating: rating,
+          dailyBonus: editBonus.trim() || undefined,
+          details: editDetails.trim() || undefined,
+        });
+      } catch (saveErr) {
+        console.error("Failed to update admin casino metadata:", saveErr);
+      }
     }
     setEditingCasino(null);
     if (editScrollPosition.current !== null) {

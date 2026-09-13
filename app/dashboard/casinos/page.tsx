@@ -4,7 +4,14 @@ import { FormEvent, useEffect, useState } from "react";
 import { ArrowLeft, Pencil, Plus, Star, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiGetCasinos, apiGetDirectory, apiGetUsers, apiSaveCasinos, apiSaveDirectory } from "@/lib/api-client";
+import {
+  apiGetCasinos,
+  apiGetDirectory,
+  apiGetUsers,
+  apiSaveCasinos,
+  apiSaveDirectory,
+  apiUpdateAdminCasino,
+} from "@/lib/api-client";
 import { casinoDirectory, casinoDirectoryUrls } from "@/lib/casino-directory";
 
 type Casino = {
@@ -151,14 +158,17 @@ export default function AdminCasinosPage() {
     setDirectoryBonusUrls(updatedBonusUrls);
     setDirectoryRatings(updatedRatings);
     try {
-      await apiSaveDirectory({
-        list: updatedList,
-        urls: { [trimmedName]: normalizedUrl },
-        ...(directoryAffiliateUrl.trim() ? { affiliateUrls: { [trimmedName]: directoryAffiliateUrl.trim() } } : {}),
-        ...(directoryClaimUrl.trim() ? { claimUrls: { [trimmedName]: directoryClaimUrl.trim() } } : {}),
-        ...(directoryBonusUrl.trim() ? { bonusUrls: { [trimmedName]: directoryBonusUrl.trim() } } : {}),
-        ratings: parsedRating !== undefined ? { [trimmedName]: parsedRating } : undefined,
+      await apiUpdateAdminCasino({
+        name: trimmedName,
+        siteUrl: normalizedUrl,
+        affiliateUrl: directoryAffiliateUrl.trim() || undefined,
+        claimUrl: directoryClaimUrl.trim() || undefined,
+        bonusUrl: directoryBonusUrl.trim() || undefined,
+        trustpilotRating: parsedRating,
       });
+      if (directoryEditing.isNew) {
+        await apiSaveDirectory({ list: updatedList });
+      }
       setDirectoryEditing(null);
     } catch (saveError) {
       setDirectoryError(saveError instanceof Error ? saveError.message : "Unable to save the casino directory.");
@@ -213,13 +223,15 @@ export default function AdminCasinosPage() {
       : record);
     setRecords(updatedRecords);
     try {
-      await apiSaveCasinos(editing.user.email, updatedRecords.find((record) => record.user.email === editing.user.email)?.casinos ?? []);
-      await apiSaveDirectory({
-        urls: { [editing.casino.name]: normalizedUrl },
-        ...(normalizedAffiliateUrl ? { affiliateUrls: { [editing.casino.name]: normalizedAffiliateUrl } } : {}),
-        ...(normalizedClaimUrl ? { claimUrls: { [editing.casino.name]: normalizedClaimUrl } } : {}),
-        ...(normalizedBonusUrl ? { bonusUrls: { [editing.casino.name]: normalizedBonusUrl } } : {}),
-        ...(parsedRating !== undefined ? { ratings: { [editing.casino.name]: parsedRating } } : {}),
+      await apiUpdateAdminCasino({
+        name: editing.casino.name,
+        siteUrl: normalizedUrl,
+        affiliateUrl: normalizedAffiliateUrl || undefined,
+        claimUrl: normalizedClaimUrl || undefined,
+        bonusUrl: normalizedBonusUrl || undefined,
+        trustpilotRating: parsedRating,
+        dailyBonus: bonus.trim() || editing.casino.dailyBonus,
+        details: details.trim() || undefined,
       });
       setEditing(null);
     } catch (saveError) {

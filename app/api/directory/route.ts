@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath, revalidateTag } from "next/cache";
 import {
   casinoKey,
   getCasinos,
@@ -9,6 +10,15 @@ import {
   type Casino,
 } from "@/lib/store";
 import { ADMIN_EMAIL, getCurrentSession } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const NO_CACHE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
 
 function effectiveSiteUrl(casino: Casino): string | undefined {
   return casino.siteUrl ?? casino.url;
@@ -47,15 +57,18 @@ export async function GET() {
       if (casino.bonusUrl) bonusUrls[casino.name] = casino.bonusUrl;
       if (casino.bonusTitle) bonusTitles[casino.name] = casino.bonusTitle;
     }
-    return NextResponse.json({
-      ...directory,
-      ratings,
-      urls,
-      affiliateUrls,
-      claimUrls,
-      bonusUrls,
-      bonusTitles,
-    });
+    return NextResponse.json(
+      {
+        ...directory,
+        ratings,
+        urls,
+        affiliateUrls,
+        claimUrls,
+        bonusUrls,
+        bonusTitles,
+      },
+      { headers: NO_CACHE_HEADERS },
+    );
   } catch (error) {
     console.error("Unable to load casino directory", error);
     return NextResponse.json({ error: "Unable to load casino directory." }, { status: 503 });
@@ -142,7 +155,16 @@ export async function POST(request: NextRequest) {
       ]);
     }
 
-    return NextResponse.json(directory);
+    // Invalidate caches immediately after DB write succeeds
+    try {
+      revalidatePath("/tracker");
+      revalidatePath("/dashboard/casinos");
+      revalidateTag("casinos", "default");
+    } catch (err) {
+      console.warn("Cache revalidation warning:", err);
+    }
+
+    return NextResponse.json(directory, { headers: NO_CACHE_HEADERS });
   } catch (error) {
     console.error("Unable to save casino directory", error);
     return NextResponse.json({ error: "Unable to save casino directory." }, { status: 503 });

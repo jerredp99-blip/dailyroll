@@ -29,6 +29,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <TopBar />
         {children}
         <AiAssistant />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').catch(function() {});
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );

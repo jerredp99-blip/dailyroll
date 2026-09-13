@@ -21,8 +21,16 @@ async function readApiResponse<T>(response: Response): Promise<T> {
   return data;
 }
 
+const NO_CACHE_FETCH_OPTIONS = {
+  cache: "no-store" as const,
+  headers: {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    Pragma: "no-cache",
+  },
+};
+
 export async function apiGetUsers(): Promise<UserProfile[]> {
-  const res = await fetch("/api/users");
+  const res = await fetch("/api/users", NO_CACHE_FETCH_OPTIONS);
   const data = await readApiResponse<{ users: UserProfile[] }>(res);
   return data.users;
 }
@@ -43,7 +51,7 @@ export type ProfileResponse = {
 };
 
 export async function apiGetProfile(): Promise<ProfileResponse> {
-  const res = await fetch("/api/profile", { cache: "no-store" });
+  const res = await fetch("/api/profile", NO_CACHE_FETCH_OPTIONS);
   return readApiResponse<ProfileResponse>(res);
 }
 
@@ -59,7 +67,10 @@ export async function apiSaveProfile(
 }
 
 export async function apiGetCasinos(key?: string | null): Promise<Casino[] | null> {
-  const res = await fetch(`/api/casinos?key=${encodeURIComponent(key || "admin")}`);
+  const res = await fetch(
+    `/api/casinos?key=${encodeURIComponent(key || "admin")}`,
+    NO_CACHE_FETCH_OPTIONS,
+  );
   const data = await readApiResponse<{ casinos: Casino[] | null }>(res);
   return data.casinos;
 }
@@ -78,7 +89,7 @@ export async function apiDeleteCasinos(key: string): Promise<void> {
   await readApiResponse<{ ok: true }>(res);
 }
 
-type DirectoryData = {
+export type DirectoryData = {
   list: string[] | null;
   urls: Record<string, string>;
   affiliateUrls: Record<string, string>;
@@ -89,7 +100,7 @@ type DirectoryData = {
 };
 
 export async function apiGetDirectory(): Promise<DirectoryData> {
-  const res = await fetch("/api/directory");
+  const res = await fetch("/api/directory", NO_CACHE_FETCH_OPTIONS);
   return readApiResponse<DirectoryData>(res);
 }
 
@@ -108,4 +119,23 @@ export async function apiSaveDirectory(update: {
     body: JSON.stringify(update),
   });
   return readApiResponse<DirectoryData>(res);
+}
+
+export async function apiUpdateAdminCasino(data: {
+  name: string;
+  siteUrl?: string;
+  affiliateUrl?: string;
+  claimUrl?: string;
+  bonusUrl?: string;
+  bonusTitle?: string;
+  trustpilotRating?: number;
+  dailyBonus?: string;
+  details?: string;
+}): Promise<{ ok: boolean; directory: DirectoryData }> {
+  const res = await fetch("/api/admin/casinos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return readApiResponse<{ ok: boolean; directory: DirectoryData }>(res);
 }

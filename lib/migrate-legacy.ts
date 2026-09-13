@@ -36,21 +36,9 @@ export function migrateLegacyLocalStorage(): Promise<void> {
         }
       }
 
-      const directoryUpdate: {
-        list?: string[];
-        urls?: Record<string, string>;
-        ratings?: Record<string, number>;
-      } = {};
-      if (rawDirectory) directoryUpdate.list = JSON.parse(rawDirectory) as string[];
-      if (rawUrls) directoryUpdate.urls = JSON.parse(rawUrls) as Record<string, string>;
-      if (rawRatings) directoryUpdate.ratings = JSON.parse(rawRatings) as Record<string, number>;
-      if (Object.keys(directoryUpdate).length > 0) {
-        try {
-          await apiSaveDirectory(directoryUpdate);
-        } catch (error) {
-          console.warn("Unable to migrate legacy directory data (admin only).", error);
-        }
-      }
+      // Do NOT overwrite authoritative remote directory URLs with stale localStorage data.
+      // Simply mark as migrated to prevent repeated attempts.
+      localStorage.setItem(MIGRATION_FLAG, "1");
 
       for (const key of legacyCasinoKeys) {
         const raw = localStorage.getItem(key);
