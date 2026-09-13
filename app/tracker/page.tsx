@@ -27,6 +27,7 @@ import { RollcallCard } from "@/app/components/RollcallCard";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { SpeedRunModal } from "@/app/components/SpeedRunModal";
+import { SpeedRunErrorBoundary } from "@/components/SpeedRunErrorBoundary";
 // import { BankrollSummary } from "@/app/components/BankrollSummary";
 import {
   apiGetCasinos,
@@ -73,9 +74,10 @@ const casinoOfficialLogoUrls: Record<string, string> = {
   "WOW Vegas": "https://cdn4.wowvegas.com/assets/wowvegas-og-open-graph-image-v3.jpg",
 };
 
-function CasinoLogo({ name, siteUrl }: { name: string; siteUrl?: string }) {
+function CasinoLogo({ name = "", siteUrl }: { name?: string; siteUrl?: string }) {
   const [hasError, setHasError] = useState(false);
-  let logoUrl = casinoOfficialLogoUrls[name] || "";
+  const safeName = name || "Casino";
+  let logoUrl = casinoOfficialLogoUrls[safeName] || "";
 
   if (!logoUrl) {
     const origin = siteUrl && safeOrigin(siteUrl);
@@ -89,13 +91,13 @@ function CasinoLogo({ name, siteUrl }: { name: string; siteUrl?: string }) {
   }
 
   if (!logoUrl || hasError) {
-    return <span>{name.slice(0, 2).toUpperCase()}</span>;
+    return <span>{(safeName.slice(0, 2) || "CR").toUpperCase()}</span>;
   }
 
   return (
     <img
       src={logoUrl}
-      alt={`${name} logo`}
+      alt={`${safeName} logo`}
       className="h-8 w-8 object-contain"
       onError={() => setHasError(true)}
     />
@@ -590,7 +592,8 @@ export default function TrackerPage() {
     };
   }
 
-  function siteUrlFor(casino: Casino): string | undefined {
+  function siteUrlFor(casino?: Casino | null): string | undefined {
+    if (!casino) return undefined;
     return casino.siteUrl ?? casino.url;
   }
 
@@ -1057,6 +1060,12 @@ export default function TrackerPage() {
   const readyCasinos = casinos.filter((c) => !c.hidden && statusFor(c).ready);
   const readyCount = readyCasinos.length;
 
+  const handleOpenSpeedRun = () => {
+    const readyList = casinos.filter((c) => !c.hidden && statusFor(c).ready);
+    if (!readyList || readyList.length === 0) return;
+    setIsSpeedRunOpen(true);
+  };
+
   return (
     <main className="min-h-screen bg-[#101815] text-[#e6eee5]">
       {isSidebarOpen && (
@@ -1518,7 +1527,7 @@ export default function TrackerPage() {
                     {/* Speed Run V2 Action Button */}
                     <button
                       type="button"
-                      onClick={() => setIsSpeedRunOpen(true)}
+                      onClick={handleOpenSpeedRun}
                       disabled={readyCount === 0}
                       title={readyCount > 0 ? `Start Speed Run V2 session (${readyCount} ready)` : "No casinos currently ready to claim"}
                       className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-extrabold transition shadow-sm ${
@@ -2037,16 +2046,20 @@ export default function TrackerPage() {
         </div>
       )}
 
-      <SpeedRunModal
-        isOpen={isSpeedRunOpen}
-        onClose={() => setIsSpeedRunOpen(false)}
-        readyCasinos={casinos.filter((c) => !c.hidden && statusFor(c).ready)}
-        allCasinos={casinos}
-        onClaim={markClaimed}
-        onUpdateCasino={handleUpdateCasino}
-        onSnooze={handleSnoozeCasino}
-        renderLogo={(casino) => <CasinoLogo name={casino.name} siteUrl={siteUrlFor(casino)} />}
-      />
+      <SpeedRunErrorBoundary onClose={() => setIsSpeedRunOpen(false)}>
+        <SpeedRunModal
+          isOpen={isSpeedRunOpen}
+          onClose={() => setIsSpeedRunOpen(false)}
+          readyCasinos={casinos.filter((c) => !c.hidden && statusFor(c).ready)}
+          allCasinos={casinos}
+          onClaim={markClaimed}
+          onUpdateCasino={handleUpdateCasino}
+          onSnooze={handleSnoozeCasino}
+          renderLogo={(casino) =>
+            casino ? <CasinoLogo name={casino.name} siteUrl={siteUrlFor(casino)} /> : null
+          }
+        />
+      </SpeedRunErrorBoundary>
     </main>
   );
 }

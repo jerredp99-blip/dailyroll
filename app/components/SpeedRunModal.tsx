@@ -157,11 +157,52 @@ export function SpeedRunModal({
     };
   }, [isOpen]);
 
+  // Safe URL validator
+  function isValidHttpUrl(stringUrl?: string | null): boolean {
+    if (!stringUrl) return false;
+    try {
+      const trimmed = stringUrl.trim();
+      if (!trimmed) return false;
+      const url = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
+      return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }
+
+  // Keyboard navigation listener with clean unmount cleanup
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName)) {
+        return;
+      }
+      if (e.key === "Escape") {
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   // Sync inputs when current casino changes
   const activeQueueIds = session?.queueIds ?? [];
   const currentIndex = session?.currentIndex ?? 0;
   const currentCasinoId = activeQueueIds[currentIndex];
-  const currentCasino = currentCasinoId ? casinoMap.get(currentCasinoId) : undefined;
+  const currentCasino = currentCasinoId
+    ? casinoMap.get(currentCasinoId) ?? readyCasinos.find((c) => c?.id === currentCasinoId)
+    : readyCasinos[currentIndex] ?? undefined;
+
+  // Auto-guard: if modal is open with an active session but current casino cannot be found, close gracefully
+  useEffect(() => {
+    if (isOpen && session && !session.completed && activeQueueIds.length > 0 && !currentCasino) {
+      onClose();
+    }
+  }, [isOpen, session, activeQueueIds.length, currentCasino, onClose]);
 
   useEffect(() => {
     if (currentCasino) {
@@ -182,7 +223,7 @@ export function SpeedRunModal({
   const sessionLootSc = session?.sessionLootSc ?? 0;
   const sessionLootGc = session?.sessionLootGc ?? 0;
   const claimedCount = session?.claimedIds.length ?? 0;
-  const isCompleted = Boolean(session?.completed) || totalInQueue === 0 || currentIndex >= totalInQueue;
+  const isCompleted = Boolean(session?.completed) || totalInQueue === 0 || currentIndex >= totalInQueue || !currentCasino;
 
   // Trigger loot counter animation
   function triggerLootAnimation(addedSc: number) {
@@ -200,11 +241,15 @@ export function SpeedRunModal({
   // STATE 1: "Launch" View
   // -------------------------------------------------------------
   function handleLaunch() {
-    if (!currentCasino || !session) return;
+    if (!currentCasino || !session) {
+      onClose();
+      return;
+    }
 
-    // 1. Resolve deep link & open in external browser / Chrome
-    const deepLink = getCasinoDeepLink(currentCasino);
-    if (deepLink) {
+    // 1. Resolve deep link & validate URL before opening
+    const deepLink =
+      getCasinoDeepLink(currentCasino) || currentCasino.bonusUrl || currentCasino.url || "";
+    if (deepLink && isValidHttpUrl(deepLink)) {
       openInExternalBrowser(deepLink);
     }
 
@@ -317,8 +362,8 @@ export function SpeedRunModal({
     }
 
     // 3. Add daily bonus reward to session tally
-    const rewardSc = parseScReward(currentCasino.dailyBonus);
-    const rewardGc = parseGcReward(currentCasino.dailyBonus);
+    const rewardSc = parseScReward(currentCasino?.dailyBonus ?? "");
+    const rewardGc = parseGcReward(currentCasino?.dailyBonus ?? "");
     triggerLootAnimation(rewardSc);
 
     // 4. Advance queue
@@ -346,8 +391,8 @@ export function SpeedRunModal({
     onClaim(currentCasino);
 
     // 2. Add daily bonus reward to session tally
-    const rewardSc = parseScReward(currentCasino.dailyBonus);
-    const rewardGc = parseGcReward(currentCasino.dailyBonus);
+    const rewardSc = parseScReward(currentCasino?.dailyBonus ?? "");
+    const rewardGc = parseGcReward(currentCasino?.dailyBonus ?? "");
     triggerLootAnimation(rewardSc);
 
     // 3. Advance queue
@@ -598,16 +643,18 @@ export function SpeedRunModal({
 
                 {/* Logo / Monogram */}
                 <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-emerald-500/30 bg-[#1d3527] text-xl font-bold text-[#9bcf9c] shadow-lg mb-2.5">
-                  {renderLogo ? renderLogo(currentCasino) : currentCasino.name.slice(0, 2).toUpperCase()}
+                  {renderLogo && currentCasino
+                    ? renderLogo(currentCasino)
+                    : (currentCasino?.name?.slice(0, 2) || "CR").toUpperCase()}
                 </div>
 
                 {/* Casino Title & Daily Bonus */}
                 <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                  {currentCasino.name}
+                  {currentCasino?.name ?? "Casino Bonus"}
                 </h3>
                 <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-[#1e3928] px-3.5 py-1 text-xs font-bold text-[#39ff6a] shadow-[0_0_12px_rgba(57,255,106,0.2)]">
                   <Sparkles size={13} />
-                  <span>Daily Reward: {currentCasino.dailyBonus}</span>
+                  <span>Daily Reward: {currentCasino?.dailyBonus ?? "Free Claim"}</span>
                 </div>
 
                 {/* ------------------------------------------------------------- */}
@@ -621,7 +668,7 @@ export function SpeedRunModal({
                       className="flex h-13 w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#79b77f] to-[#39ff6a] px-4 text-sm sm:text-base font-bold text-[#0d1712] shadow-[0_4px_20px_rgba(57,255,106,0.4)] transition hover:scale-[1.02] active:scale-[0.98]"
                     >
                       <ExternalLink size={18} strokeWidth={2.5} />
-                      <span>Launch {currentCasino.name}</span>
+                      <span>Launch {currentCasino?.name ?? "Casino"}</span>
                     </button>
 
                     {/* Micro-Instructions (Cheat Codes) Tip Callout */}

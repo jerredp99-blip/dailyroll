@@ -1,20 +1,10 @@
 /**
- * Utility to open external links cleanly without trapping users in an installed Android PWA.
+ * Utility to open external links cleanly and safely across all platforms:
+ * Android PWA / WebAPK, iOS Safari / PWA, Desktop Chrome / Edge.
  *
- * Problem:
- * On Android standalone PWA / WebAPK (installed to home screen), opening external casino links
- * using standard window.open() or raw <a target="_blank"> can open them within
- * an in-app Chrome Custom Tab or trapped WebView, locking users inside the PWA shell.
- *
- * Solution:
- * Detect Android standalone PWA environments and route the link through a valid Android Chrome Intent:
- * - scheme=https/http
- * - package=com.android.chrome
- * - S.browser_fallback_url for graceful fallback
- * - target="_blank" so the PWA host page is never navigated away or replaced with an error screen.
- *
- * For all other environments (standard browser tabs on Android/iOS/Desktop, iOS Safari/PWA),
- * standard window.open(url, '_blank', 'noopener,noreferrer') is used.
+ * Prevents navigation errors ("This page couldn't load") by using standard,
+ * clean HTTPS targets in new windows/tabs and avoiding unsupported or broken
+ * private intent schemes.
  */
 
 export function isAndroid(): boolean {
@@ -40,48 +30,59 @@ export function isAndroidStandalone(): boolean {
   return isAndr && isStandalone;
 }
 
+export function isValidHttpUrl(stringUrl?: string | null): boolean {
+  if (!stringUrl) return false;
+  try {
+    const trimmed = stringUrl.trim();
+    if (!trimmed) return false;
+    const url = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export function openInExternalBrowser(url: string): Window | null | void {
   if (!url || typeof window === "undefined") return;
 
   const trimmed = url.trim();
+  if (!isValidHttpUrl(trimmed)) return;
   const targetUrl = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  const isStandalone = isAndroidStandalone();
 
-  if (isStandalone) {
-    const scheme = targetUrl.startsWith("http://") ? "http" : "https";
-    // Encode any '#' inside path/query as '%23' so Android's Intent.parseUri doesn't truncate before #Intent;
-    const cleanUrl = targetUrl.replace(/^https?:\/\//i, "").replace(/#/g, "%23");
-
-    // Standard valid Android Chrome Intent without unexported private activities
-    const intentUrl =
-      `intent://${cleanUrl}#Intent;` +
-      `scheme=${scheme};` +
-      `package=com.android.chrome;` +
-      `S.browser_fallback_url=${encodeURIComponent(targetUrl)};` +
-      `end;`;
-
-    try {
-      const a = document.createElement("a");
-      a.href = intentUrl;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        try {
-          document.body.removeChild(a);
-        } catch {
-          // ignore
-        }
-      }, 300);
-      return;
-    } catch {
-      // Graceful fallback to window.open
-      return window.open(targetUrl, "_blank", "noopener,noreferrer");
+  // 1. Try standard window.open in a new browsing context
+  try {
+    const win = window.open(targetUrl, "_blank", "noopener,noreferrer");
+    if (win) {
+      try {
+        win.focus?.();
+      } catch {
+        // ignore
+      }
+      return win;
     }
+  } catch {
+    // Popup blocker or sandbox environment
   }
 
-  // Standard safe execution for browser tabs (Android Chrome, iOS Safari, Desktop)
-  return window.open(targetUrl, "_blank", "noopener,noreferrer");
+  // 2. Guaranteed user-initiated anchor navigation with target="_blank"
+  // Ensures the host PWA tab/window is NEVER replaced with an external page or navigation error.
+  try {
+    const a = document.createElement("a");
+    a.href = targetUrl;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      try {
+        document.body.removeChild(a);
+      } catch {
+        // ignore
+      }
+    }, 300);
+  } catch {
+    // Final fallback
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
+  }
 }

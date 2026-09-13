@@ -13,7 +13,13 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // NetworkOnly strategy for all API and data endpoints
+  // CRITICAL: NEVER intercept cross-origin / external requests (e.g. casino links like stake.us, pulsz.com, etc.)
+  // Let the browser handle external requests natively to prevent "This page couldn't load" errors!
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // NetworkOnly strategy for all same-origin API, auth, and dynamic data endpoints
   if (
     url.pathname.startsWith("/api/") ||
     url.pathname.startsWith("/_next/data/") ||
@@ -27,9 +33,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Standard network request for navigation and static assets
+  // Standard network request for same-origin navigation and static assets
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request)),
+    fetch(event.request).catch(async () => {
+      const cached = await caches.match(event.request);
+      if (cached) return cached;
+      throw new Error("Resource not available offline");
+    }),
   );
 });
-
