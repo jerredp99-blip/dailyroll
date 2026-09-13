@@ -23,7 +23,7 @@ import { useRouter } from "next/navigation";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
 import { SpeedRunModal } from "@/app/components/SpeedRunModal";
-import { BankrollSummary } from "@/app/components/BankrollSummary";
+// import { BankrollSummary } from "@/app/components/BankrollSummary";
 import {
   apiGetCasinos,
   apiGetDirectory,
@@ -1410,8 +1410,8 @@ export default function TrackerPage() {
                 </div>
               </div>
 
-              {/* Bankroll & Projected Yield Analytics Card */}
-              <BankrollSummary casinos={casinos} claimedToday={dailyTotals.claimedToday} />
+              {/* Bankroll & Projected Yield Analytics Card (temporarily hidden) */}
+              {/* <BankrollSummary casinos={casinos} claimedToday={dailyTotals.claimedToday} /> */}
 
               {/* Filter & Sort Controls */}
               <div className="flex flex-wrap items-center gap-3">
