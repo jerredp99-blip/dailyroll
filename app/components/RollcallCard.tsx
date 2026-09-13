@@ -2,6 +2,7 @@
 
 import { CheckCircle2, Clock, ExternalLink, MoreHorizontal } from "lucide-react";
 import type { Casino } from "@/lib/store";
+import { openInExternalBrowser } from "@/lib/openExternalLink";
 
 export type StatusState = "ready" | "pending" | "claimed";
 
@@ -116,17 +117,24 @@ export function RollcallCard({
 
       {/* Claim Button (when ready) OR Dynamic Countdown Timer (when claimed) */}
       {status.ready ? (
-        <a
-          href={casino.claimUrl ?? siteUrl}
-          target="_blank"
-          rel="noreferrer"
-          onClick={() => onClaim(casino)}
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            // Requirement 3: Ensure user interaction state and countdown timers fire immediately before navigation
+            onClaim(casino);
+            const target = casino.claimUrl ?? siteUrl;
+            if (target) {
+              openInExternalBrowser(target);
+            }
+          }}
           aria-label={`Claim ${casino.dailyBonus} for ${casino.name}`}
           className="ml-auto flex min-w-28 cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#79b77f] px-3.5 py-2 text-sm font-bold text-[#122519] shadow-[0_6px_16px_rgba(121,183,127,0.2)] transition hover:-translate-y-0.5 hover:bg-[#91c991] hover:shadow-[0_10px_22px_rgba(145,201,145,0.32)] ring-2 ring-[#39ff6a] ring-offset-2 ring-offset-[#0f1a14]"
         >
           <CheckCircle2 size={16} strokeWidth={2.5} />
           <span>Claim {casino.dailyBonus}!</span>
-        </a>
+        </button>
       ) : (
         <div
           aria-label={`Resets in ${formattedCountdown}`}
@@ -151,7 +159,10 @@ export function RollcallCard({
         {casino.bonusUrl && onOpenBonus && (
           <button
             type="button"
-            onClick={() => onOpenBonus(casino)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenBonus(casino);
+            }}
             aria-label={`Open ${casino.bonusTitle || "Bonus"} for ${casino.name}`}
             className="flex min-w-28 items-center justify-center gap-2 rounded-lg border border-[#4c6d50] bg-transparent px-3.5 py-2 text-sm font-bold text-[#b7d5b5] transition hover:-translate-y-0.5 hover:border-[#6f9d73] hover:bg-[#2a4230]"
           >
@@ -164,3 +175,5 @@ export function RollcallCard({
   );
 }
 
+export const CasinoCard = RollcallCard;
+export default RollcallCard;

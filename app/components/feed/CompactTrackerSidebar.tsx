@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Clock, ExternalLink, Zap, Flame } from "lucide-react";
 import type { Casino } from "@/lib/store";
+import { openInExternalBrowser } from "@/lib/openExternalLink";
 
 export function CompactTrackerSidebar({
   casinos: propCasinos,
@@ -94,10 +95,7 @@ export function CompactTrackerSidebar({
       return;
     }
 
-    const targetUrl =
-      casino.claimUrl || casino.siteUrl || casino.url || "https://google.com";
-    window.open(targetUrl, "_blank", "noopener,noreferrer");
-
+    // 1. Requirement 3: Ensure user interaction state and timers fire immediately before navigation
     const nowIso = new Date().toISOString();
     const updated = (propCasinos ?? internalCasinos).map((c) =>
       c.id === casino.id ? { ...c, lastClaimedAt: nowIso } : c
@@ -106,14 +104,19 @@ export function CompactTrackerSidebar({
 
     try {
       const key = currentUserEmail ? encodeURIComponent(currentUserEmail) : "admin";
-      await fetch(`/api/casinos?key=${key}`, {
+      fetch(`/api/casinos?key=${key}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ casinos: updated }),
-      });
+      }).catch((err) => console.error("Failed to save claim", err));
     } catch (err) {
       console.error("Failed to save claim", err);
     }
+
+    // 2. Open external browser
+    const targetUrl =
+      casino.claimUrl || casino.siteUrl || casino.url || "https://google.com";
+    openInExternalBrowser(targetUrl);
   };
 
   // Requirement: same list as Rollcall (filter out hidden casinos)

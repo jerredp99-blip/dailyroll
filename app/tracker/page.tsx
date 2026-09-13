@@ -25,6 +25,7 @@ import { useRouter } from "next/navigation";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
+import { openInExternalBrowser } from "@/lib/openExternalLink";
 // import { SpeedRunModal } from "@/app/components/SpeedRunModal";
 // import { BankrollSummary } from "@/app/components/BankrollSummary";
 import {
@@ -574,13 +575,8 @@ export default function TrackerPage() {
     if (readyList.length === 0) return;
 
     const nowIso = new Date().toISOString();
-    readyList.forEach((casino) => {
-      const target = casino.claimUrl ?? siteUrlFor(casino);
-      if (target) {
-        window.open(target, "_blank", "noopener,noreferrer");
-      }
-    });
 
+    // 1. Requirement 3: Ensure user interaction state and countdown timers fire immediately before navigation
     const readyIds = new Set(readyList.map((c) => c.id));
     const updatedCasinos = casinos.map((item) =>
       readyIds.has(item.id)
@@ -598,6 +594,14 @@ export default function TrackerPage() {
     } catch {
       // ignore
     }
+
+    // 2. Open external browser for each ready casino
+    readyList.forEach((casino) => {
+      const target = casino.claimUrl ?? siteUrlFor(casino);
+      if (target) {
+        openInExternalBrowser(target);
+      }
+    });
   }
 
   async function handleLaunchAllStaggered() {
@@ -615,11 +619,7 @@ export default function TrackerPage() {
       const casino = readyList[i];
       setStaggerStatus(`Launching ${i + 1} of ${readyList.length}: ${casino.name}...`);
 
-      const deepLink = getCasinoDeepLink(casino);
-      if (deepLink) {
-        window.open(deepLink, "_blank", "noopener,noreferrer");
-      }
-
+      // 1. Requirement 3: Ensure user interaction state fires immediately before navigation
       const nowIso = new Date().toISOString();
       currentCasinos = currentCasinos.map((item) =>
         item.id === casino.id ? { ...item, lastClaimedAt: nowIso } : item
@@ -632,6 +632,12 @@ export default function TrackerPage() {
         localStorage.setItem("dailyroll_claimed_times", JSON.stringify(storedTimes));
       } catch {
         // ignore
+      }
+
+      // 2. Open external browser via deep link
+      const deepLink = getCasinoDeepLink(casino);
+      if (deepLink) {
+        openInExternalBrowser(deepLink);
       }
 
       // 1.5s interval to avoid browser pop-up suppression
@@ -652,17 +658,18 @@ export default function TrackerPage() {
 
   function openCasino(casino: Casino) {
     const target = siteUrlFor(casino);
-    if (target) window.open(target, "_blank", "noopener,noreferrer");
+    if (target) openInExternalBrowser(target);
   }
 
   function handleClaimFromFeed(casino: Casino) {
-    const target = casino.claimUrl || siteUrlFor(casino) || "https://google.com";
-    window.open(target, "_blank", "noopener,noreferrer");
+    // 1. Requirement 3: Ensure user interaction state fires immediately before navigation
     markClaimed(casino);
+    const target = casino.claimUrl || siteUrlFor(casino) || "https://google.com";
+    openInExternalBrowser(target);
   }
 
   function openBonus(casino: Casino) {
-    if (casino.bonusUrl) window.open(casino.bonusUrl, "_blank", "noopener,noreferrer");
+    if (casino.bonusUrl) openInExternalBrowser(casino.bonusUrl);
   }
 
   function unclaim(casino: Casino) {
@@ -761,7 +768,7 @@ export default function TrackerPage() {
       directoryUrls[casinoName] ??
       `https://www.google.com/search?q=${encodeURIComponent(`${casinoName} casino`)}`;
     addDirectoryCasino(casinoName, true);
-    window.open(casinoUrl, "_blank", "noopener,noreferrer");
+    openInExternalBrowser(casinoUrl);
   }
 
   function restoreDefaultCasinos() {
@@ -1314,6 +1321,10 @@ export default function TrackerPage() {
                           href={`https://www.google.com/search?q=${encodeURIComponent(`${casinoName} casino`)}`}
                           target="_blank"
                           rel="noreferrer"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            openInExternalBrowser(`https://www.google.com/search?q=${encodeURIComponent(`${casinoName} casino`)}`);
+                          }}
                           className="truncate hover:text-[#9bcf9c]"
                         >
                           {casinoName}
@@ -1369,6 +1380,10 @@ export default function TrackerPage() {
                       href={`https://www.trustpilot.com/search?query=${encodeURIComponent(casinoName)}`}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        openInExternalBrowser(`https://www.trustpilot.com/search?query=${encodeURIComponent(casinoName)}`);
+                      }}
                       className="mt-2 inline-flex text-xs font-normal text-[#91bf9b] hover:text-[#c2e4bd]"
                     >
                       {(() => {
@@ -1584,6 +1599,11 @@ export default function TrackerPage() {
                         href={`https://www.trustpilot.com/search?query=${encodeURIComponent(casino.name)}`}
                         target="_blank"
                         rel="noreferrer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          openInExternalBrowser(`https://www.trustpilot.com/search?query=${encodeURIComponent(casino.name)}`);
+                        }}
                         className="text-xs text-[#91bf9b] hover:text-[#c2e4bd]"
                       >
                         <TrustpilotStars rating={ratingForCasino(casino.name, casino.trustpilotRating)} />

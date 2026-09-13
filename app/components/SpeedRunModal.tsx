@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { Casino } from "@/lib/store";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
+import { openInExternalBrowser } from "@/lib/openExternalLink";
 
 export function SpeedRunModal({
   isOpen,
@@ -45,17 +46,19 @@ export function SpeedRunModal({
   function handleLaunchAndNext() {
     if (!currentCasino) return;
 
-    // 1. Resolve deep link & open in new tab
-    const deepLink = getCasinoDeepLink(currentCasino);
-    window.open(deepLink, "_blank", "noopener,noreferrer");
-
-    // 2. Mark claimed
+    // 1. Mark claimed immediately before navigation (starts countdown timers)
     onClaim(currentCasino);
     setClaimedIds((prev) => [...prev, currentCasino.id]);
 
-    // 3. Keep index in bounds for next item
+    // 2. Keep index in bounds for next item
     if (currentIndex >= remainingCasinos.length - 1) {
       setCurrentIndex(0);
+    }
+
+    // 3. Resolve deep link & open in external browser
+    const deepLink = getCasinoDeepLink(currentCasino);
+    if (deepLink) {
+      openInExternalBrowser(deepLink);
     }
   }
 
@@ -79,14 +82,18 @@ export function SpeedRunModal({
       const casino = remainingCasinos[i];
       setStaggerStatus(`Launching ${i + 1} of ${remainingCasinos.length}: ${casino.name}...`);
 
-      const deepLink = getCasinoDeepLink(casino);
-      window.open(deepLink, "_blank", "noopener,noreferrer");
-
+      // 1. Mark claimed immediately before navigation (starts countdown timers)
       onClaim(casino);
       setClaimedIds((prev) => [...prev, casino.id]);
 
+      // 2. Resolve deep link & open in external browser
+      const deepLink = getCasinoDeepLink(casino);
+      if (deepLink) {
+        openInExternalBrowser(deepLink);
+      }
+
       // Wait 1.5s interval before next launch to avoid browser pop-up suppression
-      if (i < remainingCasinos.length - 1) {
+      if (i < remainingCasinos.length - 1 && !abortStaggerRef.current) {
         await new Promise((resolve) => setTimeout(resolve, 1500));
       }
     }

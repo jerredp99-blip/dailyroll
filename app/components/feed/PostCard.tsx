@@ -21,6 +21,7 @@ import {
 import { TagBadge } from "@/app/components/feed/TagBadge";
 import { CATEGORY_TAGS, CASINO_TAGS } from "@/lib/casino-tags";
 import type { Post, Comment } from "@/lib/store";
+import { openInExternalBrowser } from "@/lib/openExternalLink";
 
 const EMOJI_OPTIONS = ["🔥", "🎰", "💎", "🚀"];
 
@@ -46,7 +47,11 @@ function renderFormattedContent(text: string) {
           target="_blank"
           rel="noopener noreferrer"
           className="text-emerald-400 hover:text-emerald-300 underline underline-offset-2 break-all transition"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            openInExternalBrowser(part);
+          }}
         >
           {part}
         </a>
@@ -692,6 +697,11 @@ export function PostCard({
                   href={currentPost.mediaUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    openInExternalBrowser(currentPost.mediaUrl!);
+                  }}
                   className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-600/40 bg-[#0f1d15] p-3 text-xs transition hover:border-emerald-500 hover:bg-[#14261c] group"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
