@@ -16,7 +16,28 @@ export async function GET(request: NextRequest) {
       authorEmail: authorEmail || undefined,
     });
 
-    return NextResponse.json({ success: true, posts });
+    const userCasinoIdsParam = searchParams.get("userCasinoIds");
+    let resultPosts = posts;
+    if (userCasinoIdsParam) {
+      const allowedIds = new Set(
+        userCasinoIdsParam
+          .split(",")
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean)
+      );
+      if (allowedIds.size > 0) {
+        resultPosts = resultPosts.filter((p) => {
+          if (p.type === "drop_code" || p.dropCode) {
+            if (p.casinoId) {
+              return allowedIds.has(p.casinoId.toLowerCase().trim());
+            }
+          }
+          return true;
+        });
+      }
+    }
+
+    return NextResponse.json({ success: true, posts: resultPosts });
   } catch (error: any) {
     console.error("Error fetching posts:", error);
     return NextResponse.json(
@@ -33,6 +54,8 @@ export async function POST(request: NextRequest) {
 
     const {
       content,
+      casinoId,
+      casinoName,
       casinoTag,
       tags,
       type,
@@ -99,6 +122,8 @@ export async function POST(request: NextRequest) {
       authorName: effectiveName,
       authorEmail: effectiveEmail,
       authorAvatar: effectiveAvatar || undefined,
+      casinoId: casinoId ? String(casinoId).trim() : null,
+      casinoName: casinoName ? String(casinoName).trim() : null,
       casinoTag: effectiveTags[0] || (casinoTag ? casinoTag.trim().toUpperCase() : undefined),
       tags: effectiveTags,
       type: (type as PostType) || "discussion",

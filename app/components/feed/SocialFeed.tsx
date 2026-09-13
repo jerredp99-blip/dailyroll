@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { PostCard } from "@/app/components/feed/PostCard";
 import { PostComposer } from "@/app/components/feed/PostComposer";
 import { CompactTrackerSidebar } from "@/app/components/feed/CompactTrackerSidebar";
 import { FeedNavRail } from "@/app/components/feed/FeedNavRail";
 import { TagBadge } from "@/app/components/feed/TagBadge";
-import { Loader2, RefreshCw, X, Radio, Trophy, Gift, MessageSquare, ChevronDown } from "lucide-react";
+import { Loader2, RefreshCw, X, Radio, Trophy, Gift, MessageSquare, ChevronDown, ExternalLink } from "lucide-react";
 import type { Post, PostType, Casino } from "@/lib/store";
+import { getActiveRollcallCasinoKeys, isDropInUserRollcall } from "@/lib/userCasinos";
 
 const DEFAULT_TAGS = [
   "BIG_WIN",
@@ -46,6 +48,7 @@ export function SocialFeed({
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null);
   const [claimedDropIds, setClaimedDropIds] = useState<string[]>([]);
+  const [showAllCasinoDrops, setShowAllCasinoDrops] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Sync claimed bonus drops from localStorage and custom events
@@ -292,14 +295,41 @@ export function SocialFeed({
     []
   );
 
-  const unclaimedDropsCount = useMemo(() => {
+  const activeRollcallKeys = useMemo(
+    () => getActiveRollcallCasinoKeys(casinos),
+    [casinos]
+  );
+
+  const untrackedDropsCount = useMemo(() => {
+    if (activeRollcallKeys.size === 0) return 0;
     return posts.filter(
-      (p) => isBonusDropPost(p) && !claimedDropIds.includes(p.id)
+      (p) => isBonusDropPost(p) && !isDropInUserRollcall(p, activeRollcallKeys)
     ).length;
-  }, [posts, claimedDropIds, isBonusDropPost]);
+  }, [posts, isBonusDropPost, activeRollcallKeys]);
+
+  const unclaimedDropsCount = useMemo(() => {
+    return posts.filter((p) => {
+      if (!isBonusDropPost(p) || claimedDropIds.includes(p.id)) return false;
+      if (!showAllCasinoDrops && activeRollcallKeys.size > 0) {
+        return isDropInUserRollcall(p, activeRollcallKeys);
+      }
+      return true;
+    }).length;
+  }, [posts, claimedDropIds, isBonusDropPost, showAllCasinoDrops, activeRollcallKeys]);
 
   const sortedPosts = useMemo(() => {
     let list = [...posts];
+
+    // Rollcall Filtering: If user has active Rollcall casinos and hasn't toggled "show all",
+    // only show drops matching casinos in their Rollcall (or universal drops)
+    if (!showAllCasinoDrops && activeRollcallKeys.size > 0) {
+      list = list.filter((p) => {
+        if (isBonusDropPost(p)) {
+          return isDropInUserRollcall(p, activeRollcallKeys);
+        }
+        return true;
+      });
+    }
 
     // Filter by category type if selected
     if (currentType !== "all") {
@@ -348,7 +378,16 @@ export function SocialFeed({
     restOfPosts.sort(sortFn);
 
     return [...unclaimedDrops, ...restOfPosts];
-  }, [posts, currentType, selectedTag, sortBy, claimedDropIds, isBonusDropPost]);
+  }, [
+    posts,
+    currentType,
+    selectedTag,
+    sortBy,
+    claimedDropIds,
+    isBonusDropPost,
+    showAllCasinoDrops,
+    activeRollcallKeys,
+  ]);
 
   const feedContent = (
     <main className="space-y-3.5">
@@ -437,6 +476,7 @@ export function SocialFeed({
             currentUserName={currentUserName}
             currentUserAvatar={currentUserAvatar}
             isAdmin={isAdmin}
+            casinos={casinos}
             onPostCreated={handleNewPost}
           />
 
@@ -512,6 +552,44 @@ export function SocialFeed({
               <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
+
+          {/* Explore More Drops Banner (Rollcall Filter Callout) */}
+          {untrackedDropsCount > 0 && (currentType === "all" || currentType === "drop_code") && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-200 shadow-sm animate-in fade-in duration-150">
+              <div className="flex items-center gap-2">
+                <span className="text-base leading-none">🎁</span>
+                <span>
+                  {showAllCasinoDrops ? (
+                    <>
+                      Showing all bonus drops (including{" "}
+                      <span className="font-bold text-amber-300">{untrackedDropsCount}</span> from casinos not in your Rollcall)
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-bold text-amber-300">{untrackedDropsCount}</span> more{" "}
+                      {untrackedDropsCount === 1 ? "bonus drop" : "bonus drops"} available for casinos not in your Rollcall
+                    </>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowAllCasinoDrops((prev) => !prev)}
+                  className="rounded-lg border border-amber-500/30 bg-amber-500/20 px-2.5 py-1 text-xs font-semibold text-amber-200 hover:bg-amber-500/30 hover:text-white transition cursor-pointer"
+                >
+                  {showAllCasinoDrops ? "Show Only My Rollcall" : "Show All Drops"}
+                </button>
+                <Link
+                  href="/tracker"
+                  className="flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-[#122017] px-2.5 py-1 text-xs font-semibold text-emerald-300 hover:bg-emerald-950/60 hover:text-emerald-200 transition"
+                >
+                  <span>Explore Casinos</span>
+                  <ExternalLink size={12} />
+                </Link>
+              </div>
+            </div>
+          )}
 
           {/* Posts Stream */}
           {loading ? (

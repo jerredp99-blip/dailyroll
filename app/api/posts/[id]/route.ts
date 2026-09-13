@@ -70,6 +70,14 @@ export async function PUT(
     if ("casinoTag" in body) {
       updateData.casinoTag = body.casinoTag ? String(body.casinoTag).trim().toUpperCase() : null;
     }
+    if ("casinoId" in body) {
+      updateData.casinoId =
+        body.casinoId === "" || body.casinoId === null ? null : String(body.casinoId).trim();
+    }
+    if ("casinoName" in body) {
+      updateData.casinoName =
+        body.casinoName === "" || body.casinoName === null ? null : String(body.casinoName).trim();
+    }
     if ("type" in body) {
       updateData.type = (body.type as PostType) || post.type || "discussion";
     }

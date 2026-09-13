@@ -414,7 +414,7 @@ export function PostCard({
               </span>
               {isBonusDrop && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/20 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-bold text-emerald-300 shadow-sm">
-                  🎁 Bonus Drop
+                  {currentPost.casinoName ? `🎁 ${currentPost.casinoName} Drop` : "🎁 Bonus Drop"}
                 </span>
               )}
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import {
   Send,
   Trophy,
@@ -15,23 +15,27 @@ import {
 import { TagBadge } from "@/app/components/feed/TagBadge";
 import { CATEGORY_TAGS, CASINO_TAGS } from "@/lib/casino-tags";
 import type { Post, PostType } from "@/lib/store";
+import type { Casino } from "@/types/casino";
 
 export function PostComposer({
   currentUserEmail,
   currentUserName,
   currentUserAvatar,
   isAdmin = false,
+  casinos = [],
   onPostCreated,
 }: {
   currentUserEmail?: string;
   currentUserName?: string;
   currentUserAvatar?: string;
   isAdmin?: boolean;
+  casinos?: Casino[];
   onPostCreated: (post: Post) => void;
 }) {
   const [type, setType] = useState<PostType>("discussion");
   const [content, setContent] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedCasinoId, setSelectedCasinoId] = useState("");
   const [winAmount, setWinAmount] = useState("");
   const [multiplier, setMultiplier] = useState("");
   const [dropCode, setDropCode] = useState("");
@@ -42,6 +46,32 @@ export function PostComposer({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const supportedCasinosList = useMemo(() => {
+    const list: Array<{ id: string; name: string; tag: string }> = [];
+    const seen = new Set<string>();
+
+    if (casinos && Array.isArray(casinos)) {
+      for (const c of casinos) {
+        const id = c.id.toLowerCase().trim();
+        if (!seen.has(id)) {
+          seen.add(id);
+          const tag = c.name.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+          list.push({ id: c.id, name: c.name, tag });
+        }
+      }
+    }
+
+    for (const ct of CASINO_TAGS) {
+      const id = ct.id.toLowerCase().trim();
+      if (!seen.has(id)) {
+        seen.add(id);
+        list.push({ id: ct.id.toLowerCase(), name: ct.name, tag: ct.id });
+      }
+    }
+
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [casinos]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -132,14 +162,33 @@ export function PostComposer({
     setIsSubmitting(true);
     setError("");
 
+    if (type === "drop_code" && !selectedCasinoId) {
+      setError("Please select the associated casino for this bonus drop.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const chosenCasino = supportedCasinosList.find((c) => c.id === selectedCasinoId);
+    const chosenCasinoId =
+      selectedCasinoId === "universal" ? null : chosenCasino ? chosenCasino.id : selectedCasinoId || null;
+    const chosenCasinoName =
+      selectedCasinoId === "universal" ? "All Casinos" : chosenCasino ? chosenCasino.name : null;
+    const chosenCasinoTag = chosenCasino ? chosenCasino.tag : selectedTags[0] || undefined;
+    const effectiveTags =
+      chosenCasinoTag && !selectedTags.includes(chosenCasinoTag)
+        ? [chosenCasinoTag, ...selectedTags.filter((t) => t !== "BONUS_CODE"), "BONUS_CODE"]
+        : selectedTags;
+
     try {
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content,
-          casinoTag: selectedTags[0] || undefined,
-          tags: selectedTags,
+          casinoId: chosenCasinoId,
+          casinoName: chosenCasinoName,
+          casinoTag: chosenCasinoTag,
+          tags: effectiveTags,
           type,
           winAmount: type === "big_win" ? winAmount : undefined,
           multiplier: type === "big_win" ? multiplier : undefined,
@@ -162,6 +211,7 @@ export function PostComposer({
       onPostCreated(data.post);
       setContent("");
       setSelectedTags([]);
+      setSelectedCasinoId("");
       setWinAmount("");
       setMultiplier("");
       setDropCode("");
@@ -323,6 +373,7 @@ export function PostComposer({
             if (!content.trim() || window.confirm("Discard post draft?")) {
               setContent("");
               setSelectedTags([]);
+              setSelectedCasinoId("");
               setWinAmount("");
               setMultiplier("");
               setDropCode("");
@@ -372,7 +423,31 @@ export function PostComposer({
         )}
 
         {type === "drop_code" && (
-          <div className="space-y-2 animate-in fade-in duration-200">
+          <div className="space-y-2.5 animate-in fade-in duration-200">
+            {/* Associated Casino (Required for Bonus Drops) */}
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-teal-300">
+                Associated Casino *
+              </label>
+              <select
+                required
+                value={selectedCasinoId}
+                onChange={(e) => {
+                  setSelectedCasinoId(e.target.value);
+                  setError("");
+                }}
+                className="h-9 w-full rounded-lg border border-teal-800/40 bg-[#0e1712] px-3 text-xs text-white outline-none focus:border-teal-500 cursor-pointer"
+              >
+                <option value="" disabled>-- Select Casino (Required) --</option>
+                <option value="universal">🌐 All Casinos (Universal Drop)</option>
+                {supportedCasinosList.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="mb-1 block text-[11px] font-semibold text-teal-300">
                 Promo / Drop Code

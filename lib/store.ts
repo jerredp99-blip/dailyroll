@@ -71,6 +71,8 @@ export type Post = {
   authorName: string;
   authorEmail: string;
   authorAvatar?: string;
+  casinoId?: string | null;
+  casinoName?: string | null;
   casinoTag?: string | null;
   tags?: string[];
   type: PostType;
@@ -637,6 +639,8 @@ export async function createPost(
     const newPost: Post = {
       ...postData,
       id: "post-" + crypto.randomUUID(),
+      casinoId: postData.casinoId ?? null,
+      casinoName: postData.casinoName ?? null,
       tags: effectiveTags,
       casinoTag: effectiveTags[0] ?? postData.casinoTag,
       createdAt: new Date().toISOString(),
@@ -656,6 +660,8 @@ export async function updatePost(
       Post,
       | "content"
       | "casinoTag"
+      | "casinoId"
+      | "casinoName"
       | "tags"
       | "type"
       | "winAmount"
