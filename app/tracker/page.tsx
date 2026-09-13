@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
+import { RollcallCard } from "@/app/components/RollcallCard";
 import {
   apiGetCasinos,
   apiGetDirectory,
@@ -272,6 +273,7 @@ export default function TrackerPage() {
   const [casinoFilter, setCasinoFilter] = useState<"all" | "ready" | "claimed">("all");
   const [casinoSort, setCasinoSort] = useState<"status" | "f2p" | "trustpilot" | "name-asc" | "name-desc">("status");
   const [viewMode, setViewMode] = useState<"social" | "rollcall">("social");
+  const [mobileTab, setMobileTab] = useState<"rollcall" | "feed">("rollcall");
   const editScrollPosition = useRef<number | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -397,6 +399,12 @@ export default function TrackerPage() {
       const defaultUrlByName = Object.fromEntries(
         DEFAULT_CASINOS.map((casino) => [casino.name.toLowerCase(), casino.url]),
       );
+      let localClaimedTimes: Record<string, string> = {};
+      try {
+        localClaimedTimes = JSON.parse(localStorage.getItem("dailyroll_claimed_times") || "{}");
+      } catch {
+        // Ignore malformed localStorage
+      }
       const hydratedCasinos = loadedCasinos.map((casino) => {
         // Preserve each profile's own saved URLs unless the field is missing.
         // For the four built-in default casinos, when the user has never edited
@@ -413,8 +421,10 @@ export default function TrackerPage() {
             : defaultUrl !== undefined
               ? sharedUrlsByName[casino.name.toLowerCase()]
               : undefined);
+        const lastClaimedAt = casino.lastClaimedAt || localClaimedTimes[casino.id] || null;
         return {
           ...casino,
+          lastClaimedAt,
           siteUrl,
           affiliateUrl: casino.affiliateUrl ?? sharedAffiliateUrlsByName[casino.name.toLowerCase()],
           claimUrl: casino.claimUrl ?? sharedClaimUrlsByName[casino.name.toLowerCase()],
@@ -480,8 +490,9 @@ export default function TrackerPage() {
     state: StatusState;
     label: string;
     shortLabel: string;
+    remainingMs: number;
   } {
-    if (!casino.lastClaimedAt) return { ready: true, state: "ready", label: "Ready to claim", shortLabel: "now" };
+    if (!casino.lastClaimedAt) return { ready: true, state: "ready", label: "Ready to claim", shortLabel: "now", remainingMs: 0 };
     let nextReset =
       new Date(casino.lastClaimedAt).getTime() +
       casino.intervalHours * 60 * 60 * 1000;
@@ -494,7 +505,7 @@ export default function TrackerPage() {
       nextReset = reset.getTime();
     }
     const remaining = nextReset - now;
-    if (remaining <= 0) return { ready: true, state: "ready", label: "Ready to claim", shortLabel: "now" };
+    if (remaining <= 0) return { ready: true, state: "ready", label: "Ready to claim", shortLabel: "now", remainingMs: 0 };
     const hours = Math.floor(remaining / 3600000);
     const minutes = Math.floor((remaining % 3600000) / 60000);
     const seconds = Math.floor((remaining % 60000) / 1000);
@@ -503,6 +514,7 @@ export default function TrackerPage() {
       state: remaining <= 3600000 ? "pending" : "claimed",
       label: `${hours}h ${minutes}m ${seconds}s`,
       shortLabel: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m ${seconds}s`,
+      remainingMs: Math.max(0, remaining),
     };
   }
 
@@ -511,13 +523,52 @@ export default function TrackerPage() {
   }
 
   function markClaimed(casino: Casino) {
+    const nowIso = new Date().toISOString();
     saveCasinos(
       casinos.map((item) =>
         item.id === casino.id
-          ? { ...item, lastClaimedAt: new Date().toISOString() }
+          ? { ...item, lastClaimedAt: nowIso }
           : item,
       ),
     );
+    try {
+      const storedTimes = JSON.parse(localStorage.getItem("dailyroll_claimed_times") || "{}");
+      storedTimes[casino.id] = nowIso;
+      localStorage.setItem("dailyroll_claimed_times", JSON.stringify(storedTimes));
+    } catch {
+      // ignore
+    }
+  }
+
+  function handleOpenAllReady() {
+    const readyList = casinos.filter((c) => !c.hidden && statusFor(c).ready);
+    if (readyList.length === 0) return;
+
+    const nowIso = new Date().toISOString();
+    readyList.forEach((casino) => {
+      const target = casino.claimUrl ?? siteUrlFor(casino);
+      if (target) {
+        window.open(target, "_blank", "noopener,noreferrer");
+      }
+    });
+
+    const readyIds = new Set(readyList.map((c) => c.id));
+    const updatedCasinos = casinos.map((item) =>
+      readyIds.has(item.id)
+        ? { ...item, lastClaimedAt: nowIso }
+        : item,
+    );
+    saveCasinos(updatedCasinos);
+
+    try {
+      const storedTimes = JSON.parse(localStorage.getItem("dailyroll_claimed_times") || "{}");
+      readyList.forEach((c) => {
+        storedTimes[c.id] = nowIso;
+      });
+      localStorage.setItem("dailyroll_claimed_times", JSON.stringify(storedTimes));
+    } catch {
+      // ignore
+    }
   }
 
   function openCasino(casino: Casino) {
@@ -531,7 +582,7 @@ export default function TrackerPage() {
     markClaimed(casino);
   }
 
-    function openBonus(casino: Casino) {
+  function openBonus(casino: Casino) {
     if (casino.bonusUrl) window.open(casino.bonusUrl, "_blank", "noopener,noreferrer");
   }
 
@@ -541,6 +592,13 @@ export default function TrackerPage() {
         item.id === casino.id ? { ...item, lastClaimedAt: null } : item,
       ),
     );
+    try {
+      const storedTimes = JSON.parse(localStorage.getItem("dailyroll_claimed_times") || "{}");
+      delete storedTimes[casino.id];
+      localStorage.setItem("dailyroll_claimed_times", JSON.stringify(storedTimes));
+    } catch {
+      // ignore
+    }
   }
 
   function toggleHiddenCasino(casino: Casino) {
@@ -868,6 +926,9 @@ export default function TrackerPage() {
     { available: 0, claimedToday: 0 },
   );
 
+  const readyCasinos = casinos.filter((c) => !c.hidden && statusFor(c).ready);
+  const readyCount = readyCasinos.length;
+
   return (
     <main className="min-h-screen bg-[#101815] text-[#e6eee5]">
       {isSidebarOpen && (
@@ -965,22 +1026,22 @@ export default function TrackerPage() {
             <button
               type="button"
               onClick={() => {
-                setViewMode("social");
+                setMobileTab("feed");
                 showAddCasinosPage(false);
                 setIsSidebarOpen(false);
               }}
-              className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors ${viewMode === "social" && !isAddCasinosPage ? "border border-emerald-800/50 bg-emerald-900/40 text-emerald-300" : "text-gray-400 hover:bg-emerald-950/30 hover:text-white"}`}
+              className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors ${mobileTab === "feed" && !isAddCasinosPage ? "border border-emerald-800/50 bg-emerald-900/40 text-emerald-300" : "text-gray-400 hover:bg-emerald-950/30 hover:text-white"}`}
             >
               <MessageSquare size={16} /> Community Feed
             </button>
             <button
               type="button"
               onClick={() => {
-                setViewMode("rollcall");
+                setMobileTab("rollcall");
                 showAddCasinosPage(false);
                 setIsSidebarOpen(false);
               }}
-              className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors ${viewMode === "rollcall" && !isAddCasinosPage ? "border border-emerald-800/50 bg-emerald-900/40 text-emerald-300" : "text-gray-400 hover:bg-emerald-950/30 hover:text-white"}`}
+              className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors ${mobileTab === "rollcall" && !isAddCasinosPage ? "border border-emerald-800/50 bg-emerald-900/40 text-emerald-300" : "text-gray-400 hover:bg-emerald-950/30 hover:text-white"}`}
             >
               <LayoutDashboard size={16} /> My Rollcall
             </button>
@@ -1059,177 +1120,111 @@ export default function TrackerPage() {
         <header className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3 border-b border-[#263a2c] pb-3 mb-4 sm:mb-6">
           <div className="flex items-center gap-3">
             {isAddCasinosPage ? (
-              <h1
-                className="text-lg font-normal uppercase tracking-[0.08em] text-[#f3f8f0] sm:text-2xl"
-                style={{ fontFamily: "Rhinos, Impact, sans-serif" }}
-              >
-                ADD CASINOS TO ROLL
-              </h1>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => showAddCasinosPage(false)}
+                  className="rounded-lg border border-[#344d3b] bg-[#111b16] px-2.5 py-1 text-xs text-[#9bcf9c] hover:bg-[#192b20]"
+                >
+                  ← Back to Tracker
+                </button>
+                <h1
+                  className="text-lg font-normal uppercase tracking-[0.08em] text-[#f3f8f0] sm:text-2xl"
+                  style={{ fontFamily: "Rhinos, Impact, sans-serif" }}
+                >
+                  ADD CASINOS TO ROLL
+                </h1>
+              </div>
             ) : (
               <div>
                 <h2 className="font-serif text-lg sm:text-2xl font-semibold text-[#edf4ea]">
-                  {viewMode === "social" ? "Social Casino Feed" : "Daily Casino Rollcall"}
+                  Daily Casino Rollcall
                 </h2>
               </div>
             )}
           </div>
-
-          {!isAddCasinosPage && (
-            <div className="flex items-center gap-1 rounded-xl bg-[#0f1913] p-1 border border-[#263e2f]">
-              <button
-                type="button"
-                onClick={() => setViewMode("social")}
-                className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
-                  viewMode === "social"
-                    ? "bg-[#254231] text-white shadow-sm"
-                    : "text-[#85a08b] hover:text-white"
-                }`}
-              >
-                <MessageSquare size={13} />
-                Community Feed
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setViewMode("rollcall")}
-                className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
-                  viewMode === "rollcall"
-                    ? "bg-[#254231] text-white shadow-sm"
-                    : "text-[#85a08b] hover:text-white"
-                }`}
-              >
-                <LayoutDashboard size={13} />
-                Detailed Rollcall
-              </button>
-            </div>
-          )}
         </header>
 
-        {viewMode === "social" && !isAddCasinosPage ? (
-          <SocialFeed
-            currentUserEmail={signedInUser?.email}
-            currentUserName={signedInUser?.name}
-            currentUserAvatar={signedInUser?.avatarUrl || undefined}
-            isAdmin={isAdmin}
-            casinos={casinos}
-            onClaimCasino={handleClaimFromFeed}
-          />
-        ) : (
-          <div className="mx-auto max-w-4xl">
-
-          {!isAddCasinosPage && (
-            <div className="sticky top-20 z-20 mt-4 rounded-xl border border-[#2b4434] bg-[#13201a]/95 px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur">
-              <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xs uppercase tracking-[0.14em] text-[#819487]">
-                    Available to claim
+        {/* Mobile Sticky Segmented Tab Control (< 768px) */}
+        {!isAddCasinosPage && (
+          <div className="sticky top-0 z-30 mb-4 bg-[#101815]/95 py-2 backdrop-blur md:hidden">
+            <div className="flex rounded-xl bg-[#0f1913] p-1 border border-[#263e2f]">
+              <button
+                type="button"
+                onClick={() => setMobileTab("rollcall")}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition ${
+                  mobileTab === "rollcall"
+                    ? "bg-[#254231] text-white shadow-sm ring-1 ring-emerald-500/40"
+                    : "text-[#85a08b] hover:text-white"
+                }`}
+              >
+                <LayoutDashboard size={14} />
+                Rollcall
+                {readyCount > 0 && (
+                  <span className="rounded-full bg-[#39ff6a] px-1.5 py-0.2 text-[10px] font-bold text-[#101815]">
+                    {readyCount}
                   </span>
-                  <span className="text-lg font-bold text-[#39ff6a]">
-                    {dailyTotals.available.toFixed(2)} SC
-                  </span>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xs uppercase tracking-[0.14em] text-[#819487]">
-                    Claimed today
-                  </span>
-                  <span className="text-lg font-bold text-[#9bcf9c]">
-                    {dailyTotals.claimedToday.toFixed(2)} SC
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <section className="mt-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                {!isAddCasinosPage && (
-                  <>
-                    <label className="flex items-center gap-2 text-xs text-[#a9bbaa]">
-                      <span className="sr-only">Filter casinos</span>
-                      <select
-                        value={casinoFilter}
-                        onChange={(event) => setCasinoFilter(event.target.value as typeof casinoFilter)}
-                        aria-label="Filter casinos"
-                        className="h-9 rounded-lg border border-[#344d3b] bg-[#111b16] px-2 text-xs text-[#d4e4d2] outline-none focus:border-[#78ae7e]"
-                      >
-                        <option value="all">All casinos</option>
-                        <option value="ready">Ready to claim</option>
-                        <option value="claimed">Claimed</option>
-                      </select>
-                    </label>
-                    <label className="flex items-center gap-2 text-xs text-[#a9bbaa]">
-                      <span className="sr-only">Sort casinos</span>
-                      <select
-                        value={casinoSort}
-                        onChange={(event) => setCasinoSort(event.target.value as typeof casinoSort)}
-                        aria-label="Sort casinos"
-                        className="h-9 rounded-lg border border-[#344d3b] bg-[#111b16] px-2 text-xs text-[#d4e4d2] outline-none focus:border-[#78ae7e]"
-                      >
-                        <option value="status">Sort by status</option>
-                        <option value="f2p">Best F2P / Free to play</option>
-                        <option value="trustpilot">Highest Trustpilot rating</option>
-                        <option value="name-asc">Name A-Z</option>
-                        <option value="name-desc">Name Z-A</option>
-                      </select>
-                    </label>
-                  <label className="flex items-center gap-2 text-xs text-[#a9bbaa]">
-                      <span className="sr-only">Show hidden casinos</span>
-                      <input
-                        type="checkbox"
-                        checked={showHidden}
-                        onChange={(event) => setShowHidden(event.target.checked)}
-                        aria-label="Show hidden casinos"
-                        className="h-4 w-4 accent-[#79b77f]"
-                      />
-                      Show hidden
-                    </label>
-                  </>
                 )}
-              </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileTab("feed")}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition ${
+                  mobileTab === "feed"
+                    ? "bg-[#254231] text-white shadow-sm ring-1 ring-emerald-500/40"
+                    : "text-[#85a08b] hover:text-white"
+                }`}
+              >
+                <MessageSquare size={14} />
+                Feed
+              </button>
             </div>
-            {isAddCasinosPage ? (
-              <>
-                <div className="mt-5 flex flex-wrap items-center gap-3">
-                  <select
-                    value={directoryFilter}
-                    onChange={(event) => setDirectoryFilter(event.target.value as typeof directoryFilter)}
-                    aria-label="Filter all casinos"
-                    className="h-9 rounded-lg border border-[#344d3b] bg-[#111b16] px-2 text-xs text-[#d4e4d2] outline-none focus:border-[#78ae7e]"
-                  >
-                    <option value="available">Available to add</option>
-                    <option value="added">Already added</option>
-                    <option value="all">All casinos</option>
-                  </select>
-                  <select
-                    value={directorySort}
-                    onChange={(event) => setDirectorySort(event.target.value as typeof directorySort)}
-                    aria-label="Sort all casinos"
-                    className="h-9 rounded-lg border border-[#344d3b] bg-[#111b16] px-2 text-xs text-[#d4e4d2] outline-none focus:border-[#78ae7e]"
-                  >
-                    <option value="name-asc">Name A-Z</option>
-                    <option value="name-desc">Name Z-A</option>
-                    <option value="f2p">Best F2P / Free to play</option>
-                    <option value="trustpilot">Highest Trustpilot rating</option>
-                  </select>
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={restoreDefaultCasinos}
-                      className="h-9 rounded-lg border border-[#4c6d50] px-3 text-xs font-semibold text-[#b7d5b5] transition hover:bg-[#2a4230]"
-                    >
-                      Restore default casinos
-                    </button>
-                  )}
+          </div>
+        )}
+
+        {isAddCasinosPage ? (
+          <div className="mx-auto max-w-4xl">
+            <section className="mt-4">
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <select
+                  value={directoryFilter}
+                  onChange={(event) => setDirectoryFilter(event.target.value as typeof directoryFilter)}
+                  aria-label="Filter all casinos"
+                  className="h-9 rounded-lg border border-[#344d3b] bg-[#111b16] px-2 text-xs text-[#d4e4d2] outline-none focus:border-[#78ae7e]"
+                >
+                  <option value="available">Available to add</option>
+                  <option value="added">Already added</option>
+                  <option value="all">All casinos</option>
+                </select>
+                <select
+                  value={directorySort}
+                  onChange={(event) => setDirectorySort(event.target.value as typeof directorySort)}
+                  aria-label="Sort all casinos"
+                  className="h-9 rounded-lg border border-[#344d3b] bg-[#111b16] px-2 text-xs text-[#d4e4d2] outline-none focus:border-[#78ae7e]"
+                >
+                  <option value="name-asc">Name A-Z</option>
+                  <option value="name-desc">Name Z-A</option>
+                  <option value="f2p">Best F2P / Free to play</option>
+                  <option value="trustpilot">Highest Trustpilot rating</option>
+                </select>
+                {isAdmin && (
                   <button
                     type="button"
-                    onClick={() => setIsAddOpen(true)}
-                    className="ml-auto flex h-9 items-center gap-1.5 rounded-lg bg-[#79b77f] px-3.5 text-sm font-semibold text-[#122519] shadow-[0_6px_16px_rgba(121,183,127,0.22)] transition hover:bg-[#91c991]"
+                    onClick={restoreDefaultCasinos}
+                    className="h-9 rounded-lg border border-[#4c6d50] px-3 text-xs font-semibold text-[#b7d5b5] transition hover:bg-[#2a4230]"
                   >
-                    <Plus size={15} /> Custom casino
+                    Restore default casinos
                   </button>
-                </div>
-                <div className="mt-5 grid grid-cols-1 gap-3">
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsAddOpen(true)}
+                  className="ml-auto flex h-9 items-center gap-1.5 rounded-lg bg-[#79b77f] px-3.5 text-sm font-semibold text-[#122519] shadow-[0_6px_16px_rgba(121,183,127,0.22)] transition hover:bg-[#91c991]"
+                >
+                  <Plus size={15} /> Custom casino
+                </button>
+              </div>
+              <div className="mt-5 grid grid-cols-1 gap-3">
                 {visibleDirectory.map((casinoName) => (
                   <article
                     key={casinoName}
@@ -1323,133 +1318,157 @@ export default function TrackerPage() {
                     All listed casinos are already on your dashboard.
                   </p>
                 )}
+              </div>
+              <label className="mt-4 flex w-fit items-center gap-3 text-sm text-[#a9bbaa]">
+                <input
+                  type="checkbox"
+                  checked={showAlreadyAdded}
+                  onChange={(event) => setShowAlreadyAdded(event.target.checked)}
+                  className="h-4 w-4 accent-[#79b77f]"
+                />
+                Show already added casinos
+              </label>
+            </section>
+          </div>
+        ) : (
+          <div className="mx-auto max-w-7xl grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+            {/* Rollcall Column: visible on desktop, on mobile only when mobileTab === 'rollcall' */}
+            <div className={`space-y-4 md:col-span-7 lg:col-span-7 ${mobileTab !== "rollcall" ? "hidden md:block" : ""}`}>
+              {/* Tracker Counter Banner with Batch Claim */}
+              <div className="sticky top-14 md:top-4 z-20 rounded-xl border border-[#2b4434] bg-[#13201a]/95 px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                  <div className="flex flex-wrap items-baseline gap-4 sm:gap-6">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[11px] uppercase tracking-[0.14em] text-[#819487]">
+                        Available
+                      </span>
+                      <span className="text-base sm:text-lg font-bold text-[#39ff6a]">
+                        {dailyTotals.available.toFixed(2)} SC
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[11px] uppercase tracking-[0.14em] text-[#819487]">
+                        Claimed today
+                      </span>
+                      <span className="text-base sm:text-lg font-bold text-[#9bcf9c]">
+                        {dailyTotals.claimedToday.toFixed(2)} SC
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Batch Claim: Open All Ready Button */}
+                  <button
+                    type="button"
+                    onClick={handleOpenAllReady}
+                    disabled={readyCount === 0}
+                    title={readyCount > 0 ? `Open all ${readyCount} ready casinos` : "No casinos currently ready to claim"}
+                    className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-sm ${
+                      readyCount > 0
+                        ? "bg-[#79b77f] text-[#122519] shadow-[0_4px_14px_rgba(121,183,127,0.3)] hover:bg-[#91c991] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ring-1 ring-[#39ff6a]"
+                        : "border border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
+                    }`}
+                  >
+                    <ExternalLink size={13} strokeWidth={2.5} />
+                    <span>Open All Ready ({readyCount})</span>
+                  </button>
                 </div>
-                <label className="mt-4 flex w-fit items-center gap-3 text-sm text-[#a9bbaa]">
+              </div>
+
+              {/* Filter & Sort Controls */}
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-xs text-[#a9bbaa]">
+                  <span className="sr-only">Filter casinos</span>
+                  <select
+                    value={casinoFilter}
+                    onChange={(event) => setCasinoFilter(event.target.value as typeof casinoFilter)}
+                    aria-label="Filter casinos"
+                    className="h-9 rounded-lg border border-[#344d3b] bg-[#111b16] px-2 text-xs text-[#d4e4d2] outline-none focus:border-[#78ae7e]"
+                  >
+                    <option value="all">All casinos</option>
+                    <option value="ready">Ready to claim</option>
+                    <option value="claimed">Claimed</option>
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-[#a9bbaa]">
+                  <span className="sr-only">Sort casinos</span>
+                  <select
+                    value={casinoSort}
+                    onChange={(event) => setCasinoSort(event.target.value as typeof casinoSort)}
+                    aria-label="Sort casinos"
+                    className="h-9 rounded-lg border border-[#344d3b] bg-[#111b16] px-2 text-xs text-[#d4e4d2] outline-none focus:border-[#78ae7e]"
+                  >
+                    <option value="status">Sort by status</option>
+                    <option value="f2p">Best F2P / Free to play</option>
+                    <option value="trustpilot">Highest Trustpilot rating</option>
+                    <option value="name-asc">Name A-Z</option>
+                    <option value="name-desc">Name Z-A</option>
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-[#a9bbaa]">
+                  <span className="sr-only">Show hidden casinos</span>
                   <input
                     type="checkbox"
-                    checked={showAlreadyAdded}
-                    onChange={(event) => setShowAlreadyAdded(event.target.checked)}
+                    checked={showHidden}
+                    onChange={(event) => setShowHidden(event.target.checked)}
+                    aria-label="Show hidden casinos"
                     className="h-4 w-4 accent-[#79b77f]"
                   />
-                  Show already added casinos
+                  Show hidden
                 </label>
-              </>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {sortedCasinos.map((casino) => {
-                  const status = statusFor(casino);
-                  const styles = STATUS_STYLES[status.state];
-                  return (
-                    <article
-                      key={casino.id}
-                      onClick={(event) => {
-                        if ((event.target as HTMLElement).closest("button, a")) return;
-                        openCasino(casino);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          openCasino(casino);
-                        }
-                      }}
-                      role="link"
-                      tabIndex={0}
-                      className={`group flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-xl border p-3.5 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(0,0,0,0.2)] focus:outline-none focus:ring-2 focus:ring-[#79b77f]/60 ${styles.card} ${casino.hidden ? "border-dashed opacity-60 grayscale hover:opacity-90" : ""}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#294631] text-sm font-bold text-[#9bcf9c]">
-                          <CasinoLogo name={casino.name} siteUrl={siteUrlFor(casino)} />
-                        </div>
-                        <div>
-                          <div className="flex flex-wrap items-center gap-3">
-                            <h2 className="font-semibold text-[#e5eee3]">
-                              {casino.name}
-                            </h2>
-                            {casino.hidden && (
-                              <span className="rounded-full border border-[#4a5d51] bg-[#1f2218] px-2 py-1 text-xs text-[#a3b1a5]">
-                                Hidden
-                              </span>
-                            )}
-                            <a
-                              href={`https://www.trustpilot.com/search?query=${encodeURIComponent(casino.name)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-xs text-[#91bf9b] hover:text-[#c2e4bd]"
-                            >
-                              <TrustpilotStars rating={ratingForCasino(casino.name, casino.trustpilotRating)} />
-                            </a>
-                          </div>
-                          <p className="mt-1 flex items-center gap-2 text-xs">
-                            <span
-                              aria-hidden="true"
-                              className={`h-2.5 w-2.5 shrink-0 rounded-full ${styles.dot}`}
-                            />
-                            <span className={`font-semibold ${styles.label}`}>
-                              {status.ready ? "Ready to claim" : `Available in ${status.shortLabel}`}
-                            </span>
-                          </p>
-                        </div>
-                      </div>
+              </div>
+
+              {/* Casinos List using RollcallCard */}
+              <div className="space-y-2.5">
+                {sortedCasinos.map((casino) => (
+                  <RollcallCard
+                    key={casino.id}
+                    casino={casino}
+                    status={statusFor(casino)}
+                    siteUrl={siteUrlFor(casino)}
+                    isActionMenuOpen={openActionMenu === casino.id}
+                    onToggleActionMenu={() =>
+                      setOpenActionMenu((open) => (open === casino.id ? null : casino.id))
+                    }
+                    onClaim={markClaimed}
+                    onOpenCasino={openCasino}
+                    onOpenBonus={casino.bonusUrl ? openBonus : undefined}
+                    renderLogo={() => <CasinoLogo name={casino.name} siteUrl={siteUrlFor(casino)} />}
+                    renderTrustpilot={() => (
                       <a
-                        href={casino.claimUrl ?? siteUrlFor(casino)}
+                        href={`https://www.trustpilot.com/search?query=${encodeURIComponent(casino.name)}`}
                         target="_blank"
                         rel="noreferrer"
-                        onClick={() => {
-                          if (status.ready) markClaimed(casino);
-                        }}
-                        aria-label={
-                          status.ready
-                            ? `Claim ${casino.dailyBonus} for ${casino.name}`
-                            : `Next claim for ${casino.name} in ${status.label}`
-                        }
-                        className={`ml-auto flex min-w-28 cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-bold transition ${
-                          status.ready
-                            ? "bg-[#79b77f] text-[#122519] shadow-[0_6px_16px_rgba(121,183,127,0.2)] hover:-translate-y-0.5 hover:bg-[#91c991] hover:shadow-[0_10px_22px_rgba(145,201,145,0.32)] ring-2 ring-[#39ff6a] ring-offset-2 ring-offset-[#0f1a14]"
-                            : "border border-[#3a4c40] bg-transparent text-[#f0a03c] hover:-translate-y-0.5 hover:border-[#556b5a] hover:bg-[#1d2a22]"
-                        }`}
+                        className="text-xs text-[#91bf9b] hover:text-[#c2e4bd]"
                       >
-                        {status.ready ? (
-                          <>
-                            <CheckCircle2 size={16} strokeWidth={2.5} />
-                            Claim {casino.dailyBonus}!
-                          </>
-                        ) : (
-                          <>
-                            <Clock size={16} strokeWidth={2.5} />
-                            {status.label}
-                          </>
-                        )}
+                        <TrustpilotStars rating={ratingForCasino(casino.name, casino.trustpilotRating)} />
                       </a>
-                      <div className="relative flex w-full items-center justify-between gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setOpenActionMenu((open) => open === casino.id ? null : casino.id)}
-                          aria-label={`More actions for ${casino.name}`}
-                          aria-expanded={openActionMenu === casino.id}
-                          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#4c6d50] text-[#b7d5b5] hover:bg-[#2a4230]"
-                        >
-                          <MoreHorizontal size={18} />
-                        </button>
-                        {casino.bonusUrl && (
-                          <button
-                            type="button"
-                            onClick={() => openBonus(casino)}
-                            aria-label={`Open ${casino.bonusTitle || "Bonus"} for ${casino.name}`}
-                            className="flex min-w-28 items-center justify-center gap-2 rounded-lg border border-[#4c6d50] bg-transparent px-3.5 py-2 text-sm font-bold text-[#b7d5b5] transition hover:-translate-y-0.5 hover:border-[#6f9d73] hover:bg-[#2a4230]"
-                          >
-                            <ExternalLink size={16} strokeWidth={2.5} />
-                            {casino.bonusTitle || "Bonus"}
-                          </button>
-                        )}
-                      </div>
-                    </article>
-                  );
-                })}
+                    )}
+                  />
+                ))}
+                {sortedCasinos.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-[#293a30] p-8 text-center text-xs text-[#718275]">
+                    No casinos found matching the current filter.
+                  </div>
+                )}
               </div>
-            )}
-          </section>
-        </div>
-      )}
+            </div>
+
+            {/* Feed Column: visible on desktop, on mobile only when mobileTab === 'feed' */}
+            <div className={`space-y-4 md:col-span-5 lg:col-span-5 ${mobileTab !== "feed" ? "hidden md:block" : ""}`}>
+              <div className="sticky top-4">
+                <SocialFeed
+                  compact={true}
+                  currentUserEmail={signedInUser?.email}
+                  currentUserName={signedInUser?.name}
+                  currentUserAvatar={signedInUser?.avatarUrl || undefined}
+                  isAdmin={isAdmin}
+                  casinos={casinos}
+                  onClaimCasino={handleClaimFromFeed}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
         {actionCasino && (
           <div

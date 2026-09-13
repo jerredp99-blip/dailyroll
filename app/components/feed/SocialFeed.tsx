@@ -16,6 +16,7 @@ export function SocialFeed({
   isAdmin,
   casinos,
   onClaimCasino,
+  compact = false,
 }: {
   currentUserEmail?: string;
   currentUserName?: string;
@@ -23,6 +24,7 @@ export function SocialFeed({
   isAdmin?: boolean;
   casinos?: Casino[];
   onClaimCasino?: (casino: Casino) => void;
+  compact?: boolean;
 }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -167,35 +169,10 @@ export function SocialFeed({
     }
   };
 
-  return (
-    <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[240px_1fr_320px]">
-        {/* Left Column: Navigation Rail */}
-        <div className="hidden lg:block">
-          <div className="sticky top-24">
-            <FeedNavRail
-              currentType={currentType}
-              selectedTag={selectedTag}
-              onSelectType={(type) => {
-                setSelectedTag(undefined);
-                setCurrentType(type);
-              }}
-              onSelectTag={(tag) => {
-                setSelectedTag(tag);
-              }}
-              onClearFilter={() => {
-                setSelectedTag(undefined);
-                setCurrentType("all");
-              }}
-              isAdmin={isAdmin}
-            />
-          </div>
-        </div>
-
-        {/* Center Column: Social Feed */}
-        <main className="space-y-3.5">
-          {/* Mobile Category Filters (Horizontally scrollable pill tabs for phones) */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none lg:hidden -mx-1 px-1">
+  const feedContent = (
+    <main className="space-y-3.5">
+      {/* Category Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-none -mx-1 px-1">
             <button
               type="button"
               onClick={() => {
@@ -204,27 +181,11 @@ export function SocialFeed({
               }}
               className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition shrink-0 ${
                 currentType === "all" && !selectedTag
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "bg-[#132219] text-[#8ca892] border border-[#223b2c] hover:text-white"
+                  ? "bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400"
+                  : "bg-[#132219] text-[#8ca892] border border-[#223b2c] hover:bg-[#192c21] hover:text-white"
               }`}
             >
               All Posts
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedTag(undefined);
-                setCurrentType("big_win");
-              }}
-              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition shrink-0 ${
-                currentType === "big_win"
-                  ? "bg-amber-600 text-white shadow-sm"
-                  : "bg-[#132219] text-amber-300 border border-amber-800/40 hover:text-white"
-              }`}
-            >
-              <Trophy size={13} className="text-amber-400" />
-              Big Wins
             </button>
 
             <button
@@ -235,8 +196,8 @@ export function SocialFeed({
               }}
               className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition shrink-0 ${
                 currentType === "drop_code"
-                  ? "bg-teal-600 text-white shadow-sm"
-                  : "bg-[#132219] text-teal-300 border border-teal-800/40 hover:text-white"
+                  ? "bg-teal-600 text-white shadow-sm ring-1 ring-teal-400"
+                  : "bg-[#132219] text-teal-300 border border-teal-800/40 hover:bg-[#192c21] hover:text-white"
               }`}
             >
               <Gift size={13} className="text-teal-400" />
@@ -247,12 +208,28 @@ export function SocialFeed({
               type="button"
               onClick={() => {
                 setSelectedTag(undefined);
+                setCurrentType("big_win");
+              }}
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition shrink-0 ${
+                currentType === "big_win"
+                  ? "bg-amber-600 text-white shadow-sm ring-1 ring-amber-400"
+                  : "bg-[#132219] text-amber-300 border border-amber-800/40 hover:bg-[#192c21] hover:text-white"
+              }`}
+            >
+              <Trophy size={13} className="text-amber-400" />
+              Big Wins
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedTag(undefined);
                 setCurrentType("discussion");
               }}
               className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition shrink-0 ${
                 currentType === "discussion"
-                  ? "bg-emerald-700 text-white shadow-sm"
-                  : "bg-[#132219] text-[#9bcf9c] border border-[#223b2c] hover:text-white"
+                  ? "bg-emerald-700 text-white shadow-sm ring-1 ring-emerald-400"
+                  : "bg-[#132219] text-[#9bcf9c] border border-[#223b2c] hover:bg-[#192c21] hover:text-white"
               }`}
             >
               <MessageSquare size={13} />
@@ -267,8 +244,8 @@ export function SocialFeed({
               }}
               className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition shrink-0 ${
                 currentType === "daily_claim"
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "bg-[#132219] text-[#8ca892] border border-[#223b2c] hover:text-white"
+                  ? "bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400"
+                  : "bg-[#132219] text-[#8ca892] border border-[#223b2c] hover:bg-[#192c21] hover:text-white"
               }`}
             >
               ⚡ Claims
@@ -379,6 +356,39 @@ export function SocialFeed({
             </div>
           )}
         </main>
+  );
+
+  if (compact) {
+    return feedContent;
+  }
+
+  return (
+    <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[240px_1fr_320px]">
+        {/* Left Column: Navigation Rail */}
+        <div className="hidden lg:block">
+          <div className="sticky top-24">
+            <FeedNavRail
+              currentType={currentType}
+              selectedTag={selectedTag}
+              onSelectType={(type) => {
+                setSelectedTag(undefined);
+                setCurrentType(type);
+              }}
+              onSelectTag={(tag) => {
+                setSelectedTag(tag);
+              }}
+              onClearFilter={() => {
+                setSelectedTag(undefined);
+                setCurrentType("all");
+              }}
+              isAdmin={isAdmin}
+            />
+          </div>
+        </div>
+
+        {/* Center Column: Social Feed */}
+        {feedContent}
 
         {/* Right Column: Daily Bonus Roll Tracker Sidebar */}
         <div className="space-y-4">
