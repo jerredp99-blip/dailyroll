@@ -285,13 +285,32 @@ export default function TrackerPage() {
   const [staggerStatus, setStaggerStatus] = useState<string | null>(null);
   const abortStaggerRef = useRef(false);
   const editScrollPosition = useRef<number | null>(null);
+  const rollcallScrollPosition = useRef<number | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const sidebarToggleRef = useRef<HTMLButtonElement>(null);
 
   function showAddCasinosPage(show: boolean) {
-    setIsAddCasinosPage(show);
-    localStorage.setItem("dailyroll_tracker_view", show ? "add-casinos" : "dashboard");
+    if (show) {
+      if (typeof window !== "undefined") {
+        rollcallScrollPosition.current = window.scrollY;
+      }
+      setIsAddCasinosPage(true);
+      localStorage.setItem("dailyroll_tracker_view", "add-casinos");
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "auto" });
+      }
+    } else {
+      setIsAddCasinosPage(false);
+      localStorage.setItem("dailyroll_tracker_view", "dashboard");
+      if (typeof window !== "undefined" && rollcallScrollPosition.current !== null) {
+        const targetScroll = rollcallScrollPosition.current;
+        rollcallScrollPosition.current = null;
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: targetScroll, behavior: "auto" });
+        });
+      }
+    }
   }
 
   async function signOut() {
@@ -1424,18 +1443,22 @@ export default function TrackerPage() {
                     </div>
                   </div>
 
-                  {/* Action Buttons: Explore Casinos & Launch All Staggered */}
-                  <div className="flex flex-wrap items-center gap-2">
+                  {/* Action Buttons: Batch Claim & Add Casinos */}
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+                    {/* + Add Casinos button (Secondary / Ghost style) */}
                     <button
                       type="button"
                       onClick={() => showAddCasinosPage(true)}
-                      title="Explore casino directory and add to your rollcall"
-                      className="flex items-center gap-1.5 rounded-lg border border-[#385640] bg-[#14231b] px-3 py-1.5 text-xs font-semibold text-[#b7d5b5] transition hover:bg-[#1f3629] hover:border-[#5ca06c] hover:text-white cursor-pointer"
+                      title="Add casinos to your rollcall"
+                      className="flex items-center gap-1.5 rounded-lg border border-[#385640] bg-[#14231b]/90 px-3 py-1.5 text-xs font-semibold text-[#b7d5b5] transition hover:bg-[#1f3629] hover:border-[#5ca06c] hover:text-white cursor-pointer active:scale-95"
                     >
-                      <Compass size={13} className="text-emerald-400" />
-                      <span>Explore Casinos</span>
+                      <Plus size={14} className="text-[#39ff6a]" />
+                      <span>
+                        + Add<span className="hidden sm:inline"> Casinos</span>
+                      </span>
                     </button>
 
+                    {/* Launch All Staggered (Anti-popup loop) */}
                     {isStaggering ? (
                       <div className="flex items-center gap-1.5">
                         <div className="flex items-center gap-1.5 rounded-lg bg-[#14231b] border border-amber-500/60 px-3 py-1.5 text-xs font-bold text-amber-300 animate-pulse">
@@ -1473,20 +1496,21 @@ export default function TrackerPage() {
                       </button>
                     )}
 
+                    {/* Open All Ready (Primary Batch Claim Button) */}
                     {!isStaggering && (
                       <button
                         type="button"
                         onClick={handleOpenAllReady}
                         disabled={readyCount === 0}
-                        title={readyCount > 0 ? `Open all ${readyCount} ready casinos instantly` : "No casinos currently ready to claim"}
-                        className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition shadow-sm ${
+                        title={readyCount > 0 ? `Open all ${readyCount} ready casinos` : "No casinos currently ready to claim"}
+                        className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-sm ${
                           readyCount > 0
-                            ? "border border-[#385640] bg-[#14231b] text-[#9bcf9c] hover:bg-[#1d3324] hover:text-white cursor-pointer"
+                            ? "bg-[#79b77f] text-[#122519] shadow-[0_4px_14px_rgba(121,183,127,0.3)] hover:bg-[#91c991] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ring-1 ring-[#39ff6a]"
                             : "border border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
                         }`}
                       >
-                        <ExternalLink size={12} />
-                        <span>Instant</span>
+                        <ExternalLink size={13} strokeWidth={2.5} />
+                        <span>Open All Ready ({readyCount})</span>
                       </button>
                     )}
                   </div>
