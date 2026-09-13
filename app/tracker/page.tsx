@@ -16,11 +16,15 @@ import {
   Trash2,
   X,
   MessageSquare,
+  Compass,
+  Loader2,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
+import { getCasinoDeepLink } from "@/lib/casinoLinks";
 // import { SpeedRunModal } from "@/app/components/SpeedRunModal";
 // import { BankrollSummary } from "@/app/components/BankrollSummary";
 import {
@@ -277,6 +281,9 @@ export default function TrackerPage() {
   const [viewMode, setViewMode] = useState<"social" | "rollcall">("social");
   const [mobileTab, setMobileTab] = useState<"rollcall" | "feed">("feed");
   // const [isSpeedRunOpen, setIsSpeedRunOpen] = useState(false);
+  const [isStaggering, setIsStaggering] = useState(false);
+  const [staggerStatus, setStaggerStatus] = useState<string | null>(null);
+  const abortStaggerRef = useRef(false);
   const editScrollPosition = useRef<number | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -572,6 +579,56 @@ export default function TrackerPage() {
     } catch {
       // ignore
     }
+  }
+
+  async function handleLaunchAllStaggered() {
+    const readyList = casinos.filter((c) => !c.hidden && statusFor(c).ready);
+    if (readyList.length === 0 || isStaggering) return;
+
+    setIsStaggering(true);
+    abortStaggerRef.current = false;
+
+    let currentCasinos = [...casinos];
+
+    for (let i = 0; i < readyList.length; i++) {
+      if (abortStaggerRef.current) break;
+
+      const casino = readyList[i];
+      setStaggerStatus(`Launching ${i + 1} of ${readyList.length}: ${casino.name}...`);
+
+      const deepLink = getCasinoDeepLink(casino);
+      if (deepLink) {
+        window.open(deepLink, "_blank", "noopener,noreferrer");
+      }
+
+      const nowIso = new Date().toISOString();
+      currentCasinos = currentCasinos.map((item) =>
+        item.id === casino.id ? { ...item, lastClaimedAt: nowIso } : item
+      );
+      saveCasinos(currentCasinos);
+
+      try {
+        const storedTimes = JSON.parse(localStorage.getItem("dailyroll_claimed_times") || "{}");
+        storedTimes[casino.id] = nowIso;
+        localStorage.setItem("dailyroll_claimed_times", JSON.stringify(storedTimes));
+      } catch {
+        // ignore
+      }
+
+      // 1.5s interval to avoid browser pop-up suppression
+      if (i < readyList.length - 1 && !abortStaggerRef.current) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    }
+
+    setIsStaggering(false);
+    setStaggerStatus(null);
+  }
+
+  function handleCancelStagger() {
+    abortStaggerRef.current = true;
+    setIsStaggering(false);
+    setStaggerStatus(null);
   }
 
   function openCasino(casino: Casino) {
@@ -1065,7 +1122,7 @@ export default function TrackerPage() {
               }}
               className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors ${isAddCasinosPage ? "border border-emerald-800/50 bg-emerald-900/40 text-emerald-300" : "text-gray-400 hover:bg-emerald-950/30 hover:text-white"}`}
             >
-              <Plus size={16} /> Add Casinos to Roll
+              <Compass size={16} /> Explore Casinos
             </button>
             <Link
               href="/profile"
@@ -1135,7 +1192,7 @@ export default function TrackerPage() {
                 className="text-lg font-normal uppercase tracking-[0.08em] text-[#f3f8f0] sm:text-2xl"
                 style={{ fontFamily: "Rhinos, Impact, sans-serif" }}
               >
-                ADD CASINOS TO ROLL
+                EXPLORE CASINOS
               </h1>
             </div>
           </header>
@@ -1367,38 +1424,71 @@ export default function TrackerPage() {
                     </div>
                   </div>
 
-                  {/* Action Buttons: Batch Claim (Speed-Run temporarily hidden) */}
+                  {/* Action Buttons: Explore Casinos & Launch All Staggered */}
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* Speed-Run button (temporarily hidden)
                     <button
                       type="button"
-                      onClick={() => setIsSpeedRunOpen(true)}
-                      disabled={readyCount === 0}
-                      title={readyCount > 0 ? "Start guided speed-run claim mode" : "No casinos currently ready to claim"}
-                      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-sm ${
-                        readyCount > 0
-                          ? "bg-gradient-to-r from-amber-500 to-yellow-400 text-[#0d1712] shadow-[0_4px_14px_rgba(245,158,11,0.35)] hover:from-amber-400 hover:to-yellow-300 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ring-1 ring-yellow-400"
-                          : "border border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
-                      }`}
+                      onClick={() => showAddCasinosPage(true)}
+                      title="Explore casino directory and add to your rollcall"
+                      className="flex items-center gap-1.5 rounded-lg border border-[#385640] bg-[#14231b] px-3 py-1.5 text-xs font-semibold text-[#b7d5b5] transition hover:bg-[#1f3629] hover:border-[#5ca06c] hover:text-white cursor-pointer"
                     >
-                      <span>⚡ Start Speed-Run</span>
+                      <Compass size={13} className="text-emerald-400" />
+                      <span>Explore Casinos</span>
                     </button>
-                    */}
 
-                    <button
-                      type="button"
-                      onClick={handleOpenAllReady}
-                      disabled={readyCount === 0}
-                      title={readyCount > 0 ? `Open all ${readyCount} ready casinos` : "No casinos currently ready to claim"}
-                      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-sm ${
-                        readyCount > 0
-                          ? "bg-[#79b77f] text-[#122519] shadow-[0_4px_14px_rgba(121,183,127,0.3)] hover:bg-[#91c991] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ring-1 ring-[#39ff6a]"
-                          : "border border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
-                      }`}
-                    >
-                      <ExternalLink size={13} strokeWidth={2.5} />
-                      <span>Open All Ready ({readyCount})</span>
-                    </button>
+                    {isStaggering ? (
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 rounded-lg bg-[#14231b] border border-amber-500/60 px-3 py-1.5 text-xs font-bold text-amber-300 animate-pulse">
+                          <Loader2 size={13} className="animate-spin text-amber-400" />
+                          <span>{staggerStatus || "Launching..."}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCancelStagger}
+                          title="Cancel launching remaining casinos"
+                          className="flex items-center gap-1 rounded-lg border border-red-800/60 bg-red-950/50 px-2 py-1.5 text-xs font-bold text-red-300 hover:bg-red-900/60 hover:text-white transition cursor-pointer"
+                        >
+                          <X size={13} />
+                          <span>Cancel</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleLaunchAllStaggered}
+                        disabled={readyCount === 0}
+                        title={
+                          readyCount > 0
+                            ? `Launch all ${readyCount} ready casinos with 1.5s delay to prevent pop-up blocking`
+                            : "No casinos currently ready to claim"
+                        }
+                        className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-sm ${
+                          readyCount > 0
+                            ? "bg-gradient-to-r from-emerald-500 to-teal-400 text-[#0d1712] shadow-[0_4px_14px_rgba(16,185,129,0.35)] hover:from-emerald-400 hover:to-teal-300 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ring-1 ring-emerald-300"
+                            : "border border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
+                        }`}
+                      >
+                        <Zap size={13} fill={readyCount > 0 ? "currentColor" : "none"} />
+                        <span>Launch All Staggered ({readyCount})</span>
+                      </button>
+                    )}
+
+                    {!isStaggering && (
+                      <button
+                        type="button"
+                        onClick={handleOpenAllReady}
+                        disabled={readyCount === 0}
+                        title={readyCount > 0 ? `Open all ${readyCount} ready casinos instantly` : "No casinos currently ready to claim"}
+                        className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition shadow-sm ${
+                          readyCount > 0
+                            ? "border border-[#385640] bg-[#14231b] text-[#9bcf9c] hover:bg-[#1d3324] hover:text-white cursor-pointer"
+                            : "border border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
+                        }`}
+                      >
+                        <ExternalLink size={12} />
+                        <span>Instant</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
