@@ -47,6 +47,7 @@ export async function GET() {
     const dailyBonuses: Record<string, string> = { ...(directory.dailyBonuses || {}) };
     const resetTimes: Record<string, string | null> = { ...(directory.resetTimes || {}) };
     const details: Record<string, string> = { ...(directory.details || {}) };
+    const providers: Record<string, string> = { ...(directory.providers || {}) };
 
     for (const casino of adminCasinos ?? []) {
       const numericRating = Number(casino.trustpilotRating);
@@ -62,6 +63,7 @@ export async function GET() {
       if (casino.dailyBonus) dailyBonuses[casino.name] = casino.dailyBonus;
       if (casino.resetAtTime) resetTimes[casino.name] = casino.resetAtTime;
       if (casino.details) details[casino.name] = casino.details;
+      if (casino.provider) providers[casino.name] = casino.provider;
     }
 
     return NextResponse.json(
@@ -76,6 +78,7 @@ export async function GET() {
         dailyBonuses,
         resetTimes,
         details,
+        providers,
       },
       { headers: NO_CACHE_HEADERS },
     );
@@ -105,6 +108,7 @@ export async function POST(request: NextRequest) {
       dailyBonuses?: Record<string, string>;
       resetTimes?: Record<string, string | null>;
       details?: Record<string, string>;
+      providers?: Record<string, string>;
     };
 
     // Atomic mutation: update directory and propagate changes to all user records in ONE step
@@ -134,6 +138,11 @@ export async function POST(request: NextRequest) {
           ...(store.directoryDetails || {}),
           ...body.details,
         };
+      if (body.providers)
+        store.directoryProviders = {
+          ...(store.directoryProviders || {}),
+          ...body.providers,
+        };
 
       if (
         body.urls ||
@@ -144,7 +153,8 @@ export async function POST(request: NextRequest) {
         body.ratings ||
         body.dailyBonuses ||
         body.resetTimes ||
-        body.details
+        body.details ||
+        body.providers
       ) {
         const siteUrlsByLowerName = new Map(
           Object.entries(body.urls || {}).map(([name, url]) => [name.trim().toLowerCase(), url]),
@@ -197,6 +207,12 @@ export async function POST(request: NextRequest) {
             d,
           ]),
         );
+        const providersByLowerName = new Map(
+          Object.entries(body.providers || {}).map(([name, p]) => [
+            name.trim().toLowerCase(),
+            p,
+          ]),
+        );
 
         const targetKeys = new Set<string>([
           ...store.users.map((u) => casinoKey(u.email)),
@@ -221,6 +237,7 @@ export async function POST(request: NextRequest) {
             const nextDailyBonus = dailyBonusesByLowerName.get(lowerName);
             const nextReset = resetTimesByLowerName.get(lowerName);
             const nextDetail = detailsByLowerName.get(lowerName);
+            const nextProvider = providersByLowerName.get(lowerName);
 
             const updated = { ...casino };
             if (nextSite !== undefined) {
@@ -235,6 +252,7 @@ export async function POST(request: NextRequest) {
             if (nextDailyBonus !== undefined) updated.dailyBonus = nextDailyBonus;
             if (nextReset !== undefined) updated.resetAtTime = nextReset;
             if (nextDetail !== undefined) updated.details = nextDetail;
+            if (nextProvider !== undefined) updated.provider = nextProvider;
             return updated;
           });
         }
@@ -251,6 +269,7 @@ export async function POST(request: NextRequest) {
         dailyBonuses: store.directoryDailyBonuses || {},
         resetTimes: store.directoryResetTimes || {},
         details: store.directoryDetails || {},
+        providers: store.directoryProviders || {},
       };
     });
 

@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
       details?: string;
       resetAtTime?: string | null;
       intervalHours?: number;
+      provider?: string;
     };
 
     if (!body?.name?.trim()) {
@@ -61,7 +62,13 @@ export async function POST(request: NextRequest) {
     try {
       revalidatePath("/tracker");
       revalidatePath("/dashboard/casinos");
-      revalidateTag("casinos", "default");
+      try {
+        revalidateTag("casinos", "default");
+      } catch {
+        // Fallback if single argument overload
+        // @ts-expect-error fallback
+        revalidateTag("casinos");
+      }
     } catch (cacheErr) {
       console.warn("Cache revalidation warning:", cacheErr);
     }
@@ -81,3 +88,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to update casino link" }, { status: 500 });
   }
 }
+
+export const PUT = POST;
+export const PATCH = POST;

@@ -224,6 +224,7 @@ export default function TrackerPage() {
   const [bonus, setBonus] = useState("");
   const [url, setUrl] = useState("");
   const [newClaimUrl, setNewClaimUrl] = useState("");
+  const [newProvider, setNewProvider] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [use24HourReset, setUse24HourReset] = useState(true);
   const [useSpecificReset, setUseSpecificReset] = useState(false);
@@ -241,8 +242,10 @@ export default function TrackerPage() {
   const [directoryBonusUrls, setDirectoryBonusUrls] = useState<Record<string, string>>({});
   const [directoryBonusTitles, setDirectoryBonusTitles] = useState<Record<string, string>>({});
   const [directoryRatings, setDirectoryRatings] = useState<Record<string, number>>({});
+  const [directoryProviders, setDirectoryProviders] = useState<Record<string, string>>({});
   const [editingCasino, setEditingCasino] = useState<Casino | null>(null);
   const [editUrl, setEditUrl] = useState("");
+  const [editProvider, setEditProvider] = useState("");
   const [editAffiliateUrl, setEditAffiliateUrl] = useState("");
   const [editClaimUrl, setEditClaimUrl] = useState("");
   const [editBonusUrl, setEditBonusUrl] = useState("");
@@ -402,6 +405,10 @@ export default function TrackerPage() {
       const sharedDetailsByName = Object.fromEntries(
         Object.entries(sharedDetails).map(([name, val]) => [name.toLowerCase(), val]),
       );
+      const sharedProviders = directoryData.providers || {};
+      const sharedProvidersByName = Object.fromEntries(
+        Object.entries(sharedProviders).map(([name, val]) => [name.toLowerCase(), val]),
+      );
 
       const loadedCasinos = saved ?? DEFAULT_CASINOS;
       const currentRatings = { ...sharedRatings };
@@ -466,6 +473,9 @@ export default function TrackerPage() {
         const details =
           sharedDetailsByName[lowerName] || casino.details;
 
+        const provider =
+          sharedProvidersByName[lowerName] || casino.provider;
+
         // User Claim & Display State (Personal to this user, decoupled from static metadata):
         const lastClaimedAt = casino.lastClaimedAt || localClaimedTimes[casino.id] || null;
 
@@ -481,6 +491,7 @@ export default function TrackerPage() {
           dailyBonus,
           resetAtTime,
           details,
+          provider,
           lastClaimedAt,
         };
       });
@@ -521,6 +532,7 @@ export default function TrackerPage() {
         ...sharedBonusTitles,
       });
       setDirectoryRatings(currentRatings);
+      setDirectoryProviders(sharedProviders);
 
       if (typeof window !== "undefined") {
         const urlParams = new URLSearchParams(window.location.search);
@@ -759,6 +771,7 @@ export default function TrackerPage() {
   function addCasino(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!name.trim() || !url.trim()) return;
+    const trimmedProvider = newProvider.trim() || undefined;
     if (isAddCasinosPage && isAdmin) {
       const trimmedName = name.trim();
       const normalizedUrl = url.trim().startsWith("http") ? url.trim() : `https://${url.trim()}`;
@@ -766,14 +779,19 @@ export default function TrackerPage() {
       const updatedDirectory = directory.includes(trimmedName) ? directory : [...directory, trimmedName];
       setDirectory(updatedDirectory);
       setDirectoryUrls((prev) => ({ ...prev, [trimmedName]: normalizedUrl }));
+      if (trimmedProvider) {
+        setDirectoryProviders((prev) => ({ ...prev, [trimmedName]: trimmedProvider }));
+      }
       apiUpdateAdminCasino({
         name: trimmedName,
         siteUrl: normalizedUrl,
         dailyBonus,
+        provider: trimmedProvider,
       }).catch((err) => console.error("Failed to add admin casino:", err));
       setName("");
       setUrl("");
       setBonus("");
+      setNewProvider("");
       setIsAddOpen(false);
       return;
     }
@@ -787,6 +805,7 @@ export default function TrackerPage() {
           ? newClaimUrl.trim()
           : `https://${newClaimUrl.trim()}`
         : undefined,
+      provider: trimmedProvider,
       lastClaimedAt: null,
       intervalHours: 24,
       resetAtTime: useSpecificReset ? resetTime : null,
@@ -796,6 +815,7 @@ export default function TrackerPage() {
     setBonus("");
     setUrl("");
     setNewClaimUrl("");
+    setNewProvider("");
     setUse24HourReset(true);
     setUseSpecificReset(false);
     setResetTime("00:00");
@@ -858,6 +878,7 @@ export default function TrackerPage() {
     setEditClaimUrl(casino.claimUrl ?? "");
     setEditBonusUrl(casino.bonusUrl ?? "");
     setEditBonusTitle(casino.bonusTitle ?? "");
+    setEditProvider(casino.provider || directoryProviders[casino.name] || "");
   }
 
   function openDirectoryEditor(casinoName: string) {
@@ -873,6 +894,7 @@ export default function TrackerPage() {
       intervalHours: 24,
       trustpilotRating: directoryRatings[casinoName],
       bonusTitle: directoryBonusTitles[casinoName] || undefined,
+      provider: directoryProviders[casinoName] || undefined,
     });
   }
 
@@ -894,6 +916,7 @@ export default function TrackerPage() {
     const resetTime = editUseSpecificReset ? editResetTime : null;
     const dailyBonus = editBonus.trim() || editingCasino.dailyBonus;
     const details = editDetails.trim() || undefined;
+    const provider = editProvider.trim() || undefined;
 
     if (isAdmin) {
       // 1. Authoritative global update for admin: writes to Upstash Redis master directory AND all user lists atomically
@@ -909,6 +932,7 @@ export default function TrackerPage() {
           dailyBonus,
           details,
           resetAtTime: resetTime,
+          provider,
         });
 
         if (response.ok && response.directory) {
@@ -918,6 +942,9 @@ export default function TrackerPage() {
           setDirectoryBonusUrls(response.directory.bonusUrls || {});
           setDirectoryBonusTitles(response.directory.bonusTitles || {});
           setDirectoryRatings(response.directory.ratings || {});
+          if (response.directory.providers) {
+            setDirectoryProviders(response.directory.providers);
+          }
         }
       } catch (saveErr) {
         console.error("Failed to update admin casino metadata:", saveErr);
@@ -939,6 +966,7 @@ export default function TrackerPage() {
                 dailyBonus,
                 details,
                 resetAtTime: resetTime,
+                provider,
               }
             : c,
         ),
@@ -959,6 +987,7 @@ export default function TrackerPage() {
                   resetAtTime: resetTime,
                   details,
                   dailyBonus,
+                  provider: casino.provider,
                 }
               : casino,
           ),
@@ -1380,6 +1409,11 @@ export default function TrackerPage() {
                         >
                           {casinoName}
                         </a>
+                        {directoryProviders[casinoName] && (
+                          <span className="rounded bg-teal-950/80 border border-teal-600/40 px-1.5 py-0.5 text-[9px] font-bold text-teal-300">
+                            {directoryProviders[casinoName]}
+                          </span>
+                        )}
                       </div>
                       <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                         {isAdmin && (
@@ -1800,6 +1834,18 @@ export default function TrackerPage() {
               </label>
               {isAdmin && (
                 <label className="block text-xs font-semibold text-[#a9bbaa]">
+                  Provider / Network Group
+                  <input
+                    type="text"
+                    value={editProvider}
+                    onChange={(event) => setEditProvider(event.target.value)}
+                    placeholder="VGW, Blazesoft, or leave blank if standalone"
+                    className="mt-1.5 h-11 w-full rounded-xl border border-emerald-600/50 bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                  />
+                </label>
+              )}
+              {isAdmin && (
+                <label className="block text-xs font-semibold text-[#a9bbaa]">
                   Trustpilot rating
                   <input
                     type="number"
@@ -1975,6 +2021,12 @@ export default function TrackerPage() {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Casino name"
                 className="h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm outline-none placeholder:text-[#718275] focus:border-[#78ae7e]"
+              />
+              <input
+                value={newProvider}
+                onChange={(event) => setNewProvider(event.target.value)}
+                placeholder="Provider / Network Group (e.g. VGW, Blazesoft, or leave blank)"
+                className="h-11 w-full rounded-xl border border-emerald-600/50 bg-[#111b16] px-3 text-sm outline-none placeholder:text-[#718275] focus:border-[#78ae7e]"
               />
               <input
                 value={bonus}

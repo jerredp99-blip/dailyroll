@@ -529,8 +529,15 @@ export function SpeedRunModal({
   }
 
   // Provider and micro-instructions for current casino
-  const currentProvider = currentCasino ? getCasinoProvider(currentCasino) : "Independent";
+  const currentProvider = currentCasino ? getCasinoProvider(currentCasino) : "";
   const microInstruction = currentCasino ? getCasinoMicroInstruction(currentCasino) : null;
+  const showProviderBadge = Boolean(
+    currentCasino &&
+    currentProvider &&
+    currentProvider.trim().toLowerCase() !== currentCasino.name.trim().toLowerCase() &&
+    !currentProvider.trim().toLowerCase().includes("independent") &&
+    !currentProvider.trim().toLowerCase().includes("other")
+  );
 
   if (!isOpen) return null;
 
@@ -752,12 +759,14 @@ export function SpeedRunModal({
             {currentCasino ? (
               <div className="relative rounded-2xl border border-emerald-700/50 bg-gradient-to-b from-[#15271d] to-[#0f1c15] p-4 sm:p-5 shadow-inner text-center">
                 {/* Provider Pill Badge */}
-                <div className="mb-3 flex justify-center">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-600/40 bg-[#12281e] px-3 py-0.5 text-[11px] font-bold text-teal-300 shadow-sm">
-                    <span>Provider Group:</span>
-                    <strong className="text-white">{currentProvider}</strong>
-                  </span>
-                </div>
+                {showProviderBadge && (
+                  <div className="mb-3 flex justify-center">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-600/40 bg-[#12281e] px-3 py-0.5 text-[11px] font-bold text-teal-300 shadow-sm">
+                      <span>Provider Group:</span>
+                      <strong className="text-white">{currentProvider}</strong>
+                    </span>
+                  </div>
+                )}
 
                 {/* Logo / Monogram */}
                 <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-emerald-500/30 bg-[#1d3527] text-xl font-bold text-[#9bcf9c] shadow-lg mb-2.5">

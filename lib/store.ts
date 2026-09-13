@@ -112,6 +112,7 @@ type Store = {
   directoryDailyBonuses?: Record<string, string>;
   directoryResetTimes?: Record<string, string | null>;
   directoryDetails?: Record<string, string>;
+  directoryProviders?: Record<string, string>;
   sessions: Record<string, Session>;
   magicLinks: Record<string, MagicLink>;
   posts: Post[];
@@ -462,6 +463,7 @@ export async function getDirectory() {
     dailyBonuses: store.directoryDailyBonuses || {},
     resetTimes: store.directoryResetTimes || {},
     details: store.directoryDetails || {},
+    providers: store.directoryProviders || {},
   };
 }
 
@@ -476,6 +478,7 @@ export async function saveDirectory(update: {
   dailyBonuses?: Record<string, string>;
   resetTimes?: Record<string, string | null>;
   details?: Record<string, string>;
+  providers?: Record<string, string>;
 }) {
   return queueMutation((store) => {
     if (update.list) store.directoryList = update.list;
@@ -492,6 +495,8 @@ export async function saveDirectory(update: {
       store.directoryResetTimes = { ...(store.directoryResetTimes || {}), ...update.resetTimes };
     if (update.details)
       store.directoryDetails = { ...(store.directoryDetails || {}), ...update.details };
+    if (update.providers)
+      store.directoryProviders = { ...(store.directoryProviders || {}), ...update.providers };
     return {
       list: store.directoryList,
       urls: store.directoryUrls || {},
@@ -503,6 +508,7 @@ export async function saveDirectory(update: {
       dailyBonuses: store.directoryDailyBonuses || {},
       resetTimes: store.directoryResetTimes || {},
       details: store.directoryDetails || {},
+      providers: store.directoryProviders || {},
     };
   });
 }

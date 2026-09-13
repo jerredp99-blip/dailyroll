@@ -45,6 +45,7 @@ export async function updateCasinoMetadata(data: {
   details?: string;
   resetAtTime?: string | null;
   intervalHours?: number;
+  provider?: string;
 }) {
   const trimmedName = data.name.trim();
   const lowerName = trimmedName.toLowerCase();
@@ -95,6 +96,12 @@ export async function updateCasinoMetadata(data: {
         [trimmedName]: data.details,
       };
     }
+    if (data.provider !== undefined) {
+      store.directoryProviders = {
+        ...(store.directoryProviders || {}),
+        [trimmedName]: data.provider,
+      };
+    }
 
     // 3. Atomically update all user records in store.casinos
     const targetKeys = new Set<string>([
@@ -126,6 +133,7 @@ export async function updateCasinoMetadata(data: {
         if (data.details !== undefined) updated.details = data.details;
         if (data.resetAtTime !== undefined) updated.resetAtTime = data.resetAtTime;
         if (data.intervalHours !== undefined) updated.intervalHours = data.intervalHours;
+        if (data.provider !== undefined) updated.provider = data.provider;
         return updated;
       });
     }
@@ -142,6 +150,7 @@ export async function updateCasinoMetadata(data: {
       dailyBonuses: store.directoryDailyBonuses || {},
       resetTimes: store.directoryResetTimes || {},
       details: store.directoryDetails || {},
+      providers: store.directoryProviders || {},
     };
   });
 }
