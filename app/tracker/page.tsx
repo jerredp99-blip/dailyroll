@@ -16,11 +16,14 @@ import {
   Trash2,
   X,
   MessageSquare,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
+import { SpeedRunModal } from "@/app/components/SpeedRunModal";
+import { BankrollSummary } from "@/app/components/BankrollSummary";
 import {
   apiGetCasinos,
   apiGetDirectory,
@@ -274,6 +277,7 @@ export default function TrackerPage() {
   const [casinoSort, setCasinoSort] = useState<"status" | "f2p" | "trustpilot" | "name-asc" | "name-desc">("status");
   const [viewMode, setViewMode] = useState<"social" | "rollcall">("social");
   const [mobileTab, setMobileTab] = useState<"rollcall" | "feed">("rollcall");
+  const [isSpeedRunOpen, setIsSpeedRunOpen] = useState(false);
   const editScrollPosition = useRef<number | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -1356,23 +1360,43 @@ export default function TrackerPage() {
                     </div>
                   </div>
 
-                  {/* Batch Claim: Open All Ready Button */}
-                  <button
-                    type="button"
-                    onClick={handleOpenAllReady}
-                    disabled={readyCount === 0}
-                    title={readyCount > 0 ? `Open all ${readyCount} ready casinos` : "No casinos currently ready to claim"}
-                    className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-sm ${
-                      readyCount > 0
-                        ? "bg-[#79b77f] text-[#122519] shadow-[0_4px_14px_rgba(121,183,127,0.3)] hover:bg-[#91c991] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ring-1 ring-[#39ff6a]"
-                        : "border border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
-                    }`}
-                  >
-                    <ExternalLink size={13} strokeWidth={2.5} />
-                    <span>Open All Ready ({readyCount})</span>
-                  </button>
+                  {/* Action Buttons: Speed-Run & Open All Ready */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsSpeedRunOpen(true)}
+                      disabled={readyCount === 0}
+                      title={readyCount > 0 ? "Start guided speed-run claim mode" : "No casinos currently ready to claim"}
+                      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-sm ${
+                        readyCount > 0
+                          ? "bg-gradient-to-r from-amber-500 to-yellow-400 text-[#0d1712] shadow-[0_4px_14px_rgba(245,158,11,0.35)] hover:from-amber-400 hover:to-yellow-300 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ring-1 ring-yellow-400"
+                          : "border border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
+                      }`}
+                    >
+                      <Zap size={13} fill={readyCount > 0 ? "currentColor" : "none"} />
+                      <span>⚡ Start Speed-Run</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleOpenAllReady}
+                      disabled={readyCount === 0}
+                      title={readyCount > 0 ? `Open all ${readyCount} ready casinos` : "No casinos currently ready to claim"}
+                      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-sm ${
+                        readyCount > 0
+                          ? "bg-[#79b77f] text-[#122519] shadow-[0_4px_14px_rgba(121,183,127,0.3)] hover:bg-[#91c991] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ring-1 ring-[#39ff6a]"
+                          : "border border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
+                      }`}
+                    >
+                      <ExternalLink size={13} strokeWidth={2.5} />
+                      <span>Open All Ready ({readyCount})</span>
+                    </button>
+                  </div>
                 </div>
               </div>
+
+              {/* Bankroll & Projected Yield Analytics Card */}
+              <BankrollSummary casinos={casinos} claimedToday={dailyTotals.claimedToday} />
 
               {/* Filter & Sort Controls */}
               <div className="flex flex-wrap items-center gap-3">
@@ -1827,6 +1851,14 @@ export default function TrackerPage() {
           </form>
         </div>
       )}
+
+      <SpeedRunModal
+        isOpen={isSpeedRunOpen}
+        onClose={() => setIsSpeedRunOpen(false)}
+        readyCasinos={readyCasinos}
+        onClaim={markClaimed}
+        renderLogo={(casino) => <CasinoLogo name={casino.name} siteUrl={siteUrlFor(casino)} />}
+      />
     </main>
   );
 }

@@ -39,3 +39,4 @@ export function AuthCard() {
     </div>
   );
 }
+
