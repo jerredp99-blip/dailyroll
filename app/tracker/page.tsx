@@ -276,7 +276,7 @@ export default function TrackerPage() {
   const [casinoFilter, setCasinoFilter] = useState<"all" | "ready" | "claimed">("all");
   const [casinoSort, setCasinoSort] = useState<"status" | "f2p" | "trustpilot" | "name-asc" | "name-desc">("status");
   const [viewMode, setViewMode] = useState<"social" | "rollcall">("social");
-  const [mobileTab, setMobileTab] = useState<"rollcall" | "feed">("rollcall");
+  const [mobileTab, setMobileTab] = useState<"rollcall" | "feed">("feed");
   const [isSpeedRunOpen, setIsSpeedRunOpen] = useState(false);
   const editScrollPosition = useRef<number | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -1155,6 +1155,18 @@ export default function TrackerPage() {
             <div className="flex rounded-xl bg-[#0f1913] p-1 border border-[#263e2f]">
               <button
                 type="button"
+                onClick={() => setMobileTab("feed")}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition ${
+                  mobileTab === "feed"
+                    ? "bg-[#254231] text-white shadow-sm ring-1 ring-emerald-500/40"
+                    : "text-[#85a08b] hover:text-white"
+                }`}
+              >
+                <MessageSquare size={14} />
+                Feed
+              </button>
+              <button
+                type="button"
                 onClick={() => setMobileTab("rollcall")}
                 className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition ${
                   mobileTab === "rollcall"
@@ -1169,18 +1181,6 @@ export default function TrackerPage() {
                     {readyCount}
                   </span>
                 )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setMobileTab("feed")}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition ${
-                  mobileTab === "feed"
-                    ? "bg-[#254231] text-white shadow-sm ring-1 ring-emerald-500/40"
-                    : "text-[#85a08b] hover:text-white"
-                }`}
-              >
-                <MessageSquare size={14} />
-                Feed
               </button>
             </div>
           </div>
@@ -1336,7 +1336,22 @@ export default function TrackerPage() {
           </div>
         ) : (
           <div className="mx-auto max-w-7xl grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-            {/* Rollcall Column: visible on desktop, on mobile only when mobileTab === 'rollcall' */}
+            {/* Feed Column: Left on desktop, visible on mobile when mobileTab === 'feed' */}
+            <div className={`space-y-4 md:col-span-5 lg:col-span-5 ${mobileTab !== "feed" ? "hidden md:block" : ""}`}>
+              <div className="sticky top-4">
+                <SocialFeed
+                  compact={true}
+                  currentUserEmail={signedInUser?.email}
+                  currentUserName={signedInUser?.name}
+                  currentUserAvatar={signedInUser?.avatarUrl || undefined}
+                  isAdmin={isAdmin}
+                  casinos={casinos}
+                  onClaimCasino={handleClaimFromFeed}
+                />
+              </div>
+            </div>
+
+            {/* Rollcall Column: Right on desktop, visible on mobile when mobileTab === 'rollcall' */}
             <div className={`space-y-4 md:col-span-7 lg:col-span-7 ${mobileTab !== "rollcall" ? "hidden md:block" : ""}`}>
               {/* Tracker Counter Banner with Batch Claim */}
               <div className="sticky top-14 md:top-4 z-20 rounded-xl border border-[#2b4434] bg-[#13201a]/95 px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur">
@@ -1474,21 +1489,6 @@ export default function TrackerPage() {
                     No casinos found matching the current filter.
                   </div>
                 )}
-              </div>
-            </div>
-
-            {/* Feed Column: visible on desktop, on mobile only when mobileTab === 'feed' */}
-            <div className={`space-y-4 md:col-span-5 lg:col-span-5 ${mobileTab !== "feed" ? "hidden md:block" : ""}`}>
-              <div className="sticky top-4">
-                <SocialFeed
-                  compact={true}
-                  currentUserEmail={signedInUser?.email}
-                  currentUserName={signedInUser?.name}
-                  currentUserAvatar={signedInUser?.avatarUrl || undefined}
-                  isAdmin={isAdmin}
-                  casinos={casinos}
-                  onClaimCasino={handleClaimFromFeed}
-                />
               </div>
             </div>
           </div>
