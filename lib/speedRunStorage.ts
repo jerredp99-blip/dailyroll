@@ -211,21 +211,54 @@ export function loadSpeedRunSession(): SpeedRunSessionState | null {
     const raw = localStorage.getItem(SPEED_RUN_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<SpeedRunSessionState>;
-    if (!Array.isArray(parsed.queueIds)) return null;
+    if (!Array.isArray(parsed.queueIds) || parsed.queueIds.length === 0) {
+      clearSpeedRunSession();
+      return null;
+    }
 
-    return {
+    // If marked completed, clear stale session and return null
+    if (parsed.completed) {
+      clearSpeedRunSession();
+      return null;
+    }
+
+    const queueLength = parsed.queueIds.length;
+    let safeIndex = typeof parsed.currentIndex === "number" ? parsed.currentIndex : 0;
+    let safeStep: SpeedRunStep =
+      parsed.currentStep === 1 || parsed.currentStep === 2 || parsed.currentStep === 3
+        ? parsed.currentStep
+        : 1;
+
+    // Requirement 3: If stored currentIndex >= queue.length, reset state back to 0 and Step 1 instead of freezing the UI
+    if (safeIndex >= queueLength || safeIndex < 0) {
+      safeIndex = 0;
+      safeStep = 1;
+    }
+
+    const state: SpeedRunSessionState = {
       queueIds: parsed.queueIds,
-      currentIndex: typeof parsed.currentIndex === "number" ? parsed.currentIndex : 0,
-      currentStep: (parsed.currentStep === 1 || parsed.currentStep === 2 || parsed.currentStep === 3) ? parsed.currentStep : 1,
+      currentIndex: safeIndex,
+      currentStep: safeStep,
       sessionLootSc: typeof parsed.sessionLootSc === "number" ? parsed.sessionLootSc : 0,
       sessionLootGc: typeof parsed.sessionLootGc === "number" ? parsed.sessionLootGc : 0,
       claimedIds: Array.isArray(parsed.claimedIds) ? parsed.claimedIds : [],
       snoozedIds: parsed.snoozedIds && typeof parsed.snoozedIds === "object" ? parsed.snoozedIds : {},
       skippedIds: Array.isArray(parsed.skippedIds) ? parsed.skippedIds : [],
       startedAt: parsed.startedAt || new Date().toISOString(),
-      completed: Boolean(parsed.completed),
+      completed: false,
     };
+
+    if (safeIndex !== parsed.currentIndex || safeStep !== parsed.currentStep) {
+      try {
+        localStorage.setItem(SPEED_RUN_STORAGE_KEY, JSON.stringify(state));
+      } catch {
+        // ignore
+      }
+    }
+
+    return state;
   } catch {
+    clearSpeedRunSession();
     return null;
   }
 }

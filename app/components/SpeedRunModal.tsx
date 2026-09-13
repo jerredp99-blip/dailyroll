@@ -65,6 +65,14 @@ export function SpeedRunModal({
   const [animatingLoot, setAnimatingLoot] = useState(false);
   const [lastLootIncrement, setLastLootIncrement] = useState<number | null>(null);
 
+  // Persistent refs to freeze the active queue snapshot and prevent re-render loops
+  const readyCasinosRef = useRef(readyCasinos);
+  const allCasinosRef = useRef(allCasinos);
+  const wasOpenRef = useRef(false);
+
+  readyCasinosRef.current = readyCasinos;
+  allCasinosRef.current = allCasinos;
+
   // Fast map lookup of casinos by ID
   const casinoMap = useMemo(() => {
     const map = new Map<string, Casino>();
@@ -72,6 +80,9 @@ export function SpeedRunModal({
     readyCasinos.forEach((c) => map.set(c.id, c));
     return map;
   }, [allCasinos, readyCasinos]);
+
+  const casinoMapRef = useRef(casinoMap);
+  casinoMapRef.current = casinoMap;
 
   // Calculate updated total bankroll sum across all casinos (must be called unconditionally at top)
   const totalTrackedBankroll = useMemo(() => {
@@ -81,27 +92,64 @@ export function SpeedRunModal({
     }, 0);
   }, [allCasinos]);
 
-  // Synchronize / initialize session whenever modal opens or mounts
+  // Handle closing modal and clearing stale session from localStorage
+  function handleCloseModal() {
+    clearSpeedRunSession();
+    setSession(null);
+    onClose();
+  }
+
+  // Synchronize / initialize session ONLY when modal opens (not on readyCasinos ref updates)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      wasOpenRef.current = false;
+      return;
+    }
+
+    // Modal was already open; do not re-run initialization and wipe the active queue!
+    if (wasOpenRef.current) return;
+    wasOpenRef.current = true;
 
     let cancelled = false;
+    const currentReady = readyCasinosRef.current;
+    const currentMap = casinoMapRef.current;
+
     try {
       const existing = loadSpeedRunSession();
-      if (existing && Array.isArray(existing.queueIds) && existing.queueIds.length > 0 && !existing.completed) {
-        const hasValidItems = existing.queueIds.some((id) => casinoMap.has(id));
+      if (
+        existing &&
+        Array.isArray(existing.queueIds) &&
+        existing.queueIds.length > 0 &&
+        !existing.completed
+      ) {
+        const hasValidItems = existing.queueIds.some((id) => currentMap.has(id));
         if (hasValidItems) {
-          setSession(existing);
+          const safeIndex =
+            typeof existing.currentIndex === "number" &&
+            existing.currentIndex >= 0 &&
+            existing.currentIndex < existing.queueIds.length
+              ? existing.currentIndex
+              : 0;
+          const safeStep: SpeedRunStep =
+            existing.currentStep === 1 || existing.currentStep === 2 || existing.currentStep === 3
+              ? existing.currentStep
+              : 1;
+
+          setSession({
+            ...existing,
+            currentIndex: safeIndex,
+            currentStep: safeStep,
+          });
         } else {
           clearSpeedRunSession();
-          if (readyCasinos.length > 0) {
-            setSession(createSpeedRunSession(readyCasinos));
+          if (currentReady.length > 0) {
+            setSession(createSpeedRunSession(currentReady));
           } else {
             setSession(null);
           }
         }
-      } else if (readyCasinos.length > 0) {
-        const newSession = createSpeedRunSession(readyCasinos);
+      } else if (currentReady.length > 0) {
+        const newSession = createSpeedRunSession(currentReady);
         setSession(newSession);
       } else {
         setSession(null);
@@ -111,15 +159,22 @@ export function SpeedRunModal({
       setSession(null);
     }
 
-    // Cross-browser persistence: sync latest session from server
+    // Cross-browser persistence: sync latest session from server once on open
     fetchSpeedRunSessionFromServer().then((serverSession) => {
-      if (cancelled || !serverSession || serverSession.completed || serverSession.queueIds.length === 0) return;
+      if (
+        cancelled ||
+        !serverSession ||
+        serverSession.completed ||
+        !Array.isArray(serverSession.queueIds) ||
+        serverSession.queueIds.length === 0
+      )
+        return;
       setSession((prev) => {
         if (!prev) return serverSession;
-        // If server session is further along or has higher loot/index, prefer server
         if (
           serverSession.currentIndex > prev.currentIndex ||
-          (serverSession.currentIndex === prev.currentIndex && serverSession.currentStep >= prev.currentStep)
+          (serverSession.currentIndex === prev.currentIndex &&
+            serverSession.currentStep >= prev.currentStep)
         ) {
           return serverSession;
         }
@@ -130,9 +185,9 @@ export function SpeedRunModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, readyCasinos, casinoMap]);
+  }, [isOpen]);
 
-  // Resume persistence: Listen to visibilitychange and focus to guarantee seamless resume when returning from Chrome
+  // Resume persistence: Listen to visibilitychange and focus to guarantee seamless resume when returning from external browser
   useEffect(() => {
     if (!isOpen) return;
 
@@ -151,21 +206,6 @@ export function SpeedRunModal({
           return prev;
         });
       }
-
-      // Background server sync on resume
-      fetchSpeedRunSessionFromServer().then((serverSession) => {
-        if (!serverSession || serverSession.completed) return;
-        setSession((prev) => {
-          if (!prev) return serverSession;
-          if (
-            serverSession.currentIndex > prev.currentIndex ||
-            (serverSession.currentIndex === prev.currentIndex && serverSession.currentStep > prev.currentStep)
-          ) {
-            return serverSession;
-          }
-          return prev;
-        });
-      });
     }
 
     window.addEventListener("focus", handleResume);
@@ -199,7 +239,7 @@ export function SpeedRunModal({
         return;
       }
       if (e.key === "Escape") {
-        onClose();
+        handleCloseModal();
       }
     }
 
@@ -207,23 +247,19 @@ export function SpeedRunModal({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
-  // Sync inputs when current casino changes
+  // Current session navigation state
   const activeQueueIds = session?.queueIds ?? [];
   const currentIndex = session?.currentIndex ?? 0;
   const currentCasinoId = activeQueueIds[currentIndex];
   const currentCasino = currentCasinoId
-    ? casinoMap.get(currentCasinoId) ?? readyCasinos.find((c) => c?.id === currentCasinoId)
-    : readyCasinos[currentIndex] ?? undefined;
+    ? casinoMap.get(currentCasinoId) ??
+      readyCasinos.find((c) => c?.id === currentCasinoId) ??
+      allCasinos.find((c) => c?.id === currentCasinoId)
+    : undefined;
 
-  // Auto-guard: if modal is open with an active session but current casino cannot be found, close gracefully
-  useEffect(() => {
-    if (isOpen && session && !session.completed && activeQueueIds.length > 0 && !currentCasino) {
-      onClose();
-    }
-  }, [isOpen, session, activeQueueIds.length, currentCasino, onClose]);
-
+  // Sync inputs when current casino changes
   useEffect(() => {
     if (currentCasino) {
       setBalanceInput(
@@ -241,7 +277,9 @@ export function SpeedRunModal({
   const sessionLootSc = session?.sessionLootSc ?? 0;
   const sessionLootGc = session?.sessionLootGc ?? 0;
   const claimedCount = session?.claimedIds.length ?? 0;
-  const isCompleted = Boolean(session?.completed) || totalInQueue === 0 || currentIndex >= totalInQueue || !currentCasino;
+  const isCompleted =
+    Boolean(session?.completed) ||
+    (session !== null && (totalInQueue === 0 || currentIndex >= totalInQueue));
 
   // Trigger loot counter animation
   function triggerLootAnimation(addedSc: number) {
@@ -255,128 +293,182 @@ export function SpeedRunModal({
     }
   }
 
+  // Unified robust Queue Progression handler
+  interface AdvanceQueueOptions {
+    claimId?: string;
+    skipId?: string;
+    snooze?: { id: string; until: string };
+    addedSc?: number;
+    addedGc?: number;
+  }
+
+  function advanceQueue(options: AdvanceQueueOptions = {}) {
+    setSession((prev) => {
+      if (!prev) return null;
+
+      const nextIndex = prev.currentIndex + 1;
+      const isFinished = nextIndex >= prev.queueIds.length;
+
+      const nextClaimed = options.claimId
+        ? Array.from(new Set([...prev.claimedIds, options.claimId]))
+        : prev.claimedIds;
+
+      const nextSkipped = options.skipId
+        ? Array.from(new Set([...prev.skippedIds, options.skipId]))
+        : prev.skippedIds;
+
+      const nextSnoozed = options.snooze
+        ? { ...prev.snoozedIds, [options.snooze.id]: options.snooze.until }
+        : prev.snoozedIds;
+
+      const nextLootSc = prev.sessionLootSc + (options.addedSc ?? 0);
+      const nextLootGc = prev.sessionLootGc + (options.addedGc ?? 0);
+
+      if (isFinished) {
+        clearSpeedRunSession();
+        return {
+          ...prev,
+          currentIndex: prev.currentIndex,
+          currentStep: 1, // Strictly reset step back to 1
+          completed: true,
+          claimedIds: nextClaimed,
+          skippedIds: nextSkipped,
+          snoozedIds: nextSnoozed,
+          sessionLootSc: nextLootSc,
+          sessionLootGc: nextLootGc,
+        };
+      }
+
+      const updated: SpeedRunSessionState = {
+        ...prev,
+        currentIndex: nextIndex,
+        currentStep: 1, // Strictly reset step back to 1 for the new casino
+        completed: false,
+        claimedIds: nextClaimed,
+        skippedIds: nextSkipped,
+        snoozedIds: nextSnoozed,
+        sessionLootSc: nextLootSc,
+        sessionLootGc: nextLootGc,
+      };
+
+      saveSpeedRunSession(updated);
+      return updated;
+    });
+  }
+
   // -------------------------------------------------------------
   // STATE 1: "Launch" View
   // -------------------------------------------------------------
   function handleLaunch() {
-    if (!currentCasino || !session) {
-      onClose();
-      return;
-    }
+    if (!currentCasino || !session) return;
 
     // 1. Resolve deep link & validate URL before opening
     const deepLink =
       getCasinoDeepLink(currentCasino) || currentCasino.bonusUrl || currentCasino.url || "";
     if (deepLink && isValidHttpUrl(deepLink)) {
-      openInExternalBrowser(deepLink);
+      try {
+        openInExternalBrowser(deepLink);
+      } catch (err) {
+        console.error("Failed to open external link:", err);
+      }
     }
 
-    // 2. Advance to State 2 ("Verification" View) and persist immediately
-    const nextSession: SpeedRunSessionState = {
-      ...session,
-      currentStep: 2,
-    };
-    setSession(nextSession);
-    saveSpeedRunSession(nextSession);
+    // 2. Advance to State 2 ("Verification" View) immediately AFTER user clicks Launch
+    setSession((prev) => {
+      if (!prev) return null;
+      const nextSession: SpeedRunSessionState = {
+        ...prev,
+        currentStep: 2,
+      };
+      saveSpeedRunSession(nextSession);
+      return nextSession;
+    });
   }
 
   // Skip from State 1 directly to next casino in queue
   function handleSkipFromState1() {
-    if (!session || !currentCasino) return;
-
-    const nextIndex = currentIndex + 1;
-    const completed = nextIndex >= totalInQueue;
-    const nextSession: SpeedRunSessionState = {
-      ...session,
-      currentIndex: nextIndex,
-      currentStep: 1,
-      skippedIds: [...session.skippedIds, currentCasino.id],
-      completed,
-    };
-    setSession(nextSession);
-    saveSpeedRunSession(nextSession);
+    if (!currentCasino || !session) return;
+    advanceQueue({ skipId: currentCasino.id });
   }
 
   // -------------------------------------------------------------
   // STATE 2: "Verification" View ("Did you claim it?")
   // -------------------------------------------------------------
-  // User answered [Yes]
+  // User answered [Yes, Claimed] -> Only advance to Step 3 if confirmed
   function handleConfirmClaimed() {
     if (!session) return;
-    const nextSession: SpeedRunSessionState = {
-      ...session,
-      currentStep: 3, // Move to State 3 (Log Balance)
-    };
-    setSession(nextSession);
-    saveSpeedRunSession(nextSession);
+    setSession((prev) => {
+      if (!prev) return null;
+      const nextSession: SpeedRunSessionState = {
+        ...prev,
+        currentStep: 3, // Move to State 3 (Log Balance)
+      };
+      saveSpeedRunSession(nextSession);
+      return nextSession;
+    });
   }
 
   // User answered [Snooze 1h] -> Sets 1h hold, advances queue
   function handleSnooze() {
-    if (!session || !currentCasino) return;
+    if (!currentCasino || !session) return;
 
     const snoozedUntil = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
-    // Call onSnooze or onUpdateCasino
-    if (onSnooze) {
-      onSnooze(currentCasino, snoozedUntil);
-    } else if (onUpdateCasino) {
-      onUpdateCasino(currentCasino, { snoozedUntil });
+    // Call onSnooze or onUpdateCasino safely wrapped in try/catch
+    try {
+      if (onSnooze) {
+        onSnooze(currentCasino, snoozedUntil);
+      } else if (onUpdateCasino) {
+        onUpdateCasino(currentCasino, { snoozedUntil });
+      }
+    } catch (err) {
+      console.error("Failed to snooze casino in onSnooze:", err);
     }
 
-    const nextIndex = currentIndex + 1;
-    const completed = nextIndex >= totalInQueue;
-    const nextSession: SpeedRunSessionState = {
-      ...session,
-      currentIndex: nextIndex,
-      currentStep: 1,
-      snoozedIds: {
-        ...session.snoozedIds,
-        [currentCasino.id]: snoozedUntil,
-      },
-      completed,
-    };
-    setSession(nextSession);
-    saveSpeedRunSession(nextSession);
+    advanceQueue({
+      snooze: { id: currentCasino.id, until: snoozedUntil },
+    });
   }
 
   // User answered [Failed / Skip] -> Leaves as 'ready', advances queue
   function handleFailedSkip() {
-    if (!session || !currentCasino) return;
-
-    const nextIndex = currentIndex + 1;
-    const completed = nextIndex >= totalInQueue;
-    const nextSession: SpeedRunSessionState = {
-      ...session,
-      currentIndex: nextIndex,
-      currentStep: 1,
-      skippedIds: [...session.skippedIds, currentCasino.id],
-      completed,
-    };
-    setSession(nextSession);
-    saveSpeedRunSession(nextSession);
+    if (!currentCasino || !session) return;
+    advanceQueue({
+      skipId: currentCasino.id,
+    });
   }
 
   // -------------------------------------------------------------
   // STATE 3: "Log Balance (Optional)"
   // -------------------------------------------------------------
-  // Primary: "Save & Next" -> Updates user-casino DB record, adds claim value to session tally, advances queue
+  // Primary: "Save & Next" -> Updates DB record, adds claim value, advances queue
   function handleSaveBalanceAndNext() {
-    if (!session || !currentCasino) return;
+    if (!currentCasino || !session) return;
 
     const parsedBalance = balanceInput.trim() !== "" ? parseFloat(balanceInput) : undefined;
     const cleanNote = noteInput.trim() || undefined;
 
-    // 1. Mark claimed
-    onClaim(currentCasino);
+    // 1. Mark claimed with try/catch
+    try {
+      onClaim(currentCasino);
+    } catch (err) {
+      console.error("Failed to mark casino claimed in onClaim:", err);
+    }
 
-    // 2. Update DB record with balance and note
+    // 2. Update DB record with balance and note with try/catch
     if (onUpdateCasino) {
-      onUpdateCasino(currentCasino, {
-        currentBalance: typeof parsedBalance === "number" && !isNaN(parsedBalance) ? parsedBalance : currentCasino.currentBalance,
-        notes: cleanNote ?? currentCasino.notes,
-        snoozedUntil: null,
-      });
+      try {
+        onUpdateCasino(currentCasino, {
+          currentBalance:
+            typeof parsedBalance === "number" && !isNaN(parsedBalance)
+              ? parsedBalance
+              : currentCasino.currentBalance,
+          notes: cleanNote ?? currentCasino.notes,
+          snoozedUntil: null,
+        });
+      } catch (err) {
+        console.error("Failed to update casino balance/notes in onUpdateCasino:", err);
+      }
     }
 
     // 3. Add daily bonus reward to session tally
@@ -385,28 +477,23 @@ export function SpeedRunModal({
     triggerLootAnimation(rewardSc);
 
     // 4. Advance queue
-    const nextIndex = currentIndex + 1;
-    const completed = nextIndex >= totalInQueue;
-    const nextSession: SpeedRunSessionState = {
-      ...session,
-      currentIndex: nextIndex,
-      currentStep: 1,
-      sessionLootSc: session.sessionLootSc + rewardSc,
-      sessionLootGc: session.sessionLootGc + rewardGc,
-      claimedIds: [...session.claimedIds, currentCasino.id],
-      completed,
-    };
-
-    setSession(nextSession);
-    saveSpeedRunSession(nextSession);
+    advanceQueue({
+      claimId: currentCasino.id,
+      addedSc: rewardSc,
+      addedGc: rewardGc,
+    });
   }
 
   // Secondary: "Skip & Next" -> Marks claimed, adds loot value, advances queue without saving balance/note
   function handleSkipBalanceAndNext() {
-    if (!session || !currentCasino) return;
+    if (!currentCasino || !session) return;
 
-    // 1. Mark claimed
-    onClaim(currentCasino);
+    // 1. Mark claimed with try/catch
+    try {
+      onClaim(currentCasino);
+    } catch (err) {
+      console.error("Failed to mark casino claimed in onClaim:", err);
+    }
 
     // 2. Add daily bonus reward to session tally
     const rewardSc = parseScReward(currentCasino?.dailyBonus ?? "");
@@ -414,34 +501,30 @@ export function SpeedRunModal({
     triggerLootAnimation(rewardSc);
 
     // 3. Advance queue
-    const nextIndex = currentIndex + 1;
-    const completed = nextIndex >= totalInQueue;
-    const nextSession: SpeedRunSessionState = {
-      ...session,
-      currentIndex: nextIndex,
-      currentStep: 1,
-      sessionLootSc: session.sessionLootSc + rewardSc,
-      sessionLootGc: session.sessionLootGc + rewardGc,
-      claimedIds: [...session.claimedIds, currentCasino.id],
-      completed,
-    };
-
-    setSession(nextSession);
-    saveSpeedRunSession(nextSession);
+    advanceQueue({
+      claimId: currentCasino.id,
+      addedSc: rewardSc,
+      addedGc: rewardGc,
+    });
   }
 
   // Finish Run & Reset Session
   function handleFinishAndClose() {
-    clearSpeedRunSession();
-    setSession(null);
-    onClose();
+    handleCloseModal();
   }
 
-  // Restart Run (e.g. for any remaining or skipped)
+  // Restart Run (e.g. for any remaining or all non-hidden)
   function handleRestart() {
-    if (readyCasinos.length > 0) {
-      const newSession = createSpeedRunSession(readyCasinos);
+    clearSpeedRunSession();
+    const ready =
+      readyCasinosRef.current.length > 0
+        ? readyCasinosRef.current
+        : allCasinosRef.current.filter((c) => !c.hidden);
+    if (ready.length > 0) {
+      const newSession = createSpeedRunSession(ready);
       setSession(newSession);
+    } else {
+      setSession(null);
     }
   }
 
@@ -450,6 +533,25 @@ export function SpeedRunModal({
   const microInstruction = currentCasino ? getCasinoMicroInstruction(currentCasino) : null;
 
   if (!isOpen) return null;
+
+  // Sleek loading state while session initializes on mount
+  if (!session && readyCasinos.length > 0) {
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="speed-run-loading"
+        className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-5"
+      >
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md" onClick={handleCloseModal} />
+        <div className="relative w-full max-w-sm rounded-3xl border border-[#2d4e38] bg-[#0c1611] p-6 text-center text-[#e6eee5] shadow-2xl">
+          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-[#39ff6a] border-t-transparent mb-3" />
+          <h3 id="speed-run-loading" className="text-sm font-bold text-white">Starting Speed Run...</h3>
+          <p className="mt-1 text-xs text-[#8ca892]">Preparing ready casinos queue</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -461,7 +563,7 @@ export function SpeedRunModal({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
-        onClick={onClose}
+        onClick={handleCloseModal}
       />
 
       {/* Modal Container */}
@@ -518,7 +620,7 @@ export function SpeedRunModal({
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleCloseModal}
               aria-label="Close speed-run modal"
               className="grid h-8 w-8 place-items-center rounded-lg border border-[#273d2f] text-[#8ea894] transition hover:border-[#4b7759] hover:bg-[#192b20] hover:text-white"
             >
@@ -536,10 +638,14 @@ export function SpeedRunModal({
               <CheckCircle2 size={36} />
             </div>
             <h3 className="text-xl sm:text-2xl font-bold text-white">
-              Speed Run Complete! 🎉
+              {totalInQueue === 0 && claimedCount === 0
+                ? "All Caught Up! 🎯"
+                : "Speed Run Complete! 🎉"}
             </h3>
             <p className="mt-1 text-xs text-[#8da593] max-w-sm mx-auto">
-              Session completed. All verified rolls have timers reset and balance tallies updated.
+              {totalInQueue === 0 && claimedCount === 0
+                ? "No casinos are currently ready to claim. All daily rolls are on cooldown or completed."
+                : "Session completed. All verified rolls have timers reset and balance tallies updated."}
             </p>
 
             {/* Receipt Summary Grid */}
@@ -643,7 +749,7 @@ export function SpeedRunModal({
             </div>
 
             {/* Current Casino Header Card */}
-            {currentCasino && (
+            {currentCasino ? (
               <div className="relative rounded-2xl border border-emerald-700/50 bg-gradient-to-b from-[#15271d] to-[#0f1c15] p-4 sm:p-5 shadow-inner text-center">
                 {/* Provider Pill Badge */}
                 <div className="mb-3 flex justify-center">
@@ -829,6 +935,20 @@ export function SpeedRunModal({
                     </div>
                   </div>
                 )}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-amber-600/40 bg-[#16251b] p-6 text-center">
+                <AlertCircle className="mx-auto text-amber-400 mb-2" size={28} />
+                <h4 className="text-sm font-bold text-white">Casino Not Found in Database</h4>
+                <p className="text-xs text-[#8ca892] mt-1">This casino roll could not be resolved from local data.</p>
+                <button
+                  type="button"
+                  onClick={() => advanceQueue({ skipId: currentCasinoId })}
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-[#39ff6a] px-4 py-2 text-xs font-bold text-[#0d1712] shadow-sm hover:scale-102 transition cursor-pointer"
+                >
+                  <span>Skip to Next</span>
+                  <ChevronRight size={14} />
+                </button>
               </div>
             )}
           </div>
