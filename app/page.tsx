@@ -1,4 +1,4 @@
-import { ArrowRight, Check, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Clock, Coins, Sparkles } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth";
 import { SignInForm } from "@/app/components/SignInForm";
@@ -34,16 +34,49 @@ export default async function Home() {
             Track daily login rewards, cooldown timers, and sweepstakes drops across all your favorite platforms in one calm, simple place.
           </p>
 
+          {/* Quick Preview Cards */}
+          <div className="mt-8 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            <div className="flex items-center gap-2.5 rounded-xl border border-emerald-800/30 bg-[#122018]/80 p-3 backdrop-blur">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
+                <Coins size={16} />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-emerald-200">Crown Coins</p>
+                <p className="text-[11px] text-emerald-400 font-medium">1.00 SC Ready</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 rounded-xl border border-emerald-800/30 bg-[#122018]/80 p-3 backdrop-blur">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-400">
+                <Clock size={16} />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-emerald-200">Stake.us</p>
+                <p className="text-[11px] text-[#869f8c]">Reset in 4h</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 rounded-xl border border-emerald-800/30 bg-[#122018]/80 p-3 backdrop-blur">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
+                <Coins size={16} />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-emerald-200">Pulsz</p>
+                <p className="text-[11px] text-emerald-400 font-medium">0.30 SC Ready</p>
+              </div>
+            </div>
+          </div>
+
           {/* Feature Highlights */}
-          <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-xs font-medium text-[#8ea893] sm:text-sm">
-            <span className="flex items-center gap-2">
-              <Check size={16} className="text-[#78ae7e]" /> One-tap bonus claim links
+          <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-xs font-medium text-[#8ea893]">
+            <span className="flex items-center gap-1.5">
+              <Check size={14} className="text-[#78ae7e]" /> One-tap bonus claim links
             </span>
-            <span className="flex items-center gap-2">
-              <Check size={16} className="text-[#78ae7e]" /> Built-in countdown timers
+            <span className="flex items-center gap-1.5">
+              <Check size={14} className="text-[#78ae7e]" /> Built-in countdown timers
             </span>
-            <span className="flex items-center gap-2">
-              <Check size={16} className="text-[#78ae7e]" /> Private by design
+            <span className="flex items-center gap-1.5">
+              <Check size={14} className="text-[#78ae7e]" /> AI bonus offer parser
             </span>
           </div>
 
