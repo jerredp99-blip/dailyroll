@@ -519,6 +519,13 @@ export default function TrackerPage() {
         ...sharedBonusTitles,
       });
       setDirectoryRatings(currentRatings);
+
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get("speedrun") === "true") {
+          setIsSpeedRunOpen(true);
+        }
+      }
     })();
 
     const timer = setInterval(() => setNow(Date.now()), 1000);
