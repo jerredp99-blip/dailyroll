@@ -1120,33 +1120,26 @@ export default function TrackerPage() {
         )}
       </button>
       <div className="w-full px-2.5 py-4 sm:px-8 sm:py-6">
-        <header className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3 border-b border-[#263a2c] pb-3 mb-4 sm:mb-6">
-          <div className="flex items-center gap-3">
-            {isAddCasinosPage ? (
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => showAddCasinosPage(false)}
-                  className="rounded-lg border border-[#344d3b] bg-[#111b16] px-2.5 py-1 text-xs text-[#9bcf9c] hover:bg-[#192b20]"
-                >
-                  ← Back to Tracker
-                </button>
-                <h1
-                  className="text-lg font-normal uppercase tracking-[0.08em] text-[#f3f8f0] sm:text-2xl"
-                  style={{ fontFamily: "Rhinos, Impact, sans-serif" }}
-                >
-                  ADD CASINOS TO ROLL
-                </h1>
-              </div>
-            ) : (
-              <div>
-                <h2 className="font-serif text-lg sm:text-2xl font-semibold text-[#edf4ea]">
-                  Daily Casino Rollcall
-                </h2>
-              </div>
-            )}
-          </div>
-        </header>
+        {/* Header (only on Add Casinos sub-page) */}
+        {isAddCasinosPage && (
+          <header className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3 border-b border-[#263a2c] pb-3 mb-4 sm:mb-6">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => showAddCasinosPage(false)}
+                className="rounded-lg border border-[#344d3b] bg-[#111b16] px-2.5 py-1 text-xs text-[#9bcf9c] hover:bg-[#192b20]"
+              >
+                ← Back to Tracker
+              </button>
+              <h1
+                className="text-lg font-normal uppercase tracking-[0.08em] text-[#f3f8f0] sm:text-2xl"
+                style={{ fontFamily: "Rhinos, Impact, sans-serif" }}
+              >
+                ADD CASINOS TO ROLL
+              </h1>
+            </div>
+          </header>
+        )}
 
         {/* Mobile Sticky Segmented Tab Control (< 768px) */}
         {!isAddCasinosPage && (
