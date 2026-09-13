@@ -10,7 +10,7 @@ import {
   type Casino,
   type UserProfile,
 } from "./store";
-import { ADMIN_EMAIL } from "./auth";
+import { ADMIN_EMAIL, ADMIN_EMAILS } from "./auth";
 
 export {
   casinoKey,
@@ -99,6 +99,7 @@ export async function updateCasinoMetadata(data: {
     // 3. Atomically update all user records in store.casinos
     const targetKeys = new Set<string>([
       ...store.users.map((u) => casinoKey(u.email)),
+      ...ADMIN_EMAILS.map((email) => casinoKey(email)),
       casinoKey(ADMIN_EMAIL),
       "admin",
       ...Object.keys(store.casinos || {}),

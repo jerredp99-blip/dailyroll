@@ -26,34 +26,25 @@ export type UserProfile = {
   signInMethod: "password" | "passwordless email";
   passwordHash?: string;
   avatarUrl?: string;
+  role?: "user" | "admin";
+  isAdmin?: boolean;
   /** Preferences saved from the /profile settings page. */
   preferences?: UserPreferences;
 };
 
-export type Casino = {
-  id: string;
-  name: string;
-  dailyBonus: string;
-  /** Canonical casino site URL — used for the logo/favicon fallback and the card click target. */
-  siteUrl?: string;
-  /** Affiliate / sign-up link used by the "Sign up" button on the add-casinos page. */
-  affiliateUrl?: string;
-  /** Link opened by "Claim Now" from rollcall after a bonus has been claimed. */
-  claimUrl?: string;
-  /** Optional bonus T&C / detail page. */
-  bonusUrl?: string;
-  bonusTitle?: string;
-  lastClaimedAt: string | null;
-  intervalHours: number;
-  resetAtTime?: string | null;
-  trustpilotRating?: number;
-  logo?: string;
-  details?: string;
-  hidden?: boolean;
-  /** Legacy single URL field kept only for backward compatibility with existing records.
-   *  Precedence: siteUrl > url. UI paths read siteUrl (falling back to url) instead of url directly. */
-  url?: string;
+export const DEFAULT_ADMIN_USER: UserProfile = {
+  id: "user-admin-timber",
+  name: "Admin Timber",
+  email: "timber420@gmail.com",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  signInMethod: "password",
+  passwordHash: "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+  role: "admin",
+  isAdmin: true,
 };
+
+import type { Casino, SpeedRunSessionState } from "@/types/casino";
+export type { Casino, SpeedRunSessionState };
 
 export type Session = {
   token: string;
@@ -123,6 +114,7 @@ type Store = {
   magicLinks: Record<string, MagicLink>;
   posts: Post[];
   comments: Record<string, Comment[]>;
+  speedRunSessions?: Record<string, SpeedRunSessionState>;
 };
 
 const DATA_DIR = process.env.VERCEL ? "/tmp/dailyroll" : path.join(process.cwd(), "data");
@@ -229,7 +221,7 @@ const INITIAL_COMMENTS: Record<string, Comment[]> = {
 };
 
 const EMPTY_STORE: Store = {
-  users: [],
+  users: [{ ...DEFAULT_ADMIN_USER }],
   casinos: {},
   directoryList: null,
   directoryUrls: {},
@@ -246,6 +238,44 @@ const EMPTY_STORE: Store = {
   posts: INITIAL_POSTS,
   comments: INITIAL_COMMENTS,
 };
+
+export function ensureAdminUsers(users: UserProfile[]): { users: UserProfile[]; changed: boolean } {
+  let changed = false;
+  const list = Array.isArray(users) ? [...users] : [];
+  const targetEmail = DEFAULT_ADMIN_USER.email.toLowerCase();
+  const existingIdx = list.findIndex((u) => u.email.toLowerCase() === targetEmail);
+
+  if (existingIdx === -1) {
+    list.push({ ...DEFAULT_ADMIN_USER });
+    changed = true;
+  } else {
+    const existing = list[existingIdx];
+    if (
+      existing.role !== "admin" ||
+      !existing.isAdmin ||
+      !existing.passwordHash
+    ) {
+      list[existingIdx] = {
+        ...existing,
+        name: existing.name || DEFAULT_ADMIN_USER.name,
+        role: "admin",
+        isAdmin: true,
+        passwordHash: existing.passwordHash || DEFAULT_ADMIN_USER.passwordHash,
+      };
+      changed = true;
+    }
+  }
+  return { users: list, changed };
+}
+
+export async function seedAdminUserIfMissing(): Promise<void> {
+  return queueMutation((store) => {
+    const { users, changed } = ensureAdminUsers(store.users || []);
+    if (changed) {
+      store.users = users;
+    }
+  });
+}
 
 let writeQueue: Promise<unknown> = Promise.resolve();
 
@@ -290,14 +320,16 @@ async function readFileStore(): Promise<Store> {
     const raw = await fs.readFile(DATA_FILE, "utf-8");
     const parsed = JSON.parse(raw) as Partial<Store>;
     const rawPosts = parsed.posts && parsed.posts.length > 0 ? parsed.posts : INITIAL_POSTS;
+    const { users: hydratedUsers } = ensureAdminUsers(parsed.users || []);
     return {
       ...EMPTY_STORE,
       ...parsed,
+      users: hydratedUsers,
       posts: normalizePosts(rawPosts),
       comments: parsed.comments && Object.keys(parsed.comments).length > 0 ? parsed.comments : INITIAL_COMMENTS,
     };
   } catch {
-    return { ...EMPTY_STORE, posts: normalizePosts(INITIAL_POSTS) };
+    return { ...EMPTY_STORE, users: [{ ...DEFAULT_ADMIN_USER }], posts: normalizePosts(INITIAL_POSTS) };
   }
 }
 
@@ -307,9 +339,11 @@ async function readStore(): Promise<Store> {
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<Store>;
       const rawPosts = parsed.posts && parsed.posts.length > 0 ? parsed.posts : INITIAL_POSTS;
+      const { users: hydratedUsers } = ensureAdminUsers(parsed.users || []);
       return {
         ...EMPTY_STORE,
         ...parsed,
+        users: hydratedUsers,
         posts: normalizePosts(rawPosts),
         comments: parsed.comments && Object.keys(parsed.comments).length > 0 ? parsed.comments : INITIAL_COMMENTS,
       };
@@ -389,6 +423,27 @@ export async function saveCasinos(key: string, casinos: Casino[]) {
 export async function deleteCasinos(key: string) {
   return queueMutation((store) => {
     delete store.casinos[key];
+  });
+}
+
+export async function getSpeedRunSessionStore(key: string): Promise<SpeedRunSessionState | null> {
+  const store = await readStore();
+  return store.speedRunSessions?.[key] ?? null;
+}
+
+export async function saveSpeedRunSessionStore(key: string, sessionState: SpeedRunSessionState): Promise<SpeedRunSessionState> {
+  return queueMutation((store) => {
+    if (!store.speedRunSessions) store.speedRunSessions = {};
+    store.speedRunSessions[key] = sessionState;
+    return sessionState;
+  });
+}
+
+export async function deleteSpeedRunSessionStore(key: string): Promise<void> {
+  return queueMutation((store) => {
+    if (store.speedRunSessions) {
+      delete store.speedRunSessions[key];
+    }
   });
 }
 

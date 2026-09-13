@@ -7,7 +7,7 @@ import {
   queueMutation,
   type Casino,
 } from "@/lib/store";
-import { ADMIN_EMAIL, getCurrentSession } from "@/lib/auth";
+import { ADMIN_EMAIL, ADMIN_EMAILS, getCurrentSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -31,6 +31,7 @@ export async function GET() {
     const directory = await getDirectory();
     const adminCasinos = [
       ...((await getCasinos(casinoKey(ADMIN_EMAIL))) ?? []),
+      ...((await getCasinos(casinoKey("timber420@gmail.com"))) ?? []),
       ...((await getCasinos("admin")) ?? []),
     ];
     const ratings: Record<string, number> = {};
@@ -199,6 +200,7 @@ export async function POST(request: NextRequest) {
 
         const targetKeys = new Set<string>([
           ...store.users.map((u) => casinoKey(u.email)),
+          ...ADMIN_EMAILS.map((email) => casinoKey(email)),
           casinoKey(ADMIN_EMAIL),
           "admin",
           ...Object.keys(store.casinos || {}),
