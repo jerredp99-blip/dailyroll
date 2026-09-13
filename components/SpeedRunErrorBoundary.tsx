@@ -85,3 +85,4 @@ export class SpeedRunErrorBoundary extends Component<
     return this.props.children;
   }
 }
+

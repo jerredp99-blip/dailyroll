@@ -71,10 +71,20 @@ export function RollcallCard({
   const styles = STATUS_STYLES[status.state];
   const formattedCountdown = formatRemainingTimer(status.remainingMs);
 
+  const handleClaim = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onClaim(casino);
+    const target = casino.claimUrl ?? siteUrl;
+    if (target) {
+      openInExternalBrowser(target);
+    }
+  };
+
   return (
     <article
       onClick={(event) => {
-        if ((event.target as HTMLElement).closest("button, a")) return;
+        if ((event.target as HTMLElement).closest("button, a, input, select, textarea, [role='button']")) return;
         onOpenCasino(casino);
       }}
       onKeyDown={(event) => {
@@ -85,7 +95,7 @@ export function RollcallCard({
       }}
       role="link"
       tabIndex={0}
-      className={`group flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-xl border p-3.5 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(0,0,0,0.2)] focus:outline-none focus:ring-2 focus:ring-[#79b77f]/60 ${styles.card} ${
+      className={`group flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-xl border py-2.5 px-3.5 sm:py-3 sm:px-4 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(0,0,0,0.2)] focus:outline-none focus:ring-2 focus:ring-[#79b77f]/60 ${styles.card} ${
         casino.hidden ? "border-dashed opacity-60 grayscale hover:opacity-90" : ""
       }`}
     >
@@ -119,26 +129,17 @@ export function RollcallCard({
       {status.ready ? (
         <button
           type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            event.preventDefault();
-            // Requirement 3: Ensure user interaction state and countdown timers fire immediately before navigation
-            onClaim(casino);
-            const target = casino.claimUrl ?? siteUrl;
-            if (target) {
-              openInExternalBrowser(target);
-            }
-          }}
+          onClick={handleClaim}
           aria-label={`Claim ${casino.dailyBonus} for ${casino.name}`}
-          className="ml-auto flex min-w-28 cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#79b77f] px-3.5 py-2 text-sm font-bold text-[#122519] shadow-[0_6px_16px_rgba(121,183,127,0.2)] transition hover:-translate-y-0.5 hover:bg-[#91c991] hover:shadow-[0_10px_22px_rgba(145,201,145,0.32)] ring-2 ring-[#39ff6a] ring-offset-2 ring-offset-[#0f1a14]"
+          className="ml-auto flex min-w-28 cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#79b77f] px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold text-[#122519] shadow-[0_6px_16px_rgba(121,183,127,0.2)] transition hover:-translate-y-0.5 hover:bg-[#91c991] hover:shadow-[0_10px_22px_rgba(145,201,145,0.32)] ring-2 ring-[#39ff6a] ring-offset-2 ring-offset-[#0f1a14]"
         >
-          <CheckCircle2 size={16} strokeWidth={2.5} />
+          <CheckCircle2 size={15} strokeWidth={2.5} />
           <span>Claim {casino.dailyBonus}!</span>
         </button>
       ) : (
         <div
           aria-label={`Resets in ${formattedCountdown}`}
-          className="ml-auto flex min-w-32 items-center justify-center gap-1.5 rounded-lg border border-[#3a4c40] bg-[#111c16] px-3 py-2 font-mono text-xs font-semibold text-[#f0a03c] shadow-inner"
+          className="ml-auto flex min-w-32 items-center justify-center gap-1.5 rounded-lg border border-[#3a4c40] bg-[#111c16] px-3 py-1.5 sm:py-2 font-mono text-xs font-semibold text-[#f0a03c] shadow-inner"
         >
           <Clock size={14} className="text-[#f0a03c]" />
           <span>Resets in {formattedCountdown}</span>

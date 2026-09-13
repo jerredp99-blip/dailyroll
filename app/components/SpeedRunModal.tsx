@@ -73,21 +73,41 @@ export function SpeedRunModal({
     return map;
   }, [allCasinos, readyCasinos]);
 
+  // Calculate updated total bankroll sum across all casinos (must be called unconditionally at top)
+  const totalTrackedBankroll = useMemo(() => {
+    return allCasinos.reduce((sum, c) => {
+      const bal = typeof c.currentBalance === "number" ? c.currentBalance : 0;
+      return sum + bal;
+    }, 0);
+  }, [allCasinos]);
+
   // Synchronize / initialize session whenever modal opens or mounts
   useEffect(() => {
     if (!isOpen) return;
 
     let cancelled = false;
-    const existing = loadSpeedRunSession();
-    if (existing && existing.queueIds.length > 0 && !existing.completed) {
-      const hasValidItems = existing.queueIds.some((id) => casinoMap.has(id));
-      if (hasValidItems) {
-        setSession(existing);
+    try {
+      const existing = loadSpeedRunSession();
+      if (existing && Array.isArray(existing.queueIds) && existing.queueIds.length > 0 && !existing.completed) {
+        const hasValidItems = existing.queueIds.some((id) => casinoMap.has(id));
+        if (hasValidItems) {
+          setSession(existing);
+        } else {
+          clearSpeedRunSession();
+          if (readyCasinos.length > 0) {
+            setSession(createSpeedRunSession(readyCasinos));
+          } else {
+            setSession(null);
+          }
+        }
+      } else if (readyCasinos.length > 0) {
+        const newSession = createSpeedRunSession(readyCasinos);
+        setSession(newSession);
+      } else {
+        setSession(null);
       }
-    } else if (readyCasinos.length > 0) {
-      const newSession = createSpeedRunSession(readyCasinos);
-      setSession(newSession);
-    } else {
+    } catch {
+      clearSpeedRunSession();
       setSession(null);
     }
 
@@ -214,8 +234,6 @@ export function SpeedRunModal({
       setNoteInput(currentCasino.notes || "");
     }
   }, [currentCasinoId, currentCasino]);
-
-  if (!isOpen) return null;
 
   // Session metrics
   const totalInQueue = activeQueueIds.length;
@@ -427,17 +445,11 @@ export function SpeedRunModal({
     }
   }
 
-  // Calculate updated total bankroll sum across all casinos
-  const totalTrackedBankroll = useMemo(() => {
-    return allCasinos.reduce((sum, c) => {
-      const bal = typeof c.currentBalance === "number" ? c.currentBalance : 0;
-      return sum + bal;
-    }, 0);
-  }, [allCasinos]);
-
   // Provider and micro-instructions for current casino
   const currentProvider = currentCasino ? getCasinoProvider(currentCasino) : "Independent";
   const microInstruction = currentCasino ? getCasinoMicroInstruction(currentCasino) : null;
+
+  if (!isOpen) return null;
 
   return (
     <div

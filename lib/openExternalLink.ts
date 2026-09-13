@@ -60,29 +60,29 @@ export function openInExternalBrowser(url: string): Window | null | void {
       }
       return win;
     }
+    // By HTML specification, window.open with 'noopener' returns null on success.
+    // Return immediately so we do NOT trigger a duplicate tab via anchor click!
+    return;
   } catch {
-    // Popup blocker or sandbox environment
-  }
-
-  // 2. Guaranteed user-initiated anchor navigation with target="_blank"
-  // Ensures the host PWA tab/window is NEVER replaced with an external page or navigation error.
-  try {
-    const a = document.createElement("a");
-    a.href = targetUrl;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      try {
-        document.body.removeChild(a);
-      } catch {
-        // ignore
-      }
-    }, 300);
-  } catch {
-    // Final fallback
-    window.open(targetUrl, "_blank", "noopener,noreferrer");
+    // Fall back to anchor navigation only if window.open threw an exception
+    try {
+      const a = document.createElement("a");
+      a.href = targetUrl;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        try {
+          document.body.removeChild(a);
+        } catch {
+          // ignore
+        }
+      }, 300);
+    } catch {
+      // Final fallback
+      window.open(targetUrl, "_blank", "noopener,noreferrer");
+    }
   }
 }

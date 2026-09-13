@@ -1486,50 +1486,50 @@ export default function TrackerPage() {
             </div>
 
             {/* Rollcall Column: Right on desktop, visible on mobile when mobileTab === 'rollcall' */}
-            <div className={`space-y-4 md:col-span-7 lg:col-span-7 ${mobileTab !== "rollcall" ? "hidden md:block" : ""}`}>
+            <div className={`space-y-2.5 md:col-span-7 lg:col-span-7 ${mobileTab !== "rollcall" ? "hidden md:block" : ""}`}>
               {/* Tracker Counter Banner with Batch Claim */}
-              <div className="sticky top-14 md:top-4 z-20 rounded-xl border border-[#2b4434] bg-[#13201a]/95 px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur">
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                  <div className="flex flex-wrap items-baseline gap-4 sm:gap-6">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-[11px] uppercase tracking-[0.14em] text-[#819487]">
+              <div className="sticky top-14 md:top-4 z-20 rounded-xl border border-[#2b4434] bg-[#13201a]/95 px-3.5 py-2.5 sm:px-4 sm:py-3 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5">
+                  <div className="flex flex-wrap items-baseline gap-3.5 sm:gap-6">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.14em] text-[#819487]">
                         Available
                       </span>
-                      <span className="text-base sm:text-lg font-bold text-[#39ff6a]">
+                      <span className="text-sm sm:text-lg font-bold text-[#39ff6a]">
                         {dailyTotals.available.toFixed(2)} SC
                       </span>
                     </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-[11px] uppercase tracking-[0.14em] text-[#819487]">
-                        Claimed today
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.14em] text-[#819487]">
+                        Claimed
                       </span>
-                      <span className="text-base sm:text-lg font-bold text-[#9bcf9c]">
+                      <span className="text-sm sm:text-lg font-bold text-[#9bcf9c]">
                         {dailyTotals.claimedToday.toFixed(2)} SC
                       </span>
                     </div>
                   </div>
 
-                  {/* Action Buttons: Batch Claim & Add Casinos */}
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-                    {/* + Add Casinos button (Secondary / Ghost style) */}
+                  {/* Consolidate Action Buttons into a single compact row */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Add Casinos button */}
                     <button
                       type="button"
                       onClick={() => showAddCasinosPage(true)}
                       title="Add casinos to your rollcall"
-                      className="flex items-center gap-1.5 rounded-lg border border-[#385640] bg-[#14231b]/90 px-3 py-1.5 text-xs font-semibold text-[#b7d5b5] transition hover:bg-[#1f3629] hover:border-[#5ca06c] hover:text-white cursor-pointer active:scale-95"
+                      className="flex items-center gap-1.5 rounded-lg border border-[#385640] bg-[#14231b]/90 px-2.5 py-1.5 text-xs font-semibold text-[#b7d5b5] transition hover:bg-[#1f3629] hover:border-[#5ca06c] hover:text-white cursor-pointer active:scale-95"
                     >
-                      <Plus size={14} className="text-[#39ff6a]" />
+                      <Plus size={13} className="text-[#39ff6a]" />
                       <span>
-                        + Add<span className="hidden sm:inline"> Casinos</span>
+                        Add<span className="hidden sm:inline"> Casinos</span>
                       </span>
                     </button>
 
-                    {/* Speed Run V2 Action Button */}
+                    {/* Primary Action: Speed Run */}
                     <button
                       type="button"
                       onClick={handleOpenSpeedRun}
                       disabled={readyCount === 0}
-                      title={readyCount > 0 ? `Start Speed Run V2 session (${readyCount} ready)` : "No casinos currently ready to claim"}
+                      title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
                       className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-extrabold transition shadow-sm ${
                         readyCount > 0
                           ? "bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 text-[#0d1712] shadow-[0_4px_14px_rgba(245,158,11,0.35)] hover:from-amber-400 hover:to-yellow-300 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ring-1 ring-yellow-400"
@@ -1537,13 +1537,13 @@ export default function TrackerPage() {
                       }`}
                     >
                       <Zap size={13} fill={readyCount > 0 ? "currentColor" : "none"} />
-                      <span>⚡ Speed Run ({readyCount})</span>
+                      <span>Speed Run ({readyCount})</span>
                     </button>
 
-                    {/* Launch All Staggered (Anti-popup loop) */}
+                    {/* Secondary Action: Staggered Open All / Cancel */}
                     {isStaggering ? (
                       <div className="flex items-center gap-1.5">
-                        <div className="flex items-center gap-1.5 rounded-lg bg-[#14231b] border border-amber-500/60 px-3 py-1.5 text-xs font-bold text-amber-300 animate-pulse">
+                        <div className="flex items-center gap-1.5 rounded-lg bg-[#14231b] border border-amber-500/60 px-2.5 py-1.5 text-xs font-bold text-amber-300 animate-pulse">
                           <Loader2 size={13} className="animate-spin text-amber-400" />
                           <span>{staggerStatus || "Launching..."}</span>
                         </div>
@@ -1564,84 +1564,66 @@ export default function TrackerPage() {
                         disabled={readyCount === 0}
                         title={
                           readyCount > 0
-                            ? `Launch all ${readyCount} ready casinos with 1.5s delay to prevent pop-up blocking`
+                            ? `Open all ${readyCount} ready casinos (staggered to prevent popup blocking)`
                             : "No casinos currently ready to claim"
                         }
-                        className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-sm ${
+                        className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
                           readyCount > 0
-                            ? "bg-gradient-to-r from-emerald-500 to-teal-400 text-[#0d1712] shadow-[0_4px_14px_rgba(16,185,129,0.35)] hover:from-emerald-400 hover:to-teal-300 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ring-1 ring-emerald-300"
-                            : "border border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
+                            ? "border-emerald-700/60 bg-[#14261c] text-[#9bcf9c] hover:bg-[#1a3325] hover:border-emerald-500 hover:text-white cursor-pointer active:scale-95"
+                            : "border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
                         }`}
                       >
-                        <Zap size={13} fill={readyCount > 0 ? "currentColor" : "none"} />
-                        <span>Launch All Staggered ({readyCount})</span>
-                      </button>
-                    )}
-
-                    {/* Open All Ready (Primary Batch Claim Button) */}
-                    {!isStaggering && (
-                      <button
-                        type="button"
-                        onClick={handleOpenAllReady}
-                        disabled={readyCount === 0}
-                        title={readyCount > 0 ? `Open all ${readyCount} ready casinos` : "No casinos currently ready to claim"}
-                        className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-sm ${
-                          readyCount > 0
-                            ? "bg-[#79b77f] text-[#122519] shadow-[0_4px_14px_rgba(121,183,127,0.3)] hover:bg-[#91c991] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ring-1 ring-[#39ff6a]"
-                            : "border border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
-                        }`}
-                      >
-                        <ExternalLink size={13} strokeWidth={2.5} />
-                        <span>Open All Ready ({readyCount})</span>
+                        <ExternalLink size={13} />
+                        <span>Open All ({readyCount})</span>
                       </button>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Bankroll & Projected Yield Analytics Card (temporarily hidden) */}
-              {/* <BankrollSummary casinos={casinos} claimedToday={dailyTotals.claimedToday} /> */}
+              {/* Compact Filter & Sort Toolbar Row */}
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#243a2b] bg-[#111e17] px-3 py-1.5 text-xs text-[#a9bbaa] shadow-sm">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-medium text-[#7d9783]">Filter:</span>
+                    <select
+                      value={casinoFilter}
+                      onChange={(event) => setCasinoFilter(event.target.value as typeof casinoFilter)}
+                      aria-label="Filter casinos"
+                      className="h-8 rounded-lg border border-[#344d3b] bg-[#0c1611] px-2 text-xs text-[#d4e4d2] outline-none focus:border-[#78ae7e] cursor-pointer"
+                    >
+                      <option value="all">All casinos</option>
+                      <option value="ready">Ready to claim</option>
+                      <option value="claimed">Claimed</option>
+                    </select>
+                  </div>
 
-              {/* Filter & Sort Controls */}
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-xs text-[#a9bbaa]">
-                  <span className="sr-only">Filter casinos</span>
-                  <select
-                    value={casinoFilter}
-                    onChange={(event) => setCasinoFilter(event.target.value as typeof casinoFilter)}
-                    aria-label="Filter casinos"
-                    className="h-9 rounded-lg border border-[#344d3b] bg-[#111b16] px-2 text-xs text-[#d4e4d2] outline-none focus:border-[#78ae7e]"
-                  >
-                    <option value="all">All casinos</option>
-                    <option value="ready">Ready to claim</option>
-                    <option value="claimed">Claimed</option>
-                  </select>
-                </label>
-                <label className="flex items-center gap-2 text-xs text-[#a9bbaa]">
-                  <span className="sr-only">Sort casinos</span>
-                  <select
-                    value={casinoSort}
-                    onChange={(event) => setCasinoSort(event.target.value as typeof casinoSort)}
-                    aria-label="Sort casinos"
-                    className="h-9 rounded-lg border border-[#344d3b] bg-[#111b16] px-2 text-xs text-[#d4e4d2] outline-none focus:border-[#78ae7e]"
-                  >
-                    <option value="status">Sort by status</option>
-                    <option value="f2p">Best F2P / Free to play</option>
-                    <option value="trustpilot">Highest Trustpilot rating</option>
-                    <option value="name-asc">Name A-Z</option>
-                    <option value="name-desc">Name Z-A</option>
-                  </select>
-                </label>
-                <label className="flex items-center gap-2 text-xs text-[#a9bbaa]">
-                  <span className="sr-only">Show hidden casinos</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-medium text-[#7d9783]">Sort:</span>
+                    <select
+                      value={casinoSort}
+                      onChange={(event) => setCasinoSort(event.target.value as typeof casinoSort)}
+                      aria-label="Sort casinos"
+                      className="h-8 rounded-lg border border-[#344d3b] bg-[#0c1611] px-2 text-xs text-[#d4e4d2] outline-none focus:border-[#78ae7e] cursor-pointer"
+                    >
+                      <option value="status">Status</option>
+                      <option value="f2p">Best F2P</option>
+                      <option value="trustpilot">Trustpilot</option>
+                      <option value="name-asc">Name A-Z</option>
+                      <option value="name-desc">Name Z-A</option>
+                    </select>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-1.5 text-xs text-[#a9bbaa] cursor-pointer select-none hover:text-white transition">
                   <input
                     type="checkbox"
                     checked={showHidden}
                     onChange={(event) => setShowHidden(event.target.checked)}
                     aria-label="Show hidden casinos"
-                    className="h-4 w-4 accent-[#79b77f]"
+                    className="h-3.5 w-3.5 rounded accent-[#79b77f] cursor-pointer"
                   />
-                  Show hidden
+                  <span>Show hidden</span>
                 </label>
               </div>
 
@@ -1767,26 +1749,27 @@ export default function TrackerPage() {
         )}
       {editingCasino && (
         <div
-          className="fixed inset-0 z-20 grid place-items-center bg-black/65 p-5"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3.5 sm:p-5 backdrop-blur-sm"
           role="presentation"
           onMouseDown={() => setEditingCasino(null)}
         >
           <form
             onSubmit={saveCasinoEdits}
-            className="w-full max-w-lg rounded-2xl border border-[#38503d] bg-[#19251f] p-6 shadow-2xl"
+            className="flex flex-col max-h-[90dvh] w-full max-w-lg overflow-hidden rounded-2xl border border-[#38503d] bg-[#19251f] shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="edit-casino-title"
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <div className="flex items-start justify-between">
+            {/* Pinned Header */}
+            <div className="shrink-0 p-4 sm:p-5 pb-3 border-b border-[#2d4432] flex items-start justify-between bg-[#19251f]">
               <div>
                 <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">
                   Casino editor
                 </p>
                 <h2
                   id="edit-casino-title"
-                  className="mt-2 font-serif text-3xl font-semibold text-[#e5eee3]"
+                  className="mt-1 font-serif text-2xl sm:text-3xl font-semibold text-[#e5eee3]"
                 >
                   Edit {editingCasino.name}
                 </h2>
@@ -1795,13 +1778,15 @@ export default function TrackerPage() {
                 type="button"
                 onClick={() => setEditingCasino(null)}
                 aria-label="Close edit casino prompt"
-                className="text-[#91a595] hover:text-white"
+                className="grid h-8 w-8 place-items-center rounded-lg border border-[#344d3b] text-[#91a595] hover:border-[#5ca06c] hover:bg-[#14231b] hover:text-white transition"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
-            <div className="mt-6 grid gap-3">
-              <label className="text-xs font-semibold text-[#a9bbaa]">
+
+            {/* Scrollable Form Body */}
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-3.5">
+              <label className="block text-xs font-semibold text-[#a9bbaa]">
                 Casino URL
                 <input
                   type="text"
@@ -1810,11 +1795,11 @@ export default function TrackerPage() {
                   value={editUrl}
                   onChange={(event) => setEditUrl(event.target.value)}
                   placeholder="https://casino.example"
-                  className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                  className="mt-1.5 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
                 />
               </label>
               {isAdmin && (
-                <label className="text-xs font-semibold text-[#a9bbaa]">
+                <label className="block text-xs font-semibold text-[#a9bbaa]">
                   Trustpilot rating
                   <input
                     type="number"
@@ -1824,12 +1809,12 @@ export default function TrackerPage() {
                     value={editTrustpilotRating}
                     onChange={(event) => setEditTrustpilotRating(event.target.value)}
                     placeholder="0 to 5"
-                    className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                    className="mt-1.5 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
                   />
                 </label>
               )}
               {isAdmin && (
-                <label className="text-xs font-semibold text-[#a9bbaa]">
+                <label className="block text-xs font-semibold text-[#a9bbaa]">
                   Affiliate URL (Sign up link)
                   <input
                     type="text"
@@ -1837,12 +1822,12 @@ export default function TrackerPage() {
                     value={editAffiliateUrl}
                     onChange={(event) => setEditAffiliateUrl(event.target.value)}
                     placeholder="https://casino.example?ref=..."
-                    className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                    className="mt-1.5 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
                   />
                 </label>
               )}
               {isAdmin && (
-                <label className="text-xs font-semibold text-[#a9bbaa]">
+                <label className="block text-xs font-semibold text-[#a9bbaa]">
                   Claim URL (Claim Now link)
                   <input
                     type="text"
@@ -1850,12 +1835,12 @@ export default function TrackerPage() {
                     value={editClaimUrl}
                     onChange={(event) => setEditClaimUrl(event.target.value)}
                     placeholder="https://casino.example"
-                    className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                    className="mt-1.5 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
                   />
                 </label>
               )}
               {isAdmin && (
-                <label className="text-xs font-semibold text-[#a9bbaa]">
+                <label className="block text-xs font-semibold text-[#a9bbaa]">
                   Bonus URL (bonus details link)
                   <input
                     type="text"
@@ -1863,47 +1848,47 @@ export default function TrackerPage() {
                     value={editBonusUrl}
                     onChange={(event) => setEditBonusUrl(event.target.value)}
                     placeholder="https://casino.example/bonus"
-                    className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                    className="mt-1.5 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
                   />
                 </label>
               )}
               {isAdmin && (
-                <label className="text-xs font-semibold text-[#a9bbaa]">
+                <label className="block text-xs font-semibold text-[#a9bbaa]">
                   Bonus button title
                   <input
                     type="text"
                     value={editBonusTitle}
                     onChange={(event) => setEditBonusTitle(event.target.value)}
                     placeholder="e.g. Daily Bonus, 100% Match"
-                    className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                    className="mt-1.5 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
                   />
                 </label>
               )}
-              <label className="text-xs font-semibold text-[#a9bbaa]">
+              <label className="block text-xs font-semibold text-[#a9bbaa]">
                 Bonus label
                 <input
                   value={editBonus}
                   onChange={(event) => setEditBonus(event.target.value)}
-                  className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                  className="mt-1.5 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
                 />
               </label>
-              <label className="text-xs font-semibold text-[#a9bbaa]">
+              <label className="block text-xs font-semibold text-[#a9bbaa]">
                 Details
                 <textarea
                   value={editDetails}
                   onChange={(event) => setEditDetails(event.target.value)}
                   rows={3}
-                  className="mt-2 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 py-2 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                  className="mt-1.5 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 py-2 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
                 />
               </label>
-              <fieldset className="mt-1 space-y-3">
+              <fieldset className="mt-1 space-y-2.5">
                 <legend className="text-xs font-semibold text-[#a9bbaa]">
                   Reset timer
                 </legend>
-                <p className="text-sm font-normal text-[#a9bbaa]">
+                <p className="text-xs font-normal text-[#8ea394]">
                   Default: reset 24 hours after claiming.
                 </p>
-                <label className="flex items-center gap-3 text-sm font-normal text-[#a9bbaa]">
+                <label className="flex items-center gap-3 text-xs font-normal text-[#a9bbaa] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={editUseSpecificReset}
@@ -1924,37 +1909,49 @@ export default function TrackerPage() {
                 )}
               </fieldset>
             </div>
-            <button
-              type="submit"
-              className="mt-5 h-11 w-full rounded-xl bg-[#79b77f] text-sm font-semibold text-[#122519] hover:bg-[#91c991]"
-            >
-              Save casino
-            </button>
+
+            {/* Sticky Pinned Footer */}
+            <div className="shrink-0 p-4 border-t border-white/10 bg-[#121815] sticky bottom-0 z-10 flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => setEditingCasino(null)}
+                className="h-11 flex-1 rounded-xl border border-[#344d3b] bg-[#1a2b21] text-xs sm:text-sm font-semibold text-[#b8d1b9] hover:bg-[#233b2d] hover:text-white transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="h-11 flex-1 rounded-xl bg-gradient-to-r from-[#79b77f] to-[#39ff6a] text-xs sm:text-sm font-bold text-[#122519] shadow-[0_4px_14px_rgba(57,255,106,0.3)] hover:brightness-105 active:scale-98 transition"
+              >
+                Save Changes
+              </button>
+            </div>
           </form>
         </div>
       )}
       {isAddOpen && (
         <div
-          className="fixed inset-0 z-20 grid place-items-center bg-black/65 p-5"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3.5 sm:p-5 backdrop-blur-sm"
           role="presentation"
           onMouseDown={() => setIsAddOpen(false)}
         >
           <form
             onSubmit={addCasino}
-            className="w-full max-w-lg rounded-2xl border border-[#38503d] bg-[#19251f] p-6 shadow-2xl"
+            className="flex flex-col max-h-[90dvh] w-full max-w-lg overflow-hidden rounded-2xl border border-[#38503d] bg-[#19251f] shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="add-casino-title"
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <div className="flex items-start justify-between">
+            {/* Pinned Header */}
+            <div className="shrink-0 p-4 sm:p-5 pb-3 border-b border-[#2d4432] flex items-start justify-between bg-[#19251f]">
               <div>
                 <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">
                   Rollcall
                 </p>
                 <h2
                   id="add-casino-title"
-                  className="mt-2 font-serif text-3xl font-semibold text-[#e5eee3]"
+                  className="mt-1 font-serif text-2xl sm:text-3xl font-semibold text-[#e5eee3]"
                 >
                   Add a casino
                 </h2>
@@ -1963,85 +1960,99 @@ export default function TrackerPage() {
                 type="button"
                 onClick={() => setIsAddOpen(false)}
                 aria-label="Close add casino prompt"
-                className="text-[#91a595] hover:text-white"
+                className="grid h-8 w-8 place-items-center rounded-lg border border-[#344d3b] text-[#91a595] hover:border-[#5ca06c] hover:bg-[#14231b] hover:text-white transition"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
-            <div className="mt-6 grid gap-3">
+
+            {/* Scrollable Form Body */}
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-3.5">
               <input
                 required
                 autoFocus
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Casino name"
-                className="h-11 rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm outline-none placeholder:text-[#718275] focus:border-[#78ae7e]"
+                className="h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm outline-none placeholder:text-[#718275] focus:border-[#78ae7e]"
               />
               <input
                 value={bonus}
                 onChange={(event) => setBonus(event.target.value)}
-                placeholder="Daily bonus"
-                className="h-11 rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm outline-none placeholder:text-[#718275] focus:border-[#78ae7e]"
+                placeholder="Daily bonus (e.g. 1.00 SC)"
+                className="h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm outline-none placeholder:text-[#718275] focus:border-[#78ae7e]"
               />
               <input
                 required
                 value={url}
                 onChange={(event) => setUrl(event.target.value)}
-                placeholder="Website URL"
-                className="h-11 rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm outline-none placeholder:text-[#718275] focus:border-[#78ae7e]"
+                placeholder="Website URL (e.g. https://stake.us)"
+                className="h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm outline-none placeholder:text-[#718275] focus:border-[#78ae7e]"
               />
               <input
                 value={newClaimUrl}
                 onChange={(event) => setNewClaimUrl(event.target.value)}
-                placeholder="Daily bonus link"
-                className="h-11 rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm outline-none placeholder:text-[#718275] focus:border-[#78ae7e]"
+                placeholder="Direct claim URL (optional)"
+                className="h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm outline-none placeholder:text-[#718275] focus:border-[#78ae7e]"
               />
+              <fieldset className="mt-2 space-y-2.5">
+                <legend className="mb-2 text-xs font-semibold text-[#d4e4d2]">
+                  Reset time
+                </legend>
+                <label className="flex items-center gap-3 text-xs text-[#a9bbaa] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={use24HourReset}
+                    onChange={(event) => {
+                      setUse24HourReset(event.target.checked);
+                      if (event.target.checked) setUseSpecificReset(false);
+                    }}
+                    className="h-4 w-4 accent-[#79b77f]"
+                  />{" "}
+                  Reset 24 hours after claiming
+                </label>
+                <label className="flex items-center gap-3 text-xs text-[#a9bbaa] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useSpecificReset}
+                    onChange={(event) => {
+                      setUseSpecificReset(event.target.checked);
+                      if (event.target.checked) setUse24HourReset(false);
+                    }}
+                    className="h-4 w-4 accent-[#79b77f]"
+                  />{" "}
+                  Reset at a specific time daily
+                </label>
+                {useSpecificReset && (
+                  <input
+                    type="time"
+                    required
+                    value={resetTime}
+                    onChange={(event) => setResetTime(event.target.value)}
+                    aria-label="Daily reset time"
+                    className="h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                  />
+                )}
+              </fieldset>
             </div>
-            <fieldset className="mt-5 space-y-3">
-              <legend className="mb-3 text-sm font-semibold text-[#d4e4d2]">
-                Reset time
-              </legend>
-              <label className="flex items-center gap-3 text-sm text-[#a9bbaa]">
-                <input
-                  type="checkbox"
-                  checked={use24HourReset}
-                  onChange={(event) => {
-                    setUse24HourReset(event.target.checked);
-                    if (event.target.checked) setUseSpecificReset(false);
-                  }}
-                  className="h-4 w-4 accent-[#79b77f]"
-                />{" "}
-                Reset 24 hours after claiming
-              </label>
-              <label className="flex items-center gap-3 text-sm text-[#a9bbaa]">
-                <input
-                  type="checkbox"
-                  checked={useSpecificReset}
-                  onChange={(event) => {
-                    setUseSpecificReset(event.target.checked);
-                    if (event.target.checked) setUse24HourReset(false);
-                  }}
-                  className="h-4 w-4 accent-[#79b77f]"
-                />{" "}
-                Reset at a specific time daily
-              </label>
-              {useSpecificReset && (
-                <input
-                  type="time"
-                  required
-                  value={resetTime}
-                  onChange={(event) => setResetTime(event.target.value)}
-                  aria-label="Daily reset time"
-                  className="h-11 rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]"
-                />
-              )}
-            </fieldset>
-            <button
-              type="submit"
-              className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#79b77f] text-sm font-semibold text-[#122519] hover:bg-[#91c991]"
-            >
-              <Plus size={16} /> Add to tracker
-            </button>
+
+            {/* Sticky Pinned Footer */}
+            <div className="shrink-0 p-4 border-t border-white/10 bg-[#121815] sticky bottom-0 z-10 flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsAddOpen(false)}
+                className="h-11 flex-1 rounded-xl border border-[#344d3b] bg-[#1a2b21] text-xs sm:text-sm font-semibold text-[#b8d1b9] hover:bg-[#233b2d] hover:text-white transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="h-11 flex-1 rounded-xl bg-gradient-to-r from-[#79b77f] to-[#39ff6a] text-xs sm:text-sm font-bold text-[#122519] shadow-[0_4px_14px_rgba(57,255,106,0.3)] hover:brightness-105 active:scale-98 transition flex items-center justify-center gap-1.5"
+              >
+                <Plus size={15} />
+                <span>Add to tracker</span>
+              </button>
+            </div>
           </form>
         </div>
       )}
