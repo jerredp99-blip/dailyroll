@@ -45,7 +45,42 @@ export function SocialFeed({
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null);
+  const [claimedDropIds, setClaimedDropIds] = useState<string[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Sync claimed bonus drops from localStorage and custom events
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("dailyroll_claimed_drops") || "[]");
+      if (Array.isArray(stored)) {
+        setClaimedDropIds(stored);
+      }
+    } catch {}
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "dailyroll_claimed_drops") {
+        try {
+          const list = JSON.parse(e.newValue || "[]");
+          if (Array.isArray(list)) setClaimedDropIds(list);
+        } catch {}
+      }
+    };
+
+    const handleCustomClaim = (e: Event) => {
+      const customEvent = e as CustomEvent<{ postId: string }>;
+      const id = customEvent.detail?.postId;
+      if (id) {
+        setClaimedDropIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("dailyroll_drop_claimed", handleCustomClaim);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("dailyroll_drop_claimed", handleCustomClaim);
+    };
+  }, []);
 
   const fetchPosts = useCallback(async (silent = false) => {
     // If the browser tab is hidden and this is a background auto-refresh, skip it
@@ -247,29 +282,73 @@ export function SocialFeed({
     }
   };
 
-  const sortedPosts = useMemo(() => {
-    const list = [...posts];
-    if (sortBy === "likes") {
-      return list.sort((a, b) => (b.likes?.length || 0) - (a.likes?.length || 0));
-    }
-    if (sortBy === "comments") {
-      return list.sort((a, b) => (b.commentCount || 0) - (a.commentCount || 0));
-    }
-    return list.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }, [posts, sortBy]);
+  const isBonusDropPost = useCallback(
+    (p: Post) =>
+      p.type === "drop_code" ||
+      Boolean(p.dropCode) ||
+      p.tags?.some((t) =>
+        ["BONUS_CODE", "PROMO_CODE", "BONUS_DROP", "DROP_CODE"].includes(t.toUpperCase())
+      ),
+    []
+  );
 
-  const bonusDropsCount = useMemo(() => {
+  const unclaimedDropsCount = useMemo(() => {
     return posts.filter(
-      (p) =>
-        p.type === "drop_code" ||
-        Boolean(p.dropCode) ||
-        p.tags?.some((t) =>
-          ["BONUS_CODE", "PROMO_CODE", "BONUS_DROP", "DROP_CODE"].includes(t.toUpperCase())
-        )
+      (p) => isBonusDropPost(p) && !claimedDropIds.includes(p.id)
     ).length;
-  }, [posts]);
+  }, [posts, claimedDropIds, isBonusDropPost]);
+
+  const sortedPosts = useMemo(() => {
+    let list = [...posts];
+
+    // Filter by category type if selected
+    if (currentType !== "all") {
+      list = list.filter((p) => {
+        if (currentType === "drop_code") {
+          return isBonusDropPost(p);
+        }
+        return p.type === currentType;
+      });
+    }
+
+    // Filter by tag if selected
+    if (selectedTag) {
+      list = list.filter(
+        (p) =>
+          p.tags?.includes(selectedTag) ||
+          p.casinoTag?.toLowerCase() === selectedTag.toLowerCase()
+      );
+    }
+
+    const sortFn = (a: Post, b: Post) => {
+      if (sortBy === "likes") {
+        return (b.likes?.length || 0) - (a.likes?.length || 0);
+      }
+      if (sortBy === "comments") {
+        return (b.commentCount || 0) - (a.commentCount || 0);
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    };
+
+    // Requirement 1: Pin & Separate Unclaimed Bonus Drops at Top of Feed
+    // Active, UNCLAIMED Bonus Drops (where postId is NOT in claimedDropIds) appear pinned at the very top.
+    // Once a drop is claimed, it moves down into the standard chronological feed position alongside regular posts.
+    const unclaimedDrops: Post[] = [];
+    const restOfPosts: Post[] = [];
+
+    for (const post of list) {
+      if (isBonusDropPost(post) && !claimedDropIds.includes(post.id)) {
+        unclaimedDrops.push(post);
+      } else {
+        restOfPosts.push(post);
+      }
+    }
+
+    unclaimedDrops.sort(sortFn);
+    restOfPosts.sort(sortFn);
+
+    return [...unclaimedDrops, ...restOfPosts];
+  }, [posts, currentType, selectedTag, sortBy, claimedDropIds, isBonusDropPost]);
 
   const feedContent = (
     <main className="space-y-3.5">
@@ -338,7 +417,7 @@ export function SocialFeed({
             <span className="relative inline-flex h-2 w-2 rounded-full bg-[#39ff6a]" />
           </span>
           <span>🎁 Bonus Drops</span>
-          {bonusDropsCount > 0 && (
+          {unclaimedDropsCount > 0 && (
             <span
               className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                 currentType === "drop_code" && !selectedTag
@@ -346,7 +425,7 @@ export function SocialFeed({
                   : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
               }`}
             >
-              {bonusDropsCount}
+              {unclaimedDropsCount}
             </span>
           )}
         </button>

@@ -369,7 +369,9 @@ export function PostCard({
   return (
     <article
       onClick={handleArticleClick}
-      className={`rounded-2xl border p-3.5 sm:p-5 backdrop-blur transition ${
+      className={`rounded-2xl border ${
+        isBonusDrop ? "py-2.5 px-3 sm:py-3 sm:px-3.5" : "p-3.5 sm:p-5"
+      } backdrop-blur transition ${
         isBonusDrop
           ? "border-emerald-500/40 bg-gradient-to-b from-[#13271c]/95 via-[#0e1d15]/95 to-[#0b1610]/95 shadow-[0_4px_24px_rgba(16,185,129,0.08)] hover:border-emerald-400/60"
           : "border-[#22392b] bg-[#121f17]/90 hover:border-[#32543d]"
@@ -379,16 +381,22 @@ export function PostCard({
     >
       {/* Header: Author + Timestamp + Menu Button */}
       <div className="flex items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0" data-stop-propagation="true" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0" data-stop-propagation="true" onClick={(e) => e.stopPropagation()}>
           {/* Author Avatar or Initials */}
           {currentPost.authorAvatar ? (
             <img
               src={currentPost.authorAvatar}
               alt={currentPost.authorName}
-              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full object-cover border border-emerald-500/40 shadow-sm shrink-0"
+              className={`${
+                isBonusDrop ? "h-7 w-7" : "h-9 w-9 sm:h-10 sm:w-10"
+              } rounded-full object-cover border border-emerald-500/40 shadow-sm shrink-0`}
             />
           ) : (
-            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-800 text-xs sm:text-sm font-bold text-white shadow-sm shrink-0">
+            <div
+              className={`flex ${
+                isBonusDrop ? "h-7 w-7 text-[11px]" : "h-9 w-9 sm:h-10 sm:w-10 text-xs sm:text-sm"
+              } items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-800 font-bold text-white shadow-sm shrink-0`}
+            >
               {currentPost.authorName.slice(0, 2).toUpperCase()}
             </div>
           )}
@@ -745,12 +753,12 @@ export function PostCard({
               const headline = lines[0] || displayContent;
               const secondary = lines.slice(1).join("\n");
               return (
-                <div className="mb-3 mt-1.5 space-y-1">
-                  <h3 className="text-lg font-bold sm:text-xl tracking-tight leading-snug text-white">
+                <div className="mb-2 mt-1 space-y-0.5">
+                  <h3 className="text-base font-bold sm:text-lg tracking-tight leading-snug text-white">
                     {headline}
                   </h3>
                   {secondary && (
-                    <p className="text-sm text-zinc-400 font-normal leading-relaxed whitespace-pre-wrap">
+                    <p className="text-xs sm:text-sm text-zinc-400 font-normal leading-relaxed whitespace-pre-wrap">
                       {renderFormattedContent(secondary)}
                     </p>
                   )}
@@ -768,7 +776,7 @@ export function PostCard({
             <>
               {currentPost.mediaType === "video" ||
               currentPost.mediaUrl.match(/\.(mp4|webm|mov)(\?.*)?$/i) ? (
-                <div className="mt-3 overflow-hidden rounded-xl border border-[#243d2e] bg-black/40">
+                <div className="mt-2 overflow-hidden rounded-xl border border-[#243d2e] bg-black/40">
                   <video
                     src={currentPost.mediaUrl}
                     controls
@@ -779,7 +787,7 @@ export function PostCard({
               ) : (currentPost.mediaUrl.match(/\.(png|jpg|jpeg|gif|webp|svg|avif)(\?.*)?$/i) ||
                   currentPost.mediaUrl.startsWith("data:image/")) &&
                 !mediaError ? (
-                <div className="mt-3 overflow-hidden rounded-xl border border-[#243d2e] bg-black/40">
+                <div className="mt-2 overflow-hidden rounded-xl border border-[#243d2e] bg-black/40">
                   <img
                     src={currentPost.mediaUrl}
                     alt="Post attachment"
@@ -833,7 +841,7 @@ export function PostCard({
                     )
                 )
               }
-              className="mt-3.5"
+              className={isBonusDrop ? "mt-2" : "mt-3.5"}
             />
           )}
         </>
@@ -842,7 +850,9 @@ export function PostCard({
       {/* Social Interactions Bar */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className="mt-3.5 flex items-center justify-between border-t border-[#1d3224] pt-2.5 sm:pt-3 gap-2 text-xs"
+        className={`${
+          isBonusDrop ? "mt-2 pt-2" : "mt-3.5 pt-2.5 sm:pt-3"
+        } flex items-center justify-between border-t border-[#1d3224] gap-2 text-xs`}
       >
         <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
           {/* Like button */}
