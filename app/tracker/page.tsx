@@ -531,8 +531,8 @@ export default function TrackerPage() {
       setDirectoryBonusTitles({
         ...sharedBonusTitles,
       });
-      setDirectoryRatings(currentRatings);
       setDirectoryProviders(sharedProviders);
+      setDirectoryRatings(currentRatings);
 
       if (typeof window !== "undefined") {
         const urlParams = new URLSearchParams(window.location.search);
@@ -771,7 +771,6 @@ export default function TrackerPage() {
   function addCasino(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!name.trim() || !url.trim()) return;
-    const trimmedProvider = newProvider.trim() || undefined;
     if (isAddCasinosPage && isAdmin) {
       const trimmedName = name.trim();
       const normalizedUrl = url.trim().startsWith("http") ? url.trim() : `https://${url.trim()}`;
@@ -779,14 +778,14 @@ export default function TrackerPage() {
       const updatedDirectory = directory.includes(trimmedName) ? directory : [...directory, trimmedName];
       setDirectory(updatedDirectory);
       setDirectoryUrls((prev) => ({ ...prev, [trimmedName]: normalizedUrl }));
-      if (trimmedProvider) {
-        setDirectoryProviders((prev) => ({ ...prev, [trimmedName]: trimmedProvider }));
+      if (newProvider.trim()) {
+        setDirectoryProviders((prev) => ({ ...prev, [trimmedName]: newProvider.trim() }));
       }
       apiUpdateAdminCasino({
         name: trimmedName,
         siteUrl: normalizedUrl,
         dailyBonus,
-        provider: trimmedProvider,
+        provider: newProvider.trim() || undefined,
       }).catch((err) => console.error("Failed to add admin casino:", err));
       setName("");
       setUrl("");
@@ -805,10 +804,10 @@ export default function TrackerPage() {
           ? newClaimUrl.trim()
           : `https://${newClaimUrl.trim()}`
         : undefined,
-      provider: trimmedProvider,
       lastClaimedAt: null,
       intervalHours: 24,
       resetAtTime: useSpecificReset ? resetTime : null,
+      provider: newProvider.trim() || undefined,
     };
     saveCasinos([...casinos, entry]);
     setName("");
@@ -869,6 +868,7 @@ export default function TrackerPage() {
     editScrollPosition.current = window.scrollY;
     setEditingCasino(casino);
     setEditUrl(casino.siteUrl ?? casino.url ?? "");
+    setEditProvider(casino.provider || directoryProviders[casino.name] || "");
     setEditDetails(casino.details || "Daily bonus available");
     setEditBonus(casino.dailyBonus);
     setEditTrustpilotRating(casino.trustpilotRating?.toString() || "");
@@ -878,7 +878,6 @@ export default function TrackerPage() {
     setEditClaimUrl(casino.claimUrl ?? "");
     setEditBonusUrl(casino.bonusUrl ?? "");
     setEditBonusTitle(casino.bonusTitle ?? "");
-    setEditProvider(casino.provider || directoryProviders[casino.name] || "");
   }
 
   function openDirectoryEditor(casinoName: string) {
@@ -932,7 +931,7 @@ export default function TrackerPage() {
           dailyBonus,
           details,
           resetAtTime: resetTime,
-          provider,
+          provider: provider || "",
         });
 
         if (response.ok && response.directory) {
@@ -987,7 +986,6 @@ export default function TrackerPage() {
                   resetAtTime: resetTime,
                   details,
                   dailyBonus,
-                  provider: casino.provider,
                 }
               : casino,
           ),
@@ -1409,11 +1407,6 @@ export default function TrackerPage() {
                         >
                           {casinoName}
                         </a>
-                        {directoryProviders[casinoName] && (
-                          <span className="rounded bg-teal-950/80 border border-teal-600/40 px-1.5 py-0.5 text-[9px] font-bold text-teal-300">
-                            {directoryProviders[casinoName]}
-                          </span>
-                        )}
                       </div>
                       <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                         {isAdmin && (

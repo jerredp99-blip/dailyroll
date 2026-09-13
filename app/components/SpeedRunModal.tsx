@@ -13,9 +13,8 @@ import {
   Coins,
   ShieldCheck,
   AlertCircle,
-  HelpCircle,
-  ArrowRight,
   Wallet,
+  Loader2,
 } from "lucide-react";
 import type { Casino, SpeedRunSessionState, SpeedRunStep } from "@/types/casino";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
@@ -30,7 +29,6 @@ import {
   getCasinoMicroInstruction,
   parseScReward,
   parseGcReward,
-  sortSpeedRunQueue,
 } from "@/lib/speedRunStorage";
 
 interface SpeedRunModalProps {
@@ -65,15 +63,7 @@ export function SpeedRunModal({
   const [animatingLoot, setAnimatingLoot] = useState(false);
   const [lastLootIncrement, setLastLootIncrement] = useState<number | null>(null);
 
-  // Persistent refs to freeze the active queue snapshot and prevent re-render loops
-  const readyCasinosRef = useRef(readyCasinos);
-  const allCasinosRef = useRef(allCasinos);
-  const wasOpenRef = useRef(false);
-
-  readyCasinosRef.current = readyCasinos;
-  allCasinosRef.current = allCasinos;
-
-  // Fast map lookup of casinos by ID
+  // Fast map lookup of casinos by ID (called unconditionally)
   const casinoMap = useMemo(() => {
     const map = new Map<string, Casino>();
     allCasinos.forEach((c) => map.set(c.id, c));
@@ -81,10 +71,7 @@ export function SpeedRunModal({
     return map;
   }, [allCasinos, readyCasinos]);
 
-  const casinoMapRef = useRef(casinoMap);
-  casinoMapRef.current = casinoMap;
-
-  // Calculate updated total bankroll sum across all casinos (must be called unconditionally at top)
+  // Calculate updated total bankroll sum across all casinos (called unconditionally)
   const totalTrackedBankroll = useMemo(() => {
     return allCasinos.reduce((sum, c) => {
       const bal = typeof c.currentBalance === "number" ? c.currentBalance : 0;
@@ -92,21 +79,27 @@ export function SpeedRunModal({
     }, 0);
   }, [allCasinos]);
 
-  // Handle closing modal and clearing stale session from localStorage
+  // Track whether modal was open to avoid wiping active queue on parent re-renders
+  const wasOpenRef = useRef(false);
+  const readyCasinosRef = useRef(readyCasinos);
+  readyCasinosRef.current = readyCasinos;
+  const allCasinosRef = useRef(allCasinos);
+  allCasinosRef.current = allCasinos;
+  const casinoMapRef = useRef(casinoMap);
+  casinoMapRef.current = casinoMap;
+
   function handleCloseModal() {
-    clearSpeedRunSession();
-    setSession(null);
+    wasOpenRef.current = false;
     onClose();
   }
 
-  // Synchronize / initialize session ONLY when modal opens (not on readyCasinos ref updates)
+  // Synchronize / initialize session whenever modal opens or mounts
   useEffect(() => {
     if (!isOpen) {
       wasOpenRef.current = false;
       return;
     }
 
-    // Modal was already open; do not re-run initialization and wipe the active queue!
     if (wasOpenRef.current) return;
     wasOpenRef.current = true;
 
@@ -154,9 +147,14 @@ export function SpeedRunModal({
       } else {
         setSession(null);
       }
-    } catch {
+    } catch (err) {
+      console.error("Failed to load Speed Run session:", err);
       clearSpeedRunSession();
-      setSession(null);
+      if (currentReady.length > 0) {
+        setSession(createSpeedRunSession(currentReady));
+      } else {
+        setSession(null);
+      }
     }
 
     // Cross-browser persistence: sync latest session from server once on open
@@ -167,8 +165,9 @@ export function SpeedRunModal({
         serverSession.completed ||
         !Array.isArray(serverSession.queueIds) ||
         serverSession.queueIds.length === 0
-      )
+      ) {
         return;
+      }
       setSession((prev) => {
         if (!prev) return serverSession;
         if (
@@ -187,7 +186,7 @@ export function SpeedRunModal({
     };
   }, [isOpen]);
 
-  // Resume persistence: Listen to visibilitychange and focus to guarantee seamless resume when returning from external browser
+  // Resume persistence: Listen to visibilitychange and focus to guarantee seamless resume when returning from browser
   useEffect(() => {
     if (!isOpen) return;
 
@@ -206,6 +205,22 @@ export function SpeedRunModal({
           return prev;
         });
       }
+
+      // Background server sync on resume
+      fetchSpeedRunSessionFromServer().then((serverSession) => {
+        if (!serverSession || serverSession.completed) return;
+        setSession((prev) => {
+          if (!prev) return serverSession;
+          if (
+            serverSession.currentIndex > prev.currentIndex ||
+            (serverSession.currentIndex === prev.currentIndex &&
+              serverSession.currentStep > prev.currentStep)
+          ) {
+            return serverSession;
+          }
+          return prev;
+        });
+      });
     }
 
     window.addEventListener("focus", handleResume);
@@ -510,6 +525,8 @@ export function SpeedRunModal({
 
   // Finish Run & Reset Session
   function handleFinishAndClose() {
+    clearSpeedRunSession();
+    setSession(null);
     handleCloseModal();
   }
 
