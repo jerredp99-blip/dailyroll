@@ -62,6 +62,25 @@ function renderFormattedContent(text: string) {
   });
 }
 
+function formatDropTitle(casinoName: string | undefined | null, rawHeadline: string): string {
+  const trimmedHeadline = (rawHeadline || "").trim();
+  const casino = (casinoName || "").trim();
+
+  if (casino) {
+    const escapedCasino = casino.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`^${escapedCasino}\\s*[-:–—|]?\\s*`, "i");
+    if (regex.test(trimmedHeadline)) {
+      const offer = trimmedHeadline.replace(regex, "").trim();
+      return offer
+        ? `${casino.toUpperCase()} - ${offer.toUpperCase()}`
+        : `${casino.toUpperCase()} DROP`;
+    }
+    return `${casino.toUpperCase()} - ${trimmedHeadline.toUpperCase()}`;
+  }
+
+  return trimmedHeadline.toUpperCase();
+}
+
 export function PostCard({
   post,
   currentUserEmail,
@@ -370,31 +389,31 @@ export function PostCard({
     <article
       onClick={handleArticleClick}
       className={`rounded-2xl border ${
-        isBonusDrop ? "py-2.5 px-3 sm:py-3 sm:px-3.5" : "p-3.5 sm:p-5"
+        isBonusDrop ? "py-2.5 px-3" : "p-3.5 sm:p-5"
       } backdrop-blur transition ${
         isBonusDrop
-          ? "border-emerald-500/40 bg-gradient-to-b from-[#13271c]/95 via-[#0e1d15]/95 to-[#0b1610]/95 shadow-[0_4px_24px_rgba(16,185,129,0.08)] hover:border-emerald-400/60"
+          ? "border-emerald-500/30 bg-[#0e1c14]/95 hover:border-emerald-500/50 shadow-sm"
           : "border-[#22392b] bg-[#121f17]/90 hover:border-[#32543d]"
       } ${
         destinationUrl ? "cursor-pointer hover:bg-[#14261c]" : ""
       }`}
     >
       {/* Header: Author + Timestamp + Menu Button */}
-      <div className="flex items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0" data-stop-propagation="true" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0" data-stop-propagation="true" onClick={(e) => e.stopPropagation()}>
           {/* Author Avatar or Initials */}
           {currentPost.authorAvatar ? (
             <img
               src={currentPost.authorAvatar}
               alt={currentPost.authorName}
               className={`${
-                isBonusDrop ? "h-7 w-7" : "h-9 w-9 sm:h-10 sm:w-10"
+                isBonusDrop ? "h-6 w-6" : "h-9 w-9 sm:h-10 sm:w-10"
               } rounded-full object-cover border border-emerald-500/40 shadow-sm shrink-0`}
             />
           ) : (
             <div
               className={`flex ${
-                isBonusDrop ? "h-7 w-7 text-[11px]" : "h-9 w-9 sm:h-10 sm:w-10 text-xs sm:text-sm"
+                isBonusDrop ? "h-6 w-6 text-[10px]" : "h-9 w-9 sm:h-10 sm:w-10 text-xs sm:text-sm"
               } items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-800 font-bold text-white shadow-sm shrink-0`}
             >
               {currentPost.authorName.slice(0, 2).toUpperCase()}
@@ -402,25 +421,27 @@ export function PostCard({
           )}
 
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-              <span className="text-xs sm:text-sm font-semibold text-[#edf5ec] truncate">
+            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0 min-w-0">
+              <span className={`font-semibold text-[#edf5ec] truncate ${isBonusDrop ? "text-xs" : "text-xs sm:text-sm"}`}>
                 {currentPost.authorName}
               </span>
-              <span className="text-[11px] text-[#718776] shrink-0">
+              <span className="text-[10px] sm:text-[11px] text-[#718776] shrink-0">
                 • {timeAgo(currentPost.createdAt)}
                 {currentPost.updatedAt && (
                   <span className="ml-1 text-[10px] text-emerald-400/80">(edited)</span>
                 )}
               </span>
               {isBonusDrop && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/20 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-bold text-emerald-300 shadow-sm">
-                  {currentPost.casinoName ? `🎁 ${currentPost.casinoName} Drop` : "🎁 Bonus Drop"}
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                  🎁 Bonus Drop
                 </span>
               )}
             </div>
-            <p className="text-[10px] sm:text-[11px] text-[#869f8c] truncate">
-              @{currentPost.authorEmail.split("@")[0]}
-            </p>
+            {!isBonusDrop && (
+              <p className="text-[10px] sm:text-[11px] text-[#869f8c] truncate">
+                @{currentPost.authorEmail.split("@")[0]}
+              </p>
+            )}
           </div>
         </div>
 
@@ -483,8 +504,8 @@ export function PostCard({
         )}
       </div>
 
-      {/* Tag Badges: Dedicated clean row for casino/other tags (BONUS_CODE is in meta line) */}
-      {(() => {
+      {/* Tag Badges: Dedicated clean row for casino/other tags (for bonus drops, casino is in the centered headline) */}
+      {!isBonusDrop && (() => {
         const rawTags = (currentPost.tags && currentPost.tags.length > 0
           ? currentPost.tags
           : currentPost.casinoTag
@@ -747,24 +768,29 @@ export function PostCard({
           )}
 
           {/* 2. Post Body Text: User description/instructions rendered ABOVE the code banner (raw URLs hidden if destinationUrl is present) */}
-          {displayContent && (
-            isBonusDrop ? (() => {
-              const lines = displayContent.split("\n").map((l) => l.trim()).filter(Boolean);
-              const headline = lines[0] || displayContent;
-              const secondary = lines.slice(1).join("\n");
-              return (
-                <div className="mb-2 mt-1 space-y-0.5">
-                  <h3 className="text-base font-bold sm:text-lg tracking-tight leading-snug text-white">
-                    {headline}
-                  </h3>
-                  {secondary && (
-                    <p className="text-xs sm:text-sm text-zinc-400 font-normal leading-relaxed whitespace-pre-wrap">
-                      {renderFormattedContent(secondary)}
-                    </p>
-                  )}
-                </div>
-              );
-            })() : (
+          {isBonusDrop ? (
+            <div className="my-1.5 space-y-0.5">
+              <h3 className="w-full text-center uppercase tracking-wider font-extrabold text-base sm:text-lg text-white my-1.5 leading-snug">
+                {formatDropTitle(
+                  currentPost.casinoName ||
+                    (currentPost.casinoTag ? currentPost.casinoTag.replace(/^[$#]+/, "") : null) ||
+                    currentPost.tags?.find(
+                      (t) =>
+                        !["BONUS_CODE", "PROMO_CODE", "BONUS_DROP", "DROP_CODE", "DISCUSSION", "BIG_WIN"].includes(
+                          t.toUpperCase()
+                        )
+                    )?.replace(/^[$#]+/, ""),
+                  displayContent ? displayContent.split("\n")[0] : "BONUS DROP"
+                )}
+              </h3>
+              {displayContent && displayContent.split("\n").slice(1).join("\n").trim() && (
+                <p className="w-full text-center text-xs sm:text-sm text-zinc-400 font-normal leading-relaxed whitespace-pre-wrap">
+                  {renderFormattedContent(displayContent.split("\n").slice(1).join("\n").trim())}
+                </p>
+              )}
+            </div>
+          ) : (
+            displayContent && (
               <p className="mt-3 text-sm leading-relaxed text-[#d7e4d8] whitespace-pre-wrap">
                 {renderFormattedContent(displayContent)}
               </p>
@@ -841,7 +867,7 @@ export function PostCard({
                     )
                 )
               }
-              className={isBonusDrop ? "mt-2" : "mt-3.5"}
+              className={isBonusDrop ? "mt-1.5" : "mt-3.5"}
             />
           )}
         </>
@@ -851,7 +877,7 @@ export function PostCard({
       <div
         onClick={(e) => e.stopPropagation()}
         className={`${
-          isBonusDrop ? "mt-2 pt-2" : "mt-3.5 pt-2.5 sm:pt-3"
+          isBonusDrop ? "mt-2 pt-1.5" : "mt-3.5 pt-2.5 sm:pt-3"
         } flex items-center justify-between border-t border-[#1d3224] gap-2 text-xs`}
       >
         <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
@@ -859,13 +885,15 @@ export function PostCard({
           <button
             type="button"
             onClick={handleToggleLike}
-            className={`flex items-center gap-1 rounded-lg px-2 sm:px-2.5 py-1.5 transition text-xs shrink-0 ${
+            className={`flex items-center gap-1 rounded-lg ${
+              isBonusDrop ? "px-2 py-1" : "px-2 sm:px-2.5 py-1.5"
+            } transition text-xs shrink-0 ${
               hasLiked
                 ? "bg-red-950/40 text-red-400 font-semibold border border-red-800/40"
                 : "text-[#869f8c] hover:bg-[#182a1f] hover:text-white"
             }`}
           >
-            <Heart size={14} className={hasLiked ? "fill-red-400" : ""} />
+            <Heart size={isBonusDrop ? 13 : 14} className={hasLiked ? "fill-red-400" : ""} />
             <span className="font-semibold text-[11px] sm:text-xs">{currentPost.likes?.length || 0}</span>
           </button>
 
@@ -903,9 +931,11 @@ export function PostCard({
         <button
           type="button"
           onClick={handleToggleComments}
-          className="flex items-center gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-xs text-[#869f8c] transition hover:bg-[#182a1f] hover:text-[#d3e5d5] shrink-0 ml-auto"
+          className={`flex items-center gap-1.5 rounded-lg ${
+            isBonusDrop ? "px-2 py-1 text-[11px]" : "px-2 sm:px-3 py-1.5 text-xs"
+          } text-[#869f8c] transition hover:bg-[#182a1f] hover:text-[#d3e5d5] shrink-0 ml-auto`}
         >
-          <MessageSquare size={14} />
+          <MessageSquare size={isBonusDrop ? 13 : 14} />
           <span className="font-semibold text-[11px] sm:text-xs">{currentPost.commentCount || 0}</span>
           <span className="hidden sm:inline">Comments</span>
         </button>

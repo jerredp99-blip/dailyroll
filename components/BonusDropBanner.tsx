@@ -26,17 +26,37 @@ export function BonusDropBanner({
   const [copied, setCopied] = useState(false);
   const [isClaimed, setIsClaimed] = useState(false);
 
-  // Sync claimed state from localStorage for persistence across reloads
+  // Sync claimed state from localStorage for persistence across reloads & cross-tab
   useEffect(() => {
     if (!postId) return;
-    try {
-      const stored = JSON.parse(localStorage.getItem("dailyroll_claimed_drops") || "[]");
-      if (Array.isArray(stored) && stored.includes(postId)) {
+    const checkClaimed = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem("dailyroll_claimed_drops") || "[]");
+        if (Array.isArray(stored) && stored.includes(postId)) {
+          setIsClaimed(true);
+        } else {
+          setIsClaimed(false);
+        }
+      } catch {
+        // Ignore localStorage read errors
+      }
+    };
+
+    checkClaimed();
+
+    const handleCustomClaim = (e: Event) => {
+      const customEvent = e as CustomEvent<{ postId: string }>;
+      if (customEvent.detail?.postId === postId) {
         setIsClaimed(true);
       }
-    } catch {
-      // Ignore localStorage read errors
-    }
+    };
+
+    window.addEventListener("storage", checkClaimed);
+    window.addEventListener("dailyroll_drop_claimed", handleCustomClaim);
+    return () => {
+      window.removeEventListener("storage", checkClaimed);
+      window.removeEventListener("dailyroll_drop_claimed", handleCustomClaim);
+    };
   }, [postId]);
 
   const markAsClaimed = () => {
@@ -81,40 +101,20 @@ export function BonusDropBanner({
     }
   };
 
-  const handleContainerClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!targetUrl) return;
-    const target = e.target as HTMLElement;
-    if (target.closest("button, a, input, select, textarea, [data-stop-propagation]")) {
-      return;
-    }
-    openInExternalBrowser(targetUrl);
-    markAsClaimed();
-  };
-
   return (
-    <div
-      onClick={handleContainerClick}
-      className={`relative overflow-hidden rounded-xl border border-emerald-500/40 border-l-4 border-l-emerald-400 bg-gradient-to-r from-emerald-950/70 via-[#0e2118]/85 to-zinc-900/90 py-2 px-2.5 sm:px-3 shadow-[0_2px_14px_rgba(16,185,129,0.1)] backdrop-blur transition-all duration-200 ${
-        targetUrl ? "cursor-pointer hover:border-emerald-400/60" : ""
-      } ${className}`}
-    >
-      {/* Ambient decorative glow */}
-      <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-emerald-500/10 blur-xl" />
-
+    <div className={`w-full space-y-2 ${className}`}>
       {/* Optional Offer Title */}
       {offerTitle && (
-        <h4 className="text-xs sm:text-sm font-bold text-white tracking-tight leading-snug mb-1.5">
+        <h4 className="w-full text-center uppercase tracking-wider font-extrabold text-base sm:text-lg text-white my-1.5 leading-snug">
           {offerTitle}
         </h4>
       )}
 
       {/* Promo Code Row (Compact) */}
       {dropCode && (
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-500/30 bg-black/40 px-2.5 py-1 mb-1.5">
+        <div className="flex h-9 items-center justify-between gap-2 rounded-lg border border-emerald-500/25 bg-black/40 px-2.5">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-[9px] uppercase font-bold tracking-wider text-emerald-400/80 shrink-0">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400/80 shrink-0">
               CODE:
             </span>
             <code className="font-mono text-xs sm:text-sm font-black tracking-wider text-[#39ff6a] select-all truncate">
@@ -151,10 +151,10 @@ export function BonusDropBanner({
           <button
             type="button"
             onClick={handleClaim}
-            className={`w-full flex items-center justify-center gap-1.5 rounded-lg py-1.5 px-3 text-xs sm:text-sm font-bold transition-all active:scale-[0.98] ${
+            className={`w-full h-9 sm:h-10 flex items-center justify-center gap-1.5 rounded-lg transition-all active:scale-[0.98] ${
               isClaimed
-                ? "bg-emerald-950/40 text-emerald-300/80 border border-emerald-500/30 hover:bg-emerald-900/50 shadow-none"
-                : "bg-gradient-to-r from-[#79b77f] to-[#39ff6a] text-[#09150e] shadow-[0_2px_10px_rgba(57,255,106,0.3)] hover:brightness-110"
+                ? "bg-zinc-800/80 hover:bg-zinc-800 text-zinc-400 border border-zinc-700 font-medium text-sm shadow-none"
+                : "bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm shadow-sm"
             }`}
           >
             {isClaimed ? (
