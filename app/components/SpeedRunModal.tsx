@@ -37,6 +37,7 @@ interface SpeedRunModalProps {
   readyCasinos: Casino[];
   allCasinos?: Casino[];
   onClaim: (casino: Casino) => void;
+  onClaimSuccess?: (casinoId: string, updatedData?: Partial<Casino>) => void;
   onUpdateCasino?: (casino: Casino, updates: Partial<Casino>) => void;
   onSnooze?: (casino: Casino, snoozedUntil: string) => void;
   renderLogo?: (casino: Casino) => React.ReactNode;
@@ -48,6 +49,7 @@ export function SpeedRunModal({
   readyCasinos,
   allCasinos = [],
   onClaim,
+  onClaimSuccess,
   onUpdateCasino,
   onSnooze,
   renderLogo,
@@ -411,7 +413,23 @@ export function SpeedRunModal({
   // -------------------------------------------------------------
   // User answered [Yes, Claimed] -> Only advance to Step 3 if confirmed
   function handleConfirmClaimed() {
-    if (!session) return;
+    if (!session || !currentCasino) return;
+
+    // Optimistically update parent tracker immediately so card flips to countdown and badges decrement
+    if (onClaimSuccess) {
+      try {
+        onClaimSuccess(currentCasino.id);
+      } catch (err) {
+        console.error("Failed to mark casino claimed in onClaimSuccess:", err);
+      }
+    } else {
+      try {
+        onClaim(currentCasino);
+      } catch (err) {
+        console.error("Failed to mark casino claimed in onClaim:", err);
+      }
+    }
+
     setSession((prev) => {
       if (!prev) return null;
       const nextSession: SpeedRunSessionState = {
@@ -434,7 +452,7 @@ export function SpeedRunModal({
       if (onSnooze) {
         onSnooze(currentCasino, snoozedUntil);
       } else if (onUpdateCasino) {
-        onUpdateCasino(currentCasino, { snoozedUntil });
+        onUpdateCasino(currentCasino, { snoozedUntil, targetResetTimestamp: null });
       }
     } catch (err) {
       console.error("Failed to snooze casino in onSnooze:", err);
@@ -463,35 +481,45 @@ export function SpeedRunModal({
     const parsedBalance = balanceInput.trim() !== "" ? parseFloat(balanceInput) : undefined;
     const cleanNote = noteInput.trim() || undefined;
 
-    // 1. Mark claimed with try/catch
-    try {
-      onClaim(currentCasino);
-    } catch (err) {
-      console.error("Failed to mark casino claimed in onClaim:", err);
-    }
+    const updates: Partial<Casino> = {
+      currentBalance:
+        typeof parsedBalance === "number" && !isNaN(parsedBalance)
+          ? parsedBalance
+          : currentCasino.currentBalance,
+      notes: cleanNote ?? currentCasino.notes,
+      snoozedUntil: null,
+      targetResetTimestamp: null,
+    };
 
-    // 2. Update DB record with balance and note with try/catch
-    if (onUpdateCasino) {
+    // 1. Mark claimed & persist balance/notes atomically
+    if (onClaimSuccess) {
       try {
-        onUpdateCasino(currentCasino, {
-          currentBalance:
-            typeof parsedBalance === "number" && !isNaN(parsedBalance)
-              ? parsedBalance
-              : currentCasino.currentBalance,
-          notes: cleanNote ?? currentCasino.notes,
-          snoozedUntil: null,
-        });
+        onClaimSuccess(currentCasino.id, updates);
       } catch (err) {
-        console.error("Failed to update casino balance/notes in onUpdateCasino:", err);
+        console.error("Failed to update casino in onClaimSuccess:", err);
+      }
+    } else {
+      try {
+        onClaim(currentCasino);
+      } catch (err) {
+        console.error("Failed to mark casino claimed in onClaim:", err);
+      }
+
+      if (onUpdateCasino) {
+        try {
+          onUpdateCasino(currentCasino, updates);
+        } catch (err) {
+          console.error("Failed to update casino balance/notes in onUpdateCasino:", err);
+        }
       }
     }
 
-    // 3. Add daily bonus reward to session tally
+    // 2. Add daily bonus reward to session tally
     const rewardSc = parseScReward(currentCasino?.dailyBonus ?? "");
     const rewardGc = parseGcReward(currentCasino?.dailyBonus ?? "");
     triggerLootAnimation(rewardSc);
 
-    // 4. Advance queue
+    // 3. Advance queue
     advanceQueue({
       claimId: currentCasino.id,
       addedSc: rewardSc,
@@ -504,10 +532,18 @@ export function SpeedRunModal({
     if (!currentCasino || !session) return;
 
     // 1. Mark claimed with try/catch
-    try {
-      onClaim(currentCasino);
-    } catch (err) {
-      console.error("Failed to mark casino claimed in onClaim:", err);
+    if (onClaimSuccess) {
+      try {
+        onClaimSuccess(currentCasino.id);
+      } catch (err) {
+        console.error("Failed to mark casino claimed in onClaimSuccess:", err);
+      }
+    } else {
+      try {
+        onClaim(currentCasino);
+      } catch (err) {
+        console.error("Failed to mark casino claimed in onClaim:", err);
+      }
     }
 
     // 2. Add daily bonus reward to session tally

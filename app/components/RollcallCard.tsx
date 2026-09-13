@@ -1,18 +1,19 @@
 "use client";
 
-import { CheckCircle2, Clock, ExternalLink, MoreHorizontal } from "lucide-react";
-import type { Casino } from "@/lib/store";
+import { useState } from "react";
+import { CheckCircle2, Clock, ExternalLink, MoreHorizontal, X } from "lucide-react";
+import type { Casino } from "@/types/casino";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
+import {
+  type CasinoStatus,
+  type StatusState,
+  formatRemainingTimer,
+  formatSnoozeRemaining,
+  SNOOZE_PRESETS,
+  calculateCustomResetTimestamp,
+} from "@/lib/timerUtils";
 
-export type StatusState = "ready" | "pending" | "claimed";
-
-export type CasinoStatus = {
-  ready: boolean;
-  state: StatusState;
-  label: string;
-  shortLabel: string;
-  remainingMs: number;
-};
+export type { CasinoStatus, StatusState };
 
 const STATUS_STYLES: Record<
   StatusState,
@@ -35,14 +36,6 @@ const STATUS_STYLES: Record<
   },
 };
 
-function formatRemainingTimer(remainingMs: number): string {
-  if (remainingMs <= 0) return "Ready";
-  const hours = Math.floor(remainingMs / 3600000);
-  const minutes = Math.floor((remainingMs % 3600000) / 60000);
-  const seconds = Math.floor((remainingMs % 60000) / 1000);
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
-
 export function RollcallCard({
   casino,
   status,
@@ -51,6 +44,9 @@ export function RollcallCard({
   isActionMenuOpen,
   onToggleActionMenu,
   onClaim,
+  onConfirmClaim,
+  onSnoozeDuration,
+  onSetCustomTimer,
   onOpenCasino,
   onOpenBonus,
   renderLogo,
@@ -63,24 +59,225 @@ export function RollcallCard({
   isActionMenuOpen: boolean;
   onToggleActionMenu: () => void;
   onClaim: (casino: Casino) => void;
+  onConfirmClaim?: (casino: Casino) => void;
+  onSnoozeDuration?: (casino: Casino, durationMs: number) => void;
+  onSetCustomTimer?: (casino: Casino, targetResetTimestamp: number) => void;
   onOpenCasino: (casino: Casino) => void;
   onOpenBonus?: (casino: Casino) => void;
   renderLogo?: () => React.ReactNode;
   renderTrustpilot?: () => React.ReactNode;
 }) {
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [showCustomTimer, setShowCustomTimer] = useState(false);
+  const [customHours, setCustomHours] = useState("");
+  const [customMinutes, setCustomMinutes] = useState("");
+  const [snoozeSelection, setSnoozeSelection] = useState("");
+
   const styles = STATUS_STYLES[status.state];
   const formattedCountdown = formatRemainingTimer(status.remainingMs);
 
-  const handleClaim = (event: React.MouseEvent) => {
+  // Triggered when user clicks "Claim [Reward]!"
+  const handleClaimClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    onClaim(casino);
+    // 1. Launch external casino link
     const target = casino.claimUrl ?? siteUrl;
     if (target) {
       openInExternalBrowser(target);
     }
+    // 2. Open inline verification overlay without modifying database yet
+    setIsVerifying(true);
   };
 
+  const handleDismissVerification = (event?: React.MouseEvent) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    setIsVerifying(false);
+    setShowCustomTimer(false);
+    setSnoozeSelection("");
+  };
+
+  const handleConfirmClaimed = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsVerifying(false);
+    setShowCustomTimer(false);
+    setSnoozeSelection("");
+    if (onConfirmClaim) {
+      onConfirmClaim(casino);
+    } else {
+      onClaim(casino);
+    }
+  };
+
+  const handleNotClaimed = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsVerifying(false);
+    setShowCustomTimer(false);
+    setSnoozeSelection("");
+  };
+
+  const handleSnoozeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    event.stopPropagation();
+    const durationMs = Number(event.target.value);
+    if (!durationMs) return;
+    setIsVerifying(false);
+    setShowCustomTimer(false);
+    setSnoozeSelection("");
+    if (onSnoozeDuration) {
+      onSnoozeDuration(casino, durationMs);
+    }
+  };
+
+  const handleApplyCustomTimer = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const h = parseInt(customHours || "0", 10);
+    const m = parseInt(customMinutes || "0", 10);
+    if (isNaN(h) && isNaN(m)) return;
+    const targetReset = calculateCustomResetTimestamp(Math.max(0, h || 0), Math.max(0, m || 0));
+    setIsVerifying(false);
+    setShowCustomTimer(false);
+    setCustomHours("");
+    setCustomMinutes("");
+    setSnoozeSelection("");
+    if (onSetCustomTimer) {
+      onSetCustomTimer(casino, targetReset);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // Verification Mode Card View
+  // -------------------------------------------------------------
+  if (isVerifying) {
+    return (
+      <article
+        onClick={(e) => e.stopPropagation()}
+        className="relative overflow-hidden rounded-xl border border-emerald-500/80 bg-gradient-to-br from-[#12281c] via-[#0f2117] to-[#12281c] p-3 sm:p-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition duration-200 ring-1 ring-emerald-500/50"
+      >
+        {/* Top Header Row: Casino Name + Question + Close (X) */}
+        <div className="flex items-center justify-between gap-2 border-b border-emerald-900/60 pb-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[#294631] text-xs font-bold text-[#9bcf9c]">
+              {renderLogo ? renderLogo() : casino.name.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="truncate flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-300 truncate">{casino.name}:</span>
+              <span className="text-xs font-extrabold text-emerald-300">Did you claim it?</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleDismissVerification}
+            aria-label="Cancel verification"
+            title="Cancel verification"
+            className="rounded-md p-1 text-gray-400 hover:bg-emerald-950/60 hover:text-white transition cursor-pointer"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Action Controls Row */}
+        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            {/* Primary: Yes, Claimed */}
+            <button
+              type="button"
+              onClick={handleConfirmClaimed}
+              className="flex items-center gap-1.5 rounded-lg bg-[#39ff6a] px-3 py-1.5 text-xs font-extrabold text-[#0d1712] shadow-[0_4px_12px_rgba(57,255,106,0.3)] transition hover:bg-[#5aff84] hover:shadow-[0_6px_16px_rgba(57,255,106,0.4)] active:scale-95 cursor-pointer"
+            >
+              <CheckCircle2 size={14} strokeWidth={2.5} />
+              <span>Yes, Claimed</span>
+            </button>
+
+            {/* Secondary: Not Claimed */}
+            <button
+              type="button"
+              onClick={handleNotClaimed}
+              className="rounded-lg border border-[#395040] bg-[#14221a] px-2.5 py-1.5 text-xs font-semibold text-gray-300 transition hover:bg-[#1c3024] hover:text-white active:scale-95 cursor-pointer"
+            >
+              Not Claimed
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 ml-auto">
+            {/* Tertiary 1: Snooze Dropdown */}
+            <select
+              value={snoozeSelection}
+              onChange={handleSnoozeChange}
+              aria-label="Snooze casino"
+              className="h-7 rounded-lg border border-amber-600/50 bg-[#1e1b13] px-2 text-[11px] font-semibold text-amber-300 outline-none hover:border-amber-500 focus:border-amber-400 cursor-pointer"
+            >
+              <option value="">⏱ Snooze...</option>
+              {SNOOZE_PRESETS.map((preset) => (
+                <option key={preset.ms} value={preset.ms}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+
+            {/* Tertiary 2: Set Custom Timer Toggle */}
+            <button
+              type="button"
+              onClick={() => setShowCustomTimer((prev) => !prev)}
+              title="Set exact cooldown time left"
+              className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition cursor-pointer ${
+                showCustomTimer
+                  ? "border-emerald-500 bg-emerald-950/70 text-emerald-300"
+                  : "border-[#395040] bg-[#14221a] text-[#8ea794] hover:border-[#4c6d50] hover:text-white"
+              }`}
+            >
+              <Clock size={12} />
+              <span>Set Timer</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Expandable Exact Time Left Row */}
+        {showCustomTimer && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-2 rounded-lg border border-emerald-900/60 bg-[#0a1610] p-2 text-xs">
+            <span className="text-[11px] font-semibold text-[#8ea794]">Exact time left:</span>
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                min="0"
+                max="72"
+                placeholder="0"
+                value={customHours}
+                onChange={(e) => setCustomHours(e.target.value)}
+                className="w-12 rounded border border-[#395040] bg-[#101e16] px-1.5 py-0.5 text-center text-xs text-white outline-none focus:border-emerald-400"
+              />
+              <span className="text-[11px] text-gray-400">h</span>
+              <input
+                type="number"
+                min="0"
+                max="59"
+                placeholder="0"
+                value={customMinutes}
+                onChange={(e) => setCustomMinutes(e.target.value)}
+                className="w-12 rounded border border-[#395040] bg-[#101e16] px-1.5 py-0.5 text-center text-xs text-white outline-none focus:border-emerald-400"
+              />
+              <span className="text-[11px] text-gray-400">m</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleApplyCustomTimer}
+              className="ml-auto rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white transition hover:bg-emerald-500 cursor-pointer"
+            >
+              Apply Timer
+            </button>
+          </div>
+        )}
+      </article>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // Default Card View
+  // -------------------------------------------------------------
   return (
     <article
       onClick={(event) => {
@@ -119,17 +316,21 @@ export function RollcallCard({
               className={`h-2.5 w-2.5 shrink-0 rounded-full ${styles.dot}`}
             />
             <span className={`font-semibold ${styles.label}`}>
-              {status.ready ? "Ready to claim" : `Available in ${status.shortLabel}`}
+              {status.ready
+                ? "Ready to claim"
+                : status.isSnoozed
+                  ? `Snoozed (${formatSnoozeRemaining(status.remainingMs)})`
+                  : `Available in ${status.shortLabel}`}
             </span>
           </p>
         </div>
       </div>
 
-      {/* Claim Button (when ready) OR Dynamic Countdown Timer (when claimed) */}
+      {/* Claim Button (when ready) OR Dynamic Countdown Timer (when claimed/snoozed) */}
       {status.ready ? (
         <button
           type="button"
-          onClick={handleClaim}
+          onClick={handleClaimClick}
           aria-label={`Claim ${casino.dailyBonus} for ${casino.name}`}
           className="ml-auto flex min-w-28 cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#79b77f] px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold text-[#122519] shadow-[0_6px_16px_rgba(121,183,127,0.2)] transition hover:-translate-y-0.5 hover:bg-[#91c991] hover:shadow-[0_10px_22px_rgba(145,201,145,0.32)] ring-2 ring-[#39ff6a] ring-offset-2 ring-offset-[#0f1a14]"
         >
@@ -138,11 +339,23 @@ export function RollcallCard({
         </button>
       ) : (
         <div
-          aria-label={`Resets in ${formattedCountdown}`}
-          className="ml-auto flex min-w-32 items-center justify-center gap-1.5 rounded-lg border border-[#3a4c40] bg-[#111c16] px-3 py-1.5 sm:py-2 font-mono text-xs font-semibold text-[#f0a03c] shadow-inner"
+          aria-label={
+            status.isSnoozed
+              ? `Snoozed (Resets in ${formatSnoozeRemaining(status.remainingMs)})`
+              : `Resets in ${formattedCountdown}`
+          }
+          className={`ml-auto flex min-w-32 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 sm:py-2 font-mono text-xs font-semibold shadow-inner ${
+            status.isSnoozed
+              ? "border-amber-700/60 bg-[#1c1810] text-amber-300"
+              : "border-[#3a4c40] bg-[#111c16] text-[#f0a03c]"
+          }`}
         >
-          <Clock size={14} className="text-[#f0a03c]" />
-          <span>Resets in {formattedCountdown}</span>
+          <Clock size={14} className={status.isSnoozed ? "text-amber-400" : "text-[#f0a03c]"} />
+          <span>
+            {status.isSnoozed
+              ? `Snoozed (Resets in ${formatSnoozeRemaining(status.remainingMs)})`
+              : `Resets in ${formattedCountdown}`}
+          </span>
         </div>
       )}
 

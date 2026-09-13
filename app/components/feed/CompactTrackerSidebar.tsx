@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Clock, ExternalLink, Zap, Flame } from "lucide-react";
 import type { Casino } from "@/lib/store";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
+import { calculateCasinoStatus } from "@/lib/timerUtils";
 
 export function CompactTrackerSidebar({
   casinos: propCasinos,
@@ -51,42 +52,14 @@ export function CompactTrackerSidebar({
     };
   }, [propCasinos, currentUserEmail]);
 
-  // Determine the next reset time matching Rollcall logic
-  const getNextReset = (casino: Casino) => {
-    if (!casino.lastClaimedAt) return 0;
-    let nextReset =
-      new Date(casino.lastClaimedAt).getTime() +
-      (casino.intervalHours || 24) * 60 * 60 * 1000;
-
-    if (casino.resetAtTime) {
-      const [hours, minutes] = casino.resetAtTime.split(":").map(Number);
-      const reset = new Date(now);
-      reset.setHours(hours, minutes, 0, 0);
-      if (reset.getTime() <= new Date(casino.lastClaimedAt).getTime()) {
-        reset.setDate(reset.getDate() + 1);
-      }
-      nextReset = reset.getTime();
-    }
-    return nextReset;
-  };
-
   const isReady = (casino: Casino) => {
-    if (!casino.lastClaimedAt) return true;
-    const nextReset = getNextReset(casino);
-    return now >= nextReset;
+    return calculateCasinoStatus(casino, now).ready;
   };
 
   const formatRemainingTime = (casino: Casino) => {
-    if (!casino.lastClaimedAt) return "Ready";
-    const nextReset = getNextReset(casino);
-    const diff = nextReset - now;
-    if (diff <= 0) return "Ready";
-
-    const hours = Math.floor(diff / 3600000);
-    const minutes = Math.floor((diff % 3600000) / 60000);
-    const seconds = Math.floor((diff % 60000) / 1000);
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m ${seconds}s`;
+    const status = calculateCasinoStatus(casino, now);
+    if (status.ready) return "Ready";
+    return status.shortLabel;
   };
 
   const handleClaim = async (casino: Casino) => {

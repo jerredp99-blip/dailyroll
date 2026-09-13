@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
   Clock,
@@ -24,6 +24,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
+import { calculateCasinoStatus, type CasinoStatus } from "@/lib/timerUtils";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { SpeedRunModal } from "@/app/components/SpeedRunModal";
@@ -554,54 +555,8 @@ export default function TrackerPage() {
     apiSaveCasinos(signedInUser?.email, updated);
   }
 
-  function statusFor(casino: Casino): {
-    ready: boolean;
-    state: StatusState;
-    label: string;
-    shortLabel: string;
-    remainingMs: number;
-  } {
-    // 1. Check if casino is snoozed (e.g. 1h hold)
-    if (casino.snoozedUntil) {
-      const snoozeEnd = new Date(casino.snoozedUntil).getTime();
-      if (snoozeEnd > now) {
-        const remaining = snoozeEnd - now;
-        const minutes = Math.floor((remaining % 3600000) / 60000);
-        const seconds = Math.floor((remaining % 60000) / 1000);
-        return {
-          ready: false,
-          state: "pending",
-          label: `Snoozed (${minutes}m ${seconds}s)`,
-          shortLabel: `${minutes}m`,
-          remainingMs: remaining,
-        };
-      }
-    }
-
-    if (!casino.lastClaimedAt) return { ready: true, state: "ready", label: "Ready to claim", shortLabel: "now", remainingMs: 0 };
-    let nextReset =
-      new Date(casino.lastClaimedAt).getTime() +
-      casino.intervalHours * 60 * 60 * 1000;
-    if (casino.resetAtTime) {
-      const [hours, minutes] = casino.resetAtTime.split(":").map(Number);
-      const reset = new Date(now);
-      reset.setHours(hours, minutes, 0, 0);
-      if (reset.getTime() <= new Date(casino.lastClaimedAt).getTime())
-        reset.setDate(reset.getDate() + 1);
-      nextReset = reset.getTime();
-    }
-    const remaining = nextReset - now;
-    if (remaining <= 0) return { ready: true, state: "ready", label: "Ready to claim", shortLabel: "now", remainingMs: 0 };
-    const hours = Math.floor(remaining / 3600000);
-    const minutes = Math.floor((remaining % 3600000) / 60000);
-    const seconds = Math.floor((remaining % 60000) / 1000);
-    return {
-      ready: false,
-      state: remaining <= 3600000 ? "pending" : "claimed",
-      label: `${hours}h ${minutes}m ${seconds}s`,
-      shortLabel: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m ${seconds}s`,
-      remainingMs: Math.max(0, remaining),
-    };
+  function statusFor(casino: Casino): CasinoStatus {
+    return calculateCasinoStatus(casino, now);
   }
 
   function siteUrlFor(casino?: Casino | null): string | undefined {
@@ -609,36 +564,83 @@ export default function TrackerPage() {
     return (casino.siteUrl ?? casino.url) || undefined;
   }
 
+  const handleClaimSuccess = useCallback(
+    (casinoId: string, updatedData?: Partial<Casino>) => {
+      const nowIso = new Date().toISOString();
+      setCasinos((prev) => {
+        const updated = prev.map((item) =>
+          item.id === casinoId
+            ? {
+                ...item,
+                lastClaimedAt: nowIso,
+                snoozedUntil: null,
+                targetResetTimestamp: null,
+                ...updatedData,
+              }
+            : item,
+        );
+        apiSaveCasinos(signedInUser?.email, updated);
+        return updated;
+      });
+
+      try {
+        const storedTimes = JSON.parse(localStorage.getItem("dailyroll_claimed_times") || "{}");
+        storedTimes[casinoId] = nowIso;
+        localStorage.setItem("dailyroll_claimed_times", JSON.stringify(storedTimes));
+      } catch {
+        // ignore
+      }
+    },
+    [signedInUser?.email],
+  );
+
   function markClaimed(casino: Casino) {
-    const nowIso = new Date().toISOString();
-    saveCasinos(
-      casinos.map((item) =>
-        item.id === casino.id
-          ? { ...item, lastClaimedAt: nowIso, snoozedUntil: null }
-          : item,
-      ),
-    );
-    try {
-      const storedTimes = JSON.parse(localStorage.getItem("dailyroll_claimed_times") || "{}");
-      storedTimes[casino.id] = nowIso;
-      localStorage.setItem("dailyroll_claimed_times", JSON.stringify(storedTimes));
-    } catch {
-      // ignore
-    }
+    handleClaimSuccess(casino.id);
   }
 
   function handleUpdateCasino(targetCasino: Casino, updates: Partial<Casino>) {
-    const updated = casinos.map((item) =>
-      item.id === targetCasino.id ? { ...item, ...updates } : item,
-    );
-    saveCasinos(updated);
+    setCasinos((prev) => {
+      const updated = prev.map((item) =>
+        item.id === targetCasino.id ? { ...item, ...updates } : item,
+      );
+      apiSaveCasinos(signedInUser?.email, updated);
+      return updated;
+    });
   }
 
   function handleSnoozeCasino(targetCasino: Casino, snoozedUntil: string) {
-    const updated = casinos.map((item) =>
-      item.id === targetCasino.id ? { ...item, snoozedUntil } : item,
-    );
-    saveCasinos(updated);
+    setCasinos((prev) => {
+      const updated = prev.map((item) =>
+        item.id === targetCasino.id
+          ? { ...item, snoozedUntil, targetResetTimestamp: null }
+          : item,
+      );
+      apiSaveCasinos(signedInUser?.email, updated);
+      return updated;
+    });
+  }
+
+  function handleSnoozeDuration(targetCasino: Casino, durationMs: number) {
+    const snoozedUntil = new Date(Date.now() + durationMs).toISOString();
+    handleSnoozeCasino(targetCasino, snoozedUntil);
+  }
+
+  function handleSetCustomTimer(targetCasino: Casino, targetResetTimestamp: number) {
+    const nowIso = new Date().toISOString();
+    setCasinos((prev) => {
+      const updated = prev.map((item) =>
+        item.id === targetCasino.id
+          ? {
+              ...item,
+              targetResetTimestamp,
+              lastClaimedAt: nowIso,
+              snoozedUntil: null,
+            }
+          : item,
+      );
+      apiSaveCasinos(signedInUser?.email, updated);
+      return updated;
+    });
   }
 
   function handleOpenAllReady() {
@@ -1667,6 +1669,9 @@ export default function TrackerPage() {
                       setOpenActionMenu((open) => (open === casino.id ? null : casino.id))
                     }
                     onClaim={markClaimed}
+                    onConfirmClaim={markClaimed}
+                    onSnoozeDuration={handleSnoozeDuration}
+                    onSetCustomTimer={handleSetCustomTimer}
                     onOpenCasino={openCasino}
                     onOpenBonus={casino.bonusUrl ? openBonus : undefined}
                     renderLogo={() => <CasinoLogo name={casino.name} siteUrl={siteUrlFor(casino)} />}
@@ -2109,6 +2114,7 @@ export default function TrackerPage() {
           readyCasinos={casinos.filter((c) => !c.hidden && statusFor(c).ready)}
           allCasinos={casinos}
           onClaim={markClaimed}
+          onClaimSuccess={handleClaimSuccess}
           onUpdateCasino={handleUpdateCasino}
           onSnooze={handleSnoozeCasino}
           renderLogo={(casino) =>

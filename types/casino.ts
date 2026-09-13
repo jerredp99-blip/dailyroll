@@ -33,6 +33,8 @@ export interface Casino {
   notes?: string | null;
   /** Temporary snooze hold ISO timestamp (e.g. Snooze 1h). */
   snoozedUntil?: string | null;
+  /** Exact custom target reset timestamp (milliseconds or ISO string) */
+  targetResetTimestamp?: number | string | null;
 }
 
 export interface SpeedRunSessionState {
