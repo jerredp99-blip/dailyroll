@@ -274,6 +274,8 @@ export default function TrackerPage() {
   const [viewMode, setViewMode] = useState<"social" | "rollcall">("social");
   const editScrollPosition = useRef<number | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const sidebarToggleRef = useRef<HTMLButtonElement>(null);
 
   function showAddCasinosPage(show: boolean) {
     setIsAddCasinosPage(show);
@@ -302,6 +304,32 @@ export default function TrackerPage() {
     document.addEventListener("mousedown", closeMenu);
     return () => document.removeEventListener("mousedown", closeMenu);
   }, [isProfileMenuOpen]);
+
+  // Close sidebar when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!isSidebarOpen) return;
+    function handleOutsideClick(event: MouseEvent) {
+      if (
+        sidebarRef.current &&
+        !sidebarRef.current.contains(event.target as Node) &&
+        sidebarToggleRef.current &&
+        !sidebarToggleRef.current.contains(event.target as Node)
+      ) {
+        setIsSidebarOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsSidebarOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isSidebarOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -844,12 +872,14 @@ export default function TrackerPage() {
     <main className="min-h-screen bg-[#101815] text-[#e6eee5]">
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px] cursor-pointer transition-opacity"
           onClick={() => setIsSidebarOpen(false)}
+          aria-label="Close sidebar"
         />
       )}
       <aside
-        className={`fixed right-0 top-0 z-50 flex h-screen w-64 flex-col justify-between border-l border-emerald-900/30 bg-[#0a1410] px-5 py-5 transition-transform duration-200 lg:px-6 lg:py-8 ${
+        ref={sidebarRef}
+        className={`fixed right-0 top-0 z-50 flex h-screen w-64 flex-col justify-between border-l border-emerald-900/30 bg-[#0a1410] px-5 py-5 shadow-2xl transition-transform duration-200 lg:px-6 lg:py-8 ${
           isSidebarOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -997,13 +1027,33 @@ export default function TrackerPage() {
         </div>
       </aside>
       <button
+        ref={sidebarToggleRef}
         type="button"
         onClick={() => setIsSidebarOpen((open) => !open)}
         aria-label={isSidebarOpen ? "Close menu" : "Open menu"}
         aria-expanded={isSidebarOpen}
-        className="fixed right-3.5 top-2.5 z-40 grid h-9 w-9 place-items-center rounded-lg border border-[#344d3b] bg-[#101815]/90 text-[#b7d5b5] shadow-lg backdrop-blur transition hover:border-[#6b916f] hover:bg-[#1b2a20] sm:right-6 sm:top-3.5 lg:right-8"
+        title={isSidebarOpen ? "Close menu" : signedInUser?.name || "Open menu"}
+        className={`fixed right-3.5 top-2.5 z-50 grid h-9 w-9 place-items-center rounded-full border shadow-lg backdrop-blur transition-all duration-150 sm:right-6 sm:top-3.5 lg:right-8 ${
+          isSidebarOpen
+            ? "border-emerald-500 bg-[#14231b] text-emerald-300 hover:bg-[#1d3327]"
+            : "border-[#385e40] bg-[#101815]/90 text-[#b7d5b5] hover:border-[#79b77f] hover:scale-105 active:scale-95 overflow-hidden"
+        }`}
       >
-        {isSidebarOpen ? <X size={18} /> : <Menu size={18} />}
+        {isSidebarOpen ? (
+          <X size={18} />
+        ) : signedInUser?.avatarUrl ? (
+          <img
+            src={signedInUser.avatarUrl}
+            alt={signedInUser.name || "Profile"}
+            className="h-full w-full object-cover"
+          />
+        ) : signedInUser || isAdmin ? (
+          <span className="grid h-full w-full place-items-center bg-gradient-to-br from-emerald-800 to-teal-900 text-xs font-bold text-emerald-100">
+            {profileInitial}
+          </span>
+        ) : (
+          <Menu size={18} />
+        )}
       </button>
       <div className="w-full px-2.5 py-4 sm:px-8 sm:py-6">
         <header className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3 border-b border-[#263a2c] pb-3 mb-4 sm:mb-6">

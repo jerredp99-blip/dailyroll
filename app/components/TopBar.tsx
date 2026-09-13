@@ -55,11 +55,7 @@ export function TopBar() {
     <header className="sticky top-0 z-30 border-b border-[#1e2f24]/80 bg-[#101815]/90 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-8 sm:py-4 lg:px-16">
         <Logo />
-        <div
-          className={`flex items-center gap-2.5 sm:gap-3.5 transition-all ${
-            pathname === "/tracker" ? "pr-12 sm:pr-14" : ""
-          }`}
-        >
+        <div className="flex items-center gap-2.5 sm:gap-3.5">
           {(signedInUser || isAdmin) && pathname !== "/tracker" && (
             <Link
               href="/tracker"
@@ -76,7 +72,7 @@ export function TopBar() {
               Admin
             </Link>
           )}
-          {(signedInUser || isAdmin) && (
+          {(signedInUser || isAdmin) && pathname !== "/tracker" && (
             <Link
               href="/profile"
               title={signedInUser?.name ? `${signedInUser.name} (Profile)` : "View Profile"}
