@@ -4,9 +4,7 @@ import {
   casinoKey,
   getCasinos,
   getDirectory,
-  getUsers,
-  saveCasinos,
-  saveDirectory,
+  queueMutation,
   type Casino,
 } from "@/lib/store";
 import { ADMIN_EMAIL, getCurrentSession } from "@/lib/auth";
@@ -45,6 +43,10 @@ export async function GET() {
     const claimUrls: Record<string, string> = { ...directory.claimUrls };
     const bonusUrls: Record<string, string> = { ...directory.bonusUrls };
     const bonusTitles: Record<string, string> = { ...directory.bonusTitles };
+    const dailyBonuses: Record<string, string> = { ...(directory.dailyBonuses || {}) };
+    const resetTimes: Record<string, string | null> = { ...(directory.resetTimes || {}) };
+    const details: Record<string, string> = { ...(directory.details || {}) };
+
     for (const casino of adminCasinos ?? []) {
       const numericRating = Number(casino.trustpilotRating);
       if (Number.isFinite(numericRating)) {
@@ -56,7 +58,11 @@ export async function GET() {
       if (casino.claimUrl) claimUrls[casino.name] = casino.claimUrl;
       if (casino.bonusUrl) bonusUrls[casino.name] = casino.bonusUrl;
       if (casino.bonusTitle) bonusTitles[casino.name] = casino.bonusTitle;
+      if (casino.dailyBonus) dailyBonuses[casino.name] = casino.dailyBonus;
+      if (casino.resetAtTime) resetTimes[casino.name] = casino.resetAtTime;
+      if (casino.details) details[casino.name] = casino.details;
     }
+
     return NextResponse.json(
       {
         ...directory,
@@ -66,6 +72,9 @@ export async function GET() {
         claimUrls,
         bonusUrls,
         bonusTitles,
+        dailyBonuses,
+        resetTimes,
+        details,
       },
       { headers: NO_CACHE_HEADERS },
     );
@@ -92,68 +101,156 @@ export async function POST(request: NextRequest) {
       bonusUrls?: Record<string, string>;
       bonusTitles?: Record<string, string>;
       ratings?: Record<string, number>;
+      dailyBonuses?: Record<string, string>;
+      resetTimes?: Record<string, string | null>;
+      details?: Record<string, string>;
     };
-    const directory = await saveDirectory(body);
 
-    // Master URL/rating edits must reach every profile, so propagate the
-    // changed values into each user's saved casino records (plus the admin's
-    // own records, which the GET aggregation otherwise lets win).
-    if (body.urls || body.affiliateUrls || body.claimUrls || body.bonusUrls || body.bonusTitles || body.ratings) {
-      const siteUrlsByLowerName = body.urls
-        ? new Map(Object.entries(body.urls).map(([name, url]) => [name.trim().toLowerCase(), url]))
-        : new Map<string, string>();
-      const affiliateUrlsByLowerName = body.affiliateUrls
-        ? new Map(Object.entries(body.affiliateUrls).map(([name, url]) => [name.trim().toLowerCase(), url]))
-        : new Map<string, string>();
-      const claimUrlsByLowerName = body.claimUrls
-        ? new Map(Object.entries(body.claimUrls).map(([name, url]) => [name.trim().toLowerCase(), url]))
-        : new Map<string, string>();
-      const bonusUrlsByLowerName = body.bonusUrls
-        ? new Map(Object.entries(body.bonusUrls).map(([name, url]) => [name.trim().toLowerCase(), url]))
-        : new Map<string, string>();
-      const bonusTitlesByLowerName = body.bonusTitles
-        ? new Map(Object.entries(body.bonusTitles).map(([name, title]) => [name.trim().toLowerCase(), title]))
-        : new Map<string, string>();
-      const ratingsByLowerName = body.ratings
-        ? new Map(Object.entries(body.ratings).map(([name, rating]) => [name.trim().toLowerCase(), rating]))
-        : new Map<string, number>();
+    // Atomic mutation: update directory and propagate changes to all user records in ONE step
+    const directory = await queueMutation((store) => {
+      if (body.list) store.directoryList = body.list;
+      if (body.urls) store.directoryUrls = { ...(store.directoryUrls || {}), ...body.urls };
+      if (body.affiliateUrls)
+        store.affiliateUrls = { ...(store.affiliateUrls || {}), ...body.affiliateUrls };
+      if (body.claimUrls) store.claimUrls = { ...(store.claimUrls || {}), ...body.claimUrls };
+      if (body.bonusUrls) store.bonusUrls = { ...(store.bonusUrls || {}), ...body.bonusUrls };
+      if (body.bonusTitles)
+        store.bonusTitles = { ...(store.bonusTitles || {}), ...body.bonusTitles };
+      if (body.ratings)
+        store.directoryRatings = { ...(store.directoryRatings || {}), ...body.ratings };
+      if (body.dailyBonuses)
+        store.directoryDailyBonuses = {
+          ...(store.directoryDailyBonuses || {}),
+          ...body.dailyBonuses,
+        };
+      if (body.resetTimes)
+        store.directoryResetTimes = {
+          ...(store.directoryResetTimes || {}),
+          ...body.resetTimes,
+        };
+      if (body.details)
+        store.directoryDetails = {
+          ...(store.directoryDetails || {}),
+          ...body.details,
+        };
 
-      const applyToKey = async (key: string) => {
-        const records = (await getCasinos(key)) ?? [];
-        let changed = false;
-        const updated = records.map((casino) => {
-          const lowerName = casino.name.trim().toLowerCase();
-          const nextSite = siteUrlsByLowerName.get(lowerName);
-          const nextAffiliate = affiliateUrlsByLowerName.get(lowerName);
-          const nextClaim = claimUrlsByLowerName.get(lowerName);
-          const nextBonus = bonusUrlsByLowerName.get(lowerName);
-          const nextBonusTitle = bonusTitlesByLowerName.get(lowerName);
-          const nextRating = ratingsByLowerName.get(lowerName);
-          const currentSite = effectiveSiteUrl(casino);
-          const updates: Partial<Casino> = {};
-          if (nextSite !== undefined && nextSite !== currentSite) updates.siteUrl = nextSite;
-          if (nextAffiliate !== undefined && nextAffiliate !== casino.affiliateUrl)
-            updates.affiliateUrl = nextAffiliate;
-          if (nextClaim !== undefined && nextClaim !== casino.claimUrl) updates.claimUrl = nextClaim;
-          if (nextBonus !== undefined && nextBonus !== casino.bonusUrl) updates.bonusUrl = nextBonus;
-          if (nextBonusTitle !== undefined && nextBonusTitle !== casino.bonusTitle)
-            updates.bonusTitle = nextBonusTitle;
-          if (nextRating !== undefined && nextRating !== casino.trustpilotRating)
-            updates.trustpilotRating = nextRating;
-          if (Object.keys(updates).length === 0) return casino;
-          changed = true;
-          return { ...casino, ...updates } as Casino;
-        });
-        if (changed) await saveCasinos(key, updated);
+      if (
+        body.urls ||
+        body.affiliateUrls ||
+        body.claimUrls ||
+        body.bonusUrls ||
+        body.bonusTitles ||
+        body.ratings ||
+        body.dailyBonuses ||
+        body.resetTimes ||
+        body.details
+      ) {
+        const siteUrlsByLowerName = new Map(
+          Object.entries(body.urls || {}).map(([name, url]) => [name.trim().toLowerCase(), url]),
+        );
+        const affiliateUrlsByLowerName = new Map(
+          Object.entries(body.affiliateUrls || {}).map(([name, url]) => [
+            name.trim().toLowerCase(),
+            url,
+          ]),
+        );
+        const claimUrlsByLowerName = new Map(
+          Object.entries(body.claimUrls || {}).map(([name, url]) => [
+            name.trim().toLowerCase(),
+            url,
+          ]),
+        );
+        const bonusUrlsByLowerName = new Map(
+          Object.entries(body.bonusUrls || {}).map(([name, url]) => [
+            name.trim().toLowerCase(),
+            url,
+          ]),
+        );
+        const bonusTitlesByLowerName = new Map(
+          Object.entries(body.bonusTitles || {}).map(([name, title]) => [
+            name.trim().toLowerCase(),
+            title,
+          ]),
+        );
+        const ratingsByLowerName = new Map(
+          Object.entries(body.ratings || {}).map(([name, rating]) => [
+            name.trim().toLowerCase(),
+            rating,
+          ]),
+        );
+        const dailyBonusesByLowerName = new Map(
+          Object.entries(body.dailyBonuses || {}).map(([name, b]) => [
+            name.trim().toLowerCase(),
+            b,
+          ]),
+        );
+        const resetTimesByLowerName = new Map(
+          Object.entries(body.resetTimes || {}).map(([name, r]) => [
+            name.trim().toLowerCase(),
+            r,
+          ]),
+        );
+        const detailsByLowerName = new Map(
+          Object.entries(body.details || {}).map(([name, d]) => [
+            name.trim().toLowerCase(),
+            d,
+          ]),
+        );
+
+        const targetKeys = new Set<string>([
+          ...store.users.map((u) => casinoKey(u.email)),
+          casinoKey(ADMIN_EMAIL),
+          "admin",
+          ...Object.keys(store.casinos || {}),
+        ]);
+
+        for (const key of targetKeys) {
+          const records = store.casinos[key];
+          if (!records || !Array.isArray(records)) continue;
+
+          store.casinos[key] = records.map((casino) => {
+            const lowerName = casino.name.trim().toLowerCase();
+            const nextSite = siteUrlsByLowerName.get(lowerName);
+            const nextAffiliate = affiliateUrlsByLowerName.get(lowerName);
+            const nextClaim = claimUrlsByLowerName.get(lowerName);
+            const nextBonus = bonusUrlsByLowerName.get(lowerName);
+            const nextBonusTitle = bonusTitlesByLowerName.get(lowerName);
+            const nextRating = ratingsByLowerName.get(lowerName);
+            const nextDailyBonus = dailyBonusesByLowerName.get(lowerName);
+            const nextReset = resetTimesByLowerName.get(lowerName);
+            const nextDetail = detailsByLowerName.get(lowerName);
+
+            const updated = { ...casino };
+            if (nextSite !== undefined) {
+              updated.siteUrl = nextSite;
+              updated.url = nextSite;
+            }
+            if (nextAffiliate !== undefined) updated.affiliateUrl = nextAffiliate;
+            if (nextClaim !== undefined) updated.claimUrl = nextClaim;
+            if (nextBonus !== undefined) updated.bonusUrl = nextBonus;
+            if (nextBonusTitle !== undefined) updated.bonusTitle = nextBonusTitle;
+            if (nextRating !== undefined) updated.trustpilotRating = nextRating;
+            if (nextDailyBonus !== undefined) updated.dailyBonus = nextDailyBonus;
+            if (nextReset !== undefined) updated.resetAtTime = nextReset;
+            if (nextDetail !== undefined) updated.details = nextDetail;
+            return updated;
+          });
+        }
+      }
+
+      return {
+        list: store.directoryList,
+        urls: store.directoryUrls || {},
+        affiliateUrls: store.affiliateUrls || {},
+        claimUrls: store.claimUrls || {},
+        bonusUrls: store.bonusUrls || {},
+        bonusTitles: store.bonusTitles || {},
+        ratings: store.directoryRatings || {},
+        dailyBonuses: store.directoryDailyBonuses || {},
+        resetTimes: store.directoryResetTimes || {},
+        details: store.directoryDetails || {},
       };
-
-      const users = await getUsers();
-      await Promise.all([
-        ...users.map((user) => applyToKey(casinoKey(user.email))),
-        applyToKey(casinoKey(ADMIN_EMAIL)),
-        applyToKey("admin"),
-      ]);
-    }
+    });
 
     // Invalidate caches immediately after DB write succeeds
     try {

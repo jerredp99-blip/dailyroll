@@ -46,6 +46,8 @@ export async function POST(request: NextRequest) {
       trustpilotRating?: number;
       dailyBonus?: string;
       details?: string;
+      resetAtTime?: string | null;
+      intervalHours?: number;
     };
 
     if (!body?.name?.trim()) {

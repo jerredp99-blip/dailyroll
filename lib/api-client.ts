@@ -97,6 +97,9 @@ export type DirectoryData = {
   bonusUrls: Record<string, string>;
   bonusTitles: Record<string, string>;
   ratings: Record<string, number>;
+  dailyBonuses?: Record<string, string>;
+  resetTimes?: Record<string, string | null>;
+  details?: Record<string, string>;
 };
 
 export async function apiGetDirectory(): Promise<DirectoryData> {
@@ -112,6 +115,9 @@ export async function apiSaveDirectory(update: {
   bonusUrls?: Record<string, string>;
   bonusTitles?: Record<string, string>;
   ratings?: Record<string, number>;
+  dailyBonuses?: Record<string, string>;
+  resetTimes?: Record<string, string | null>;
+  details?: Record<string, string>;
 }): Promise<DirectoryData> {
   const res = await fetch("/api/directory", {
     method: "POST",
@@ -131,6 +137,8 @@ export async function apiUpdateAdminCasino(data: {
   trustpilotRating?: number;
   dailyBonus?: string;
   details?: string;
+  resetAtTime?: string | null;
+  intervalHours?: number;
 }): Promise<{ ok: boolean; directory: DirectoryData }> {
   const res = await fetch("/api/admin/casinos", {
     method: "POST",

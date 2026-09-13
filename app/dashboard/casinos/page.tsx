@@ -232,6 +232,7 @@ export default function AdminCasinosPage() {
         trustpilotRating: parsedRating,
         dailyBonus: bonus.trim() || editing.casino.dailyBonus,
         details: details.trim() || undefined,
+        resetAtTime: resetTime || null,
       });
       setEditing(null);
     } catch (saveError) {

@@ -413,19 +413,35 @@ export default function TrackerPage() {
       const sharedRatingsByName = Object.fromEntries(
         Object.entries(sharedRatings).map(([name, rating]) => [name.toLowerCase(), rating]),
       );
+      const sharedDailyBonuses = directoryData.dailyBonuses || {};
+      const sharedDailyBonusesByName = Object.fromEntries(
+        Object.entries(sharedDailyBonuses).map(([name, val]) => [name.toLowerCase(), val]),
+      );
+      const sharedResetTimes = directoryData.resetTimes || {};
+      const sharedResetTimesByName = Object.fromEntries(
+        Object.entries(sharedResetTimes).map(([name, val]) => [name.toLowerCase(), val]),
+      );
+      const sharedDetails = directoryData.details || {};
+      const sharedDetailsByName = Object.fromEntries(
+        Object.entries(sharedDetails).map(([name, val]) => [name.toLowerCase(), val]),
+      );
 
       const loadedCasinos = saved ?? DEFAULT_CASINOS;
       const currentRatings = { ...sharedRatings };
       if (admin) {
+        let hasNewRatings = false;
         loadedCasinos.forEach((casino) => {
           if (
             typeof casino.trustpilotRating === "number" &&
             sharedRatingsByName[casino.name.toLowerCase()] === undefined
           ) {
             currentRatings[casino.name] = casino.trustpilotRating;
+            hasNewRatings = true;
           }
         });
-        await apiSaveDirectory({ ratings: currentRatings });
+        if (hasNewRatings) {
+          await apiSaveDirectory({ ratings: currentRatings });
+        }
       }
       const defaultUrlByName = Object.fromEntries(
         DEFAULT_CASINOS.map((casino) => [casino.name.toLowerCase(), casino.url]),
@@ -440,7 +456,7 @@ export default function TrackerPage() {
         const lowerName = casino.name.trim().toLowerCase();
 
         // Authoritative Casino Metadata (Decoupled from user personal state):
-        // Remote shared directory is always authoritative for links, titles, and ratings.
+        // Remote shared directory is always authoritative for links, titles, ratings, reset times, and bonuses.
         const siteUrl =
           sharedUrlsByName[lowerName] ||
           casino.siteUrl ||
@@ -462,23 +478,38 @@ export default function TrackerPage() {
         const trustpilotRating =
           sharedRatingsByName[lowerName] ?? casino.trustpilotRating;
 
+        const dailyBonus =
+          sharedDailyBonusesByName[lowerName] || casino.dailyBonus;
+
+        const resetAtTime =
+          sharedResetTimesByName[lowerName] !== undefined
+            ? sharedResetTimesByName[lowerName]
+            : casino.resetAtTime;
+
+        const details =
+          sharedDetailsByName[lowerName] || casino.details;
+
         // User Claim & Display State (Personal to this user, decoupled from static metadata):
         const lastClaimedAt = casino.lastClaimedAt || localClaimedTimes[casino.id] || null;
 
         return {
           ...casino,
           siteUrl,
+          url: siteUrl,
           claimUrl,
           affiliateUrl,
           bonusUrl,
           bonusTitle,
           trustpilotRating,
+          dailyBonus,
+          resetAtTime,
+          details,
           lastClaimedAt,
         };
       });
       if (cancelled) return;
       setCasinos(hydratedCasinos);
-      if (user) {
+      if (user && saved === null) {
         await apiSaveCasinos(user.email, hydratedCasinos);
       }
       if (user) setSignedInUser(user);
@@ -713,11 +744,20 @@ export default function TrackerPage() {
     event.preventDefault();
     if (!name.trim() || !url.trim()) return;
     if (isAddCasinosPage && isAdmin) {
-      const updatedDirectory = [...directory, name.trim()];
+      const trimmedName = name.trim();
+      const normalizedUrl = url.trim().startsWith("http") ? url.trim() : `https://${url.trim()}`;
+      const dailyBonus = bonus.trim() || "Free daily";
+      const updatedDirectory = directory.includes(trimmedName) ? directory : [...directory, trimmedName];
       setDirectory(updatedDirectory);
-      apiSaveDirectory({ list: updatedDirectory });
+      setDirectoryUrls((prev) => ({ ...prev, [trimmedName]: normalizedUrl }));
+      apiUpdateAdminCasino({
+        name: trimmedName,
+        siteUrl: normalizedUrl,
+        dailyBonus,
+      }).catch((err) => console.error("Failed to add admin casino:", err));
       setName("");
       setUrl("");
+      setBonus("");
       setIsAddOpen(false);
       return;
     }
@@ -835,74 +875,14 @@ export default function TrackerPage() {
     const rating = editTrustpilotRating.trim()
       ? Number(editTrustpilotRating)
       : editingCasino.trustpilotRating;
-    const updatedDirectoryUrls = isAdmin
-      ? { ...directoryUrls, [editingCasino.name]: normalizedSiteUrl }
-      : directoryUrls;
-    const updatedDirectoryAffiliateUrls = isAdmin
-      ? { ...directoryAffiliateUrls, [editingCasino.name]: affiliateUrl }
-      : directoryAffiliateUrls;
-    const updatedDirectoryClaimUrls = isAdmin
-      ? { ...directoryClaimUrls, [editingCasino.name]: claimUrl }
-      : directoryClaimUrls;
-    const updatedDirectoryBonusUrls = isAdmin
-      ? { ...directoryBonusUrls, [editingCasino.name]: bonusUrl }
-      : directoryBonusUrls;
-    const updatedDirectoryRatings = isAdmin && typeof rating === "number"
-      ? { ...directoryRatings, [editingCasino.name]: rating }
-      : directoryRatings;
-    if (!editingCasino.id.startsWith("directory:")) {
-      saveCasinos(
-        casinos.map((casino) =>
-          casino.id === editingCasino.id
-            ? {
-                ...casino,
-                siteUrl: normalizedSiteUrl,
-                affiliateUrl,
-                claimUrl,
-                bonusUrl,
-                bonusTitle,
-                resetAtTime: editUseSpecificReset ? editResetTime : null,
-                trustpilotRating: isAdmin ? rating : casino.trustpilotRating,
-                details: editDetails.trim(),
-                dailyBonus: editBonus.trim() || casino.dailyBonus,
-              }
-            : casino,
-        ),
-      );
-    } else if (isAdmin) {
-      const updatedAdminCasinos = casinos.map((casino) =>
-        casino.name.toLowerCase() === editingCasino.name.toLowerCase()
-          ? {
-              ...casino,
-              siteUrl: normalizedSiteUrl,
-              affiliateUrl,
-              claimUrl,
-              bonusUrl,
-              bonusTitle,
-              ...(typeof rating === "number" ? { trustpilotRating: rating } : {}),
-            }
-          : casino,
-      );
-      if (updatedAdminCasinos.some((casino, index) => casino !== casinos[index])) {
-        saveCasinos(updatedAdminCasinos);
-      }
-    }
-    if (isAdmin) {
-      setDirectoryUrls(updatedDirectoryUrls);
-      setDirectoryAffiliateUrls(updatedDirectoryAffiliateUrls);
-      setDirectoryClaimUrls(updatedDirectoryClaimUrls);
-      setDirectoryBonusUrls(updatedDirectoryBonusUrls);
-      setDirectoryRatings(updatedDirectoryRatings);
-      if (bonusTitle) {
-        setDirectoryBonusTitles({
-          ...directoryBonusTitles,
-          [editingCasino.name]: bonusTitle,
-        });
-      }
+    const resetTime = editUseSpecificReset ? editResetTime : null;
+    const dailyBonus = editBonus.trim() || editingCasino.dailyBonus;
+    const details = editDetails.trim() || undefined;
 
-      // Write directly to shared DB (Upstash Redis) and trigger cache revalidation
+    if (isAdmin) {
+      // 1. Authoritative global update for admin: writes to Upstash Redis master directory AND all user lists atomically
       try {
-        await apiUpdateAdminCasino({
+        const response = await apiUpdateAdminCasino({
           name: editingCasino.name,
           siteUrl: normalizedSiteUrl || undefined,
           affiliateUrl: affiliateUrl || undefined,
@@ -910,13 +890,66 @@ export default function TrackerPage() {
           bonusUrl: bonusUrl || undefined,
           bonusTitle: bonusTitle || undefined,
           trustpilotRating: rating,
-          dailyBonus: editBonus.trim() || undefined,
-          details: editDetails.trim() || undefined,
+          dailyBonus,
+          details,
+          resetAtTime: resetTime,
         });
+
+        if (response.ok && response.directory) {
+          setDirectoryUrls({ ...casinoDirectoryUrls, ...response.directory.urls });
+          setDirectoryAffiliateUrls(response.directory.affiliateUrls || {});
+          setDirectoryClaimUrls(response.directory.claimUrls || {});
+          setDirectoryBonusUrls(response.directory.bonusUrls || {});
+          setDirectoryBonusTitles(response.directory.bonusTitles || {});
+          setDirectoryRatings(response.directory.ratings || {});
+        }
       } catch (saveErr) {
         console.error("Failed to update admin casino metadata:", saveErr);
       }
+
+      // Update local casino list immediately without triggering a racing personal save
+      setCasinos((prev) =>
+        prev.map((c) =>
+          c.name.toLowerCase() === editingCasino.name.toLowerCase()
+            ? {
+                ...c,
+                siteUrl: normalizedSiteUrl,
+                url: normalizedSiteUrl,
+                affiliateUrl,
+                claimUrl,
+                bonusUrl,
+                bonusTitle,
+                trustpilotRating: rating,
+                dailyBonus,
+                details,
+                resetAtTime: resetTime,
+              }
+            : c,
+        ),
+      );
+    } else {
+      // Regular non-admin user personal settings save
+      if (!editingCasino.id.startsWith("directory:")) {
+        saveCasinos(
+          casinos.map((casino) =>
+            casino.id === editingCasino.id
+              ? {
+                  ...casino,
+                  siteUrl: normalizedSiteUrl,
+                  affiliateUrl,
+                  claimUrl,
+                  bonusUrl,
+                  bonusTitle,
+                  resetAtTime: resetTime,
+                  details,
+                  dailyBonus,
+                }
+              : casino,
+          ),
+        );
+      }
     }
+
     setEditingCasino(null);
     if (editScrollPosition.current !== null) {
       const scrollPosition = editScrollPosition.current;

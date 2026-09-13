@@ -4,6 +4,7 @@ import {
   getCasinos,
   getDirectory,
   getUsers,
+  queueMutation,
   saveCasinos,
   saveDirectory,
   type Casino,
@@ -24,12 +25,13 @@ export {
 export type { Casino, UserProfile };
 
 /**
- * Updates a casino's canonical metadata (URLs, bonus title, rating) across:
+ * Updates a casino's canonical metadata (URLs, bonus, title, rating, reset time, details) across:
  * 1. The shared master directory in Upstash Redis / DB
  * 2. Every user profile's saved casino list in Upstash Redis / DB
  *
- * This guarantees that changes are immediately persisted to the shared DB
- * and that no device or user profile ever retains or syncs back stale links.
+ * All changes are performed inside a SINGLE atomic queueMutation call.
+ * This guarantees that changes are immediately persisted to the shared DB without race
+ * conditions, partial writes, or multiple Redis HTTP roundtrips.
  */
 export async function updateCasinoMetadata(data: {
   name: string;
@@ -41,72 +43,104 @@ export async function updateCasinoMetadata(data: {
   trustpilotRating?: number;
   dailyBonus?: string;
   details?: string;
+  resetAtTime?: string | null;
+  intervalHours?: number;
 }) {
   const trimmedName = data.name.trim();
   const lowerName = trimmedName.toLowerCase();
 
-  // 1. Update shared master directory in DB
-  const directoryUpdate: Parameters<typeof saveDirectory>[0] = {};
-  if (data.siteUrl !== undefined) directoryUpdate.urls = { [trimmedName]: data.siteUrl };
-  if (data.affiliateUrl !== undefined) directoryUpdate.affiliateUrls = { [trimmedName]: data.affiliateUrl };
-  if (data.claimUrl !== undefined) directoryUpdate.claimUrls = { [trimmedName]: data.claimUrl };
-  if (data.bonusUrl !== undefined) directoryUpdate.bonusUrls = { [trimmedName]: data.bonusUrl };
-  if (data.bonusTitle !== undefined) directoryUpdate.bonusTitles = { [trimmedName]: data.bonusTitle };
-  if (data.trustpilotRating !== undefined) directoryUpdate.ratings = { [trimmedName]: data.trustpilotRating };
+  return queueMutation((store) => {
+    // 1. Ensure master directory list contains this casino
+    if (
+      store.directoryList &&
+      !store.directoryList.some((n) => n.trim().toLowerCase() === lowerName)
+    ) {
+      store.directoryList = [...store.directoryList, trimmedName];
+    }
 
-  const savedDirectory = await saveDirectory(directoryUpdate);
+    // 2. Update shared canonical directory maps
+    if (data.siteUrl !== undefined) {
+      store.directoryUrls = { ...(store.directoryUrls || {}), [trimmedName]: data.siteUrl };
+    }
+    if (data.affiliateUrl !== undefined) {
+      store.affiliateUrls = { ...(store.affiliateUrls || {}), [trimmedName]: data.affiliateUrl };
+    }
+    if (data.claimUrl !== undefined) {
+      store.claimUrls = { ...(store.claimUrls || {}), [trimmedName]: data.claimUrl };
+    }
+    if (data.bonusUrl !== undefined) {
+      store.bonusUrls = { ...(store.bonusUrls || {}), [trimmedName]: data.bonusUrl };
+    }
+    if (data.bonusTitle !== undefined) {
+      store.bonusTitles = { ...(store.bonusTitles || {}), [trimmedName]: data.bonusTitle };
+    }
+    if (data.trustpilotRating !== undefined) {
+      store.directoryRatings = { ...(store.directoryRatings || {}), [trimmedName]: data.trustpilotRating };
+    }
+    if (data.dailyBonus !== undefined) {
+      store.directoryDailyBonuses = {
+        ...(store.directoryDailyBonuses || {}),
+        [trimmedName]: data.dailyBonus,
+      };
+    }
+    if (data.resetAtTime !== undefined) {
+      store.directoryResetTimes = {
+        ...(store.directoryResetTimes || {}),
+        [trimmedName]: data.resetAtTime,
+      };
+    }
+    if (data.details !== undefined) {
+      store.directoryDetails = {
+        ...(store.directoryDetails || {}),
+        [trimmedName]: data.details,
+      };
+    }
 
-  // 2. Propagate to all saved profile records in DB
-  const users = await getUsers();
-  const keysToUpdate = [
-    ...users.map((u) => casinoKey(u.email)),
-    casinoKey(ADMIN_EMAIL),
-    "admin",
-  ];
+    // 3. Atomically update all user records in store.casinos
+    const targetKeys = new Set<string>([
+      ...store.users.map((u) => casinoKey(u.email)),
+      casinoKey(ADMIN_EMAIL),
+      "admin",
+      ...Object.keys(store.casinos || {}),
+    ]);
 
-  await Promise.all(
-    keysToUpdate.map(async (key) => {
-      const records = (await getCasinos(key)) ?? [];
-      let changed = false;
-      const updated = records.map((casino) => {
+    for (const key of targetKeys) {
+      const records = store.casinos[key];
+      if (!records || !Array.isArray(records)) continue;
+
+      store.casinos[key] = records.map((casino) => {
         if (casino.name.trim().toLowerCase() !== lowerName) return casino;
 
-        const updates: Partial<Casino> = {};
-        if (data.siteUrl !== undefined && data.siteUrl !== casino.siteUrl) {
-          updates.siteUrl = data.siteUrl;
+        const updated: Casino = { ...casino };
+        if (data.siteUrl !== undefined) {
+          updated.siteUrl = data.siteUrl;
+          updated.url = data.siteUrl;
         }
-        if (data.affiliateUrl !== undefined && data.affiliateUrl !== casino.affiliateUrl) {
-          updates.affiliateUrl = data.affiliateUrl;
-        }
-        if (data.claimUrl !== undefined && data.claimUrl !== casino.claimUrl) {
-          updates.claimUrl = data.claimUrl;
-        }
-        if (data.bonusUrl !== undefined && data.bonusUrl !== casino.bonusUrl) {
-          updates.bonusUrl = data.bonusUrl;
-        }
-        if (data.bonusTitle !== undefined && data.bonusTitle !== casino.bonusTitle) {
-          updates.bonusTitle = data.bonusTitle;
-        }
-        if (data.trustpilotRating !== undefined && data.trustpilotRating !== casino.trustpilotRating) {
-          updates.trustpilotRating = data.trustpilotRating;
-        }
-        if (data.dailyBonus !== undefined && data.dailyBonus !== casino.dailyBonus) {
-          updates.dailyBonus = data.dailyBonus;
-        }
-        if (data.details !== undefined && data.details !== casino.details) {
-          updates.details = data.details;
-        }
-
-        if (Object.keys(updates).length === 0) return casino;
-        changed = true;
-        return { ...casino, ...updates } as Casino;
+        if (data.affiliateUrl !== undefined) updated.affiliateUrl = data.affiliateUrl;
+        if (data.claimUrl !== undefined) updated.claimUrl = data.claimUrl;
+        if (data.bonusUrl !== undefined) updated.bonusUrl = data.bonusUrl;
+        if (data.bonusTitle !== undefined) updated.bonusTitle = data.bonusTitle;
+        if (data.trustpilotRating !== undefined) updated.trustpilotRating = data.trustpilotRating;
+        if (data.dailyBonus !== undefined) updated.dailyBonus = data.dailyBonus;
+        if (data.details !== undefined) updated.details = data.details;
+        if (data.resetAtTime !== undefined) updated.resetAtTime = data.resetAtTime;
+        if (data.intervalHours !== undefined) updated.intervalHours = data.intervalHours;
+        return updated;
       });
+    }
 
-      if (changed) {
-        await saveCasinos(key, updated);
-      }
-    })
-  );
-
-  return savedDirectory;
+    // Return the updated master directory snapshot
+    return {
+      list: store.directoryList,
+      urls: store.directoryUrls || {},
+      affiliateUrls: store.affiliateUrls || {},
+      claimUrls: store.claimUrls || {},
+      bonusUrls: store.bonusUrls || {},
+      bonusTitles: store.bonusTitles || {},
+      ratings: store.directoryRatings || {},
+      dailyBonuses: store.directoryDailyBonuses || {},
+      resetTimes: store.directoryResetTimes || {},
+      details: store.directoryDetails || {},
+    };
+  });
 }

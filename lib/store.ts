@@ -116,6 +116,9 @@ type Store = {
   claimUrls: Record<string, string>;
   bonusUrls: Record<string, string>;
   bonusTitles: Record<string, string>;
+  directoryDailyBonuses?: Record<string, string>;
+  directoryResetTimes?: Record<string, string | null>;
+  directoryDetails?: Record<string, string>;
   sessions: Record<string, Session>;
   magicLinks: Record<string, MagicLink>;
   posts: Post[];
@@ -235,6 +238,9 @@ const EMPTY_STORE: Store = {
   claimUrls: {},
   bonusUrls: {},
   bonusTitles: {},
+  directoryDailyBonuses: {},
+  directoryResetTimes: {},
+  directoryDetails: {},
   sessions: {},
   magicLinks: {},
   posts: INITIAL_POSTS,
@@ -325,7 +331,7 @@ async function writeStore(store: Store) {
   await writeStoreFile(store);
 }
 
-function queueMutation<T>(mutate: (store: Store) => T | Promise<T>): Promise<T> {
+export function queueMutation<T>(mutate: (store: Store) => T | Promise<T>): Promise<T> {
   const result = writeQueue.then(async () => {
     const store = await readStore();
     const value = await mutate(store);
@@ -390,12 +396,15 @@ export async function getDirectory() {
   const store = await readStore();
   return {
     list: store.directoryList,
-    urls: store.directoryUrls,
-    affiliateUrls: store.affiliateUrls,
-    claimUrls: store.claimUrls,
-    bonusUrls: store.bonusUrls,
-    bonusTitles: store.bonusTitles,
-    ratings: store.directoryRatings,
+    urls: store.directoryUrls || {},
+    affiliateUrls: store.affiliateUrls || {},
+    claimUrls: store.claimUrls || {},
+    bonusUrls: store.bonusUrls || {},
+    bonusTitles: store.bonusTitles || {},
+    ratings: store.directoryRatings || {},
+    dailyBonuses: store.directoryDailyBonuses || {},
+    resetTimes: store.directoryResetTimes || {},
+    details: store.directoryDetails || {},
   };
 }
 
@@ -407,24 +416,36 @@ export async function saveDirectory(update: {
   bonusUrls?: Record<string, string>;
   bonusTitles?: Record<string, string>;
   ratings?: Record<string, number>;
+  dailyBonuses?: Record<string, string>;
+  resetTimes?: Record<string, string | null>;
+  details?: Record<string, string>;
 }) {
   return queueMutation((store) => {
     if (update.list) store.directoryList = update.list;
-    if (update.urls) store.directoryUrls = { ...store.directoryUrls, ...update.urls };
+    if (update.urls) store.directoryUrls = { ...(store.directoryUrls || {}), ...update.urls };
     if (update.affiliateUrls)
-      store.affiliateUrls = { ...store.affiliateUrls, ...update.affiliateUrls };
-    if (update.claimUrls) store.claimUrls = { ...store.claimUrls, ...update.claimUrls };
-    if (update.bonusUrls) store.bonusUrls = { ...store.bonusUrls, ...update.bonusUrls };
-    if (update.bonusTitles) store.bonusTitles = { ...store.bonusTitles, ...update.bonusTitles };
-    if (update.ratings) store.directoryRatings = { ...store.directoryRatings, ...update.ratings };
+      store.affiliateUrls = { ...(store.affiliateUrls || {}), ...update.affiliateUrls };
+    if (update.claimUrls) store.claimUrls = { ...(store.claimUrls || {}), ...update.claimUrls };
+    if (update.bonusUrls) store.bonusUrls = { ...(store.bonusUrls || {}), ...update.bonusUrls };
+    if (update.bonusTitles) store.bonusTitles = { ...(store.bonusTitles || {}), ...update.bonusTitles };
+    if (update.ratings) store.directoryRatings = { ...(store.directoryRatings || {}), ...update.ratings };
+    if (update.dailyBonuses)
+      store.directoryDailyBonuses = { ...(store.directoryDailyBonuses || {}), ...update.dailyBonuses };
+    if (update.resetTimes)
+      store.directoryResetTimes = { ...(store.directoryResetTimes || {}), ...update.resetTimes };
+    if (update.details)
+      store.directoryDetails = { ...(store.directoryDetails || {}), ...update.details };
     return {
       list: store.directoryList,
-      urls: store.directoryUrls,
-      affiliateUrls: store.affiliateUrls,
-      claimUrls: store.claimUrls,
-      bonusUrls: store.bonusUrls,
-      bonusTitles: store.bonusTitles,
-      ratings: store.directoryRatings,
+      urls: store.directoryUrls || {},
+      affiliateUrls: store.affiliateUrls || {},
+      claimUrls: store.claimUrls || {},
+      bonusUrls: store.bonusUrls || {},
+      bonusTitles: store.bonusTitles || {},
+      ratings: store.directoryRatings || {},
+      dailyBonuses: store.directoryDailyBonuses || {},
+      resetTimes: store.directoryResetTimes || {},
+      details: store.directoryDetails || {},
     };
   });
 }
