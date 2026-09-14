@@ -770,7 +770,7 @@ export function PostCard({
           {/* 2. Post Body Text: User description/instructions rendered ABOVE the code banner (raw URLs hidden if destinationUrl is present) */}
           {isBonusDrop ? (
             <div className="my-1.5 space-y-0.5">
-              <h3 className="w-full text-center uppercase tracking-wider font-extrabold text-base sm:text-lg text-white my-1.5 leading-snug">
+              <h3 className="w-full text-center uppercase tracking-wider font-extrabold text-sm sm:text-base text-white mt-2 mb-3 leading-snug">
                 {formatDropTitle(
                   currentPost.casinoName ||
                     (currentPost.casinoTag ? currentPost.casinoTag.replace(/^[$#]+/, "") : null) ||
@@ -880,65 +880,93 @@ export function PostCard({
           isBonusDrop ? "mt-2 pt-1.5" : "mt-3.5 pt-2.5 sm:pt-3"
         } flex items-center justify-between border-t border-[#1d3224] gap-2 text-xs`}
       >
-        <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
-          {/* Like button */}
-          <button
-            type="button"
-            onClick={handleToggleLike}
-            className={`flex items-center gap-1 rounded-lg ${
-              isBonusDrop ? "px-2 py-1" : "px-2 sm:px-2.5 py-1.5"
-            } transition text-xs shrink-0 ${
-              hasLiked
-                ? "bg-red-950/40 text-red-400 font-semibold border border-red-800/40"
-                : "text-[#869f8c] hover:bg-[#182a1f] hover:text-white"
-            }`}
-          >
-            <Heart size={isBonusDrop ? 13 : 14} className={hasLiked ? "fill-red-400" : ""} />
-            <span className="font-semibold text-[11px] sm:text-xs">{currentPost.likes?.length || 0}</span>
-          </button>
+        {isBonusDrop ? (
+          /* Bonus Drop Social Footer: Single "Works 👍 [count]" confirmation counter and comment count icon */
+          <div className="flex items-center justify-between w-full">
+            <button
+              type="button"
+              onClick={() => handleAddReaction("👍")}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition active:scale-95 cursor-pointer ${
+                currentUserEmail && currentPost.reactions?.["👍"]?.includes(currentUserEmail.toLowerCase())
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold shadow-sm"
+                  : "bg-[#14231a] text-[#869f8c] border border-[#22392c] hover:bg-[#1a2e22] hover:text-white"
+              }`}
+              title="Confirm this bonus drop works"
+            >
+              <span>Works 👍</span>
+              <span className="font-semibold text-[11px] sm:text-xs">
+                {currentPost.reactions?.["👍"]?.length || 0}
+              </span>
+            </button>
 
-          {/* Emoji Reactions - Enforces Single Reaction */}
-          <div className="flex items-center gap-0.5 sm:gap-1">
-            {EMOJI_OPTIONS.map((emoji) => {
-              const count = currentPost.reactions?.[emoji]?.length || 0;
-              const userReacted = currentUserEmail
-                ? currentPost.reactions?.[emoji]?.includes(currentUserEmail.toLowerCase())
-                : false;
-
-              return (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => handleAddReaction(emoji)}
-                  className={`flex items-center gap-0.5 sm:gap-1 rounded-lg px-1.5 sm:px-2 py-1 transition text-xs shrink-0 ${
-                    userReacted
-                      ? "bg-emerald-900/60 border border-emerald-500 font-bold scale-105"
-                      : count > 0
-                      ? "bg-[#18291f] text-[#c0d4c3] hover:bg-[#1f3629]"
-                      : "opacity-60 hover:opacity-100 hover:bg-[#18291f]"
-                  }`}
-                  title={userReacted ? `Remove ${emoji}` : `React with ${emoji} (single reaction)`}
-                >
-                  <span className="text-xs sm:text-sm">{emoji}</span>
-                  {count > 0 && <span className="font-semibold text-[10px] sm:text-[11px]">{count}</span>}
-                </button>
-              );
-            })}
+            {/* Comment count icon */}
+            <button
+              type="button"
+              onClick={handleToggleComments}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs text-[#869f8c] border border-transparent hover:border-[#22392c] hover:bg-[#14231a] hover:text-[#d3e5d5] transition cursor-pointer"
+              title="View comments"
+              aria-label="View comments"
+            >
+              <MessageSquare size={13} />
+              <span className="font-semibold text-[11px] sm:text-xs">{currentPost.commentCount || 0}</span>
+            </button>
           </div>
-        </div>
+        ) : (
+          /* Standard Posts: Like + Emoji Array + Comment Button */
+          <>
+            <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+              {/* Like button */}
+              <button
+                type="button"
+                onClick={handleToggleLike}
+                className="flex items-center gap-1 rounded-lg px-2 sm:px-2.5 py-1.5 transition text-xs shrink-0 text-[#869f8c] hover:bg-[#182a1f] hover:text-white"
+              >
+                <Heart size={14} className={hasLiked ? "fill-red-400 text-red-400" : ""} />
+                <span className="font-semibold text-[11px] sm:text-xs">{currentPost.likes?.length || 0}</span>
+              </button>
 
-        {/* Comment toggle button */}
-        <button
-          type="button"
-          onClick={handleToggleComments}
-          className={`flex items-center gap-1.5 rounded-lg ${
-            isBonusDrop ? "px-2 py-1 text-[11px]" : "px-2 sm:px-3 py-1.5 text-xs"
-          } text-[#869f8c] transition hover:bg-[#182a1f] hover:text-[#d3e5d5] shrink-0 ml-auto`}
-        >
-          <MessageSquare size={isBonusDrop ? 13 : 14} />
-          <span className="font-semibold text-[11px] sm:text-xs">{currentPost.commentCount || 0}</span>
-          <span className="hidden sm:inline">Comments</span>
-        </button>
+              {/* Emoji Reactions - Enforces Single Reaction */}
+              <div className="flex items-center gap-0.5 sm:gap-1">
+                {EMOJI_OPTIONS.map((emoji) => {
+                  const count = currentPost.reactions?.[emoji]?.length || 0;
+                  const userReacted = currentUserEmail
+                    ? currentPost.reactions?.[emoji]?.includes(currentUserEmail.toLowerCase())
+                    : false;
+
+                  return (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => handleAddReaction(emoji)}
+                      className={`flex items-center gap-0.5 sm:gap-1 rounded-lg px-1.5 sm:px-2 py-1 transition text-xs shrink-0 ${
+                        userReacted
+                          ? "bg-emerald-900/60 border border-emerald-500 font-bold scale-105"
+                          : count > 0
+                          ? "bg-[#18291f] text-[#c0d4c3] hover:bg-[#1f3629]"
+                          : "opacity-60 hover:opacity-100 hover:bg-[#18291f]"
+                      }`}
+                      title={userReacted ? `Remove ${emoji}` : `React with ${emoji} (single reaction)`}
+                    >
+                      <span className="text-xs sm:text-sm">{emoji}</span>
+                      {count > 0 && <span className="font-semibold text-[10px] sm:text-[11px]">{count}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Comment toggle button */}
+            <button
+              type="button"
+              onClick={handleToggleComments}
+              className="flex items-center gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-xs text-[#869f8c] transition hover:bg-[#182a1f] hover:text-[#d3e5d5] shrink-0 ml-auto"
+            >
+              <MessageSquare size={14} />
+              <span className="font-semibold text-[11px] sm:text-xs">{currentPost.commentCount || 0}</span>
+              <span className="hidden sm:inline">Comments</span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* Expanded Comments Thread */}

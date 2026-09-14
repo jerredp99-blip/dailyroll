@@ -49,7 +49,22 @@ export function SocialFeed({
   const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null);
   const [claimedDropIds, setClaimedDropIds] = useState<string[]>([]);
   const [showAllCasinoDrops, setShowAllCasinoDrops] = useState(false);
+  const [isUnaddedBannerDismissed, setIsUnaddedBannerDismissed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return localStorage.getItem("dailyroll_unadded_drops_dismissed") === "true";
+    } catch {
+      return false;
+    }
+  });
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleDismissUnaddedBanner = () => {
+    setIsUnaddedBannerDismissed(true);
+    try {
+      localStorage.setItem("dailyroll_unadded_drops_dismissed", "true");
+    } catch {}
+  };
 
   // Sync claimed bonus drops from localStorage and custom events
   useEffect(() => {
@@ -391,7 +406,7 @@ export function SocialFeed({
 
   const feedContent = (
     <main className="space-y-3.5">
-      {/* Category Controls: Filter Dropdown (LEFT) + Bonus Drops Quick Button (RIGHT) */}
+      {/* Unified Feed Toolbar: Filter Dropdown (LEFT) + Refresh Icon & Bonus Drops Quick Pill (RIGHT) */}
       <div className="flex items-center justify-between w-full gap-2 pb-1">
         {/* Sort & Filter Dropdown Menu (LEFT) */}
         <div className="relative flex items-center">
@@ -433,163 +448,93 @@ export function SocialFeed({
           </div>
         </div>
 
-        {/* Bonus Drops Quick-Filter Pill (RIGHT) */}
-        <button
-          type="button"
-          onClick={() => {
-            if (currentType === "drop_code" && !selectedTag) {
-              setCurrentType("all");
-              setSelectedTag(undefined);
-            } else {
-              setCurrentType("drop_code");
-              setSelectedTag(undefined);
-            }
-          }}
-          className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer ${
-            currentType === "drop_code" && !selectedTag
-              ? "bg-emerald-500 text-zinc-950 shadow-[0_0_16px_rgba(16,185,129,0.4)] border border-emerald-400 ring-2 ring-emerald-400/40"
-              : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 shadow-[0_0_12px_rgba(16,185,129,0.2)] hover:border-emerald-500/50"
-          }`}
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#39ff6a]" />
-          </span>
-          <span>🎁 Bonus Drops</span>
-          {unclaimedDropsCount > 0 && (
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                currentType === "drop_code" && !selectedTag
-                  ? "bg-zinc-950/20 text-zinc-950"
-                  : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-              }`}
-            >
-              {unclaimedDropsCount}
+        {/* Right side: Refresh icon button + Bonus Drops quick toggle pill */}
+        <div className="flex items-center gap-2">
+          {/* Refresh Button Icon */}
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={refreshing}
+            className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-[#121815] text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/40 transition cursor-pointer"
+            title="Refresh feed"
+            aria-label="Refresh feed"
+          >
+            <RefreshCw size={14} className={refreshing ? "animate-spin text-emerald-400" : ""} />
+          </button>
+
+          {/* Bonus Drops Quick-Filter Pill */}
+          <button
+            type="button"
+            onClick={() => {
+              if (currentType === "drop_code" && !selectedTag) {
+                setCurrentType("all");
+                setSelectedTag(undefined);
+              } else {
+                setCurrentType("drop_code");
+                setSelectedTag(undefined);
+              }
+            }}
+            className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer ${
+              currentType === "drop_code" && !selectedTag
+                ? "bg-emerald-500 text-zinc-950 shadow-[0_0_16px_rgba(16,185,129,0.4)] border border-emerald-400 ring-2 ring-emerald-400/40"
+                : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 shadow-[0_0_12px_rgba(16,185,129,0.2)] hover:border-emerald-500/50"
+            }`}
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#39ff6a]" />
             </span>
-          )}
-        </button>
+            <span>🎁 Bonus Drops</span>
+            {unclaimedDropsCount > 0 && (
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                  currentType === "drop_code" && !selectedTag
+                    ? "bg-zinc-950/20 text-zinc-950"
+                    : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                }`}
+              >
+                {unclaimedDropsCount}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
-          {/* Post Composer (Minimized by default, expands on typebox click) */}
-          <PostComposer
-            currentUserEmail={currentUserEmail}
-            currentUserName={currentUserName}
-            currentUserAvatar={currentUserAvatar}
-            isAdmin={isAdmin}
-            casinos={casinos}
-            onPostCreated={handleNewPost}
-          />
+      {/* Post Composer (Minimized by default, expands on typebox click) */}
+      <PostComposer
+        currentUserEmail={currentUserEmail}
+        currentUserName={currentUserName}
+        currentUserAvatar={currentUserAvatar}
+        isAdmin={isAdmin}
+        casinos={casinos}
+        onPostCreated={handleNewPost}
+      />
 
-          {/* Feed Filter Header / Auto-refresh Indicator */}
-          <div className="flex items-center justify-between rounded-xl border border-[#203728] bg-[#111e16] px-3.5 py-2 text-xs">
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              {/* Live pulse dot */}
-              <div className="flex items-center gap-1.5 rounded-md bg-emerald-950/60 border border-emerald-800/40 px-2 py-0.5 text-[11px] text-emerald-300">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span className="font-bold tracking-wide uppercase text-[10px]">Live</span>
-              </div>
-
-              <span className="font-semibold text-[#8ca592] hidden sm:inline">Showing:</span>
-              {selectedTag ? (
-                <div className="flex items-center gap-1.5">
-                  <TagBadge tag={selectedTag} active />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedTag(undefined);
-                      setCurrentType("all");
-                      setSortBy("newest");
-                    }}
-                    className="flex items-center gap-1 rounded-md bg-[#192b20] px-2 py-0.5 text-[11px] text-[#93ab98] hover:text-white"
-                  >
-                    <X size={12} /> Clear
-                  </button>
-                </div>
-              ) : (
-                <span className="font-bold text-emerald-300">
-                  {currentType === "all"
-                    ? sortBy === "likes"
-                      ? "All Posts (Most Liked 🔥)"
-                      : sortBy === "comments"
-                      ? "All Posts (Most Comments 💬)"
-                      : "All Posts"
-                    : currentType === "big_win"
-                    ? "Big Win Flexes 🏆"
-                    : currentType === "drop_code"
-                    ? "Bonus Drop Codes 🎁"
-                    : currentType === "discussion"
-                    ? "Discussions 💬"
-                    : "Daily Claims ⚡"}
-                </span>
-              )}
-
-              {(currentType !== "all" || sortBy !== "newest") && !selectedTag && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedTag(undefined);
-                    setCurrentType("all");
-                    setSortBy("newest");
-                  }}
-                  className="flex items-center gap-1 rounded-md bg-[#192b20] px-2 py-0.5 text-[11px] text-[#93ab98] hover:text-white"
-                >
-                  <X size={12} /> Reset
-                </button>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={handleManualRefresh}
-              disabled={refreshing}
-              className="flex items-center gap-1 text-[#8ca592] hover:text-emerald-300 transition shrink-0 ml-2"
-              title="Refresh feed"
+      {/* Compact Dismissible Non-Rollcall Drops Banner */}
+      {!isUnaddedBannerDismissed && untrackedDropsCount > 0 && (currentType === "all" || currentType === "drop_code") && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200 shadow-sm animate-in fade-in duration-150">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="truncate">
+              🎁 {untrackedDropsCount} {untrackedDropsCount === 1 ? "drop" : "drops"} for unadded casinos
+            </span>
+            <Link
+              href="/tracker"
+              className="inline-flex items-center gap-0.5 font-bold text-amber-300 hover:text-amber-100 hover:underline shrink-0"
             >
-              <RefreshCw size={13} className={refreshing ? "animate-spin text-emerald-400" : ""} />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
+              <span>Explore</span>
+              <span aria-hidden="true">↗</span>
+            </Link>
           </div>
-
-          {/* Explore More Drops Banner (Rollcall Filter Callout) */}
-          {untrackedDropsCount > 0 && (currentType === "all" || currentType === "drop_code") && (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-200 shadow-sm animate-in fade-in duration-150">
-              <div className="flex items-center gap-2">
-                <span className="text-base leading-none">🎁</span>
-                <span>
-                  {showAllCasinoDrops ? (
-                    <>
-                      Showing all bonus drops (including{" "}
-                      <span className="font-bold text-amber-300">{untrackedDropsCount}</span> from casinos not in your Rollcall)
-                    </>
-                  ) : (
-                    <>
-                      <span className="font-bold text-amber-300">{untrackedDropsCount}</span> more{" "}
-                      {untrackedDropsCount === 1 ? "bonus drop" : "bonus drops"} available for casinos not in your Rollcall
-                    </>
-                  )}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowAllCasinoDrops((prev) => !prev)}
-                  className="rounded-lg border border-amber-500/30 bg-amber-500/20 px-2.5 py-1 text-xs font-semibold text-amber-200 hover:bg-amber-500/30 hover:text-white transition cursor-pointer"
-                >
-                  {showAllCasinoDrops ? "Show Only My Rollcall" : "Show All Drops"}
-                </button>
-                <Link
-                  href="/tracker"
-                  className="flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-[#122017] px-2.5 py-1 text-xs font-semibold text-emerald-300 hover:bg-emerald-950/60 hover:text-emerald-200 transition"
-                >
-                  <span>Explore Casinos</span>
-                  <ExternalLink size={12} />
-                </Link>
-              </div>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={handleDismissUnaddedBanner}
+            aria-label="Dismiss banner"
+            className="rounded p-1 text-amber-400 hover:bg-amber-500/20 hover:text-amber-200 transition shrink-0 cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
           {/* Posts Stream */}
           {loading ? (

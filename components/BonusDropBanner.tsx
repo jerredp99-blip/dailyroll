@@ -145,23 +145,19 @@ export function BonusDropBanner({
         </div>
       )}
 
-      {/* Action Row: Compact Claim Bonus Button */}
+      {/* Action Row: Defined High-Contrast Claim Bonus Action Button */}
       {targetUrl && (
-        <div>
+        <div className="w-full flex justify-center pt-0.5">
           <button
             type="button"
             onClick={handleClaim}
-            className={`w-full h-9 sm:h-10 flex items-center justify-center gap-1.5 rounded-lg transition-all active:scale-[0.98] ${
+            className={`w-full max-w-xs mx-auto h-10 px-4 rounded-lg flex items-center justify-center text-sm font-bold tracking-wide cursor-pointer select-none ${
               isClaimed
-                ? "bg-zinc-800/80 hover:bg-zinc-800 text-zinc-400 border border-zinc-700 font-medium text-sm shadow-none"
-                : "bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm shadow-sm"
+                ? "bg-zinc-800 hover:bg-zinc-700/80 text-zinc-400 border border-zinc-700 font-medium transition-all active:scale-[0.98]"
+                : "bg-emerald-500 hover:bg-emerald-400 text-black shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all"
             }`}
           >
-            {isClaimed ? (
-              <span>Claimed ✓</span>
-            ) : (
-              <span>Claim Bonus ↗</span>
-            )}
+            {isClaimed ? "Claimed ✓" : "Claim Bonus ↗"}
           </button>
         </div>
       )}
