@@ -2707,28 +2707,11 @@ export default function TrackerPage() {
         isAdmin={isAdmin}
       />
 
-      {/* Floating Feed & Drops Circular Icon Badges (Docked Top-Right under Header) */}
+      {/* Floating Feed & Drops Circular Icon Badges (Docked Top-Right under Header, Stacked Vertically) */}
       <aside
         aria-label="Quick Access Feeds"
-        className="fixed top-16 right-3.5 z-40 flex items-center gap-2.5 sm:right-6 lg:right-8"
+        className="fixed top-16 right-3.5 z-40 flex flex-col items-center gap-2.5 sm:right-6 lg:right-8"
       >
-        {/* Bonus Drops Circular Button */}
-        <button
-          type="button"
-          onClick={() => setActiveDrawer((prev) => (prev === "drops" ? null : "drops"))}
-          aria-label="Open Bonus Drops"
-          title="Open Bonus Drops"
-          className="group h-10 w-10 rounded-full bg-gradient-to-b from-[#1f1a0e]/95 via-[#161208]/95 to-[#0e0c05]/95 border border-amber-500/50 hover:border-amber-400 active:scale-95 shadow-lg shadow-black/80 backdrop-blur-md flex items-center justify-center relative transition-all duration-300 cursor-pointer hover:shadow-[0_0_20px_rgba(245,158,11,0.4)]"
-        >
-          <span className="absolute inset-0 rounded-full bg-amber-400/10 animate-pulse pointer-events-none" />
-          <Gift className="w-5 h-5 text-amber-400 group-hover:text-amber-300 group-hover:scale-125 group-hover:rotate-12 transition-all duration-300 drop-shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
-          {activeDropsCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-gradient-to-r from-amber-400 to-amber-500 text-zinc-950 text-[10px] font-black rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(245,158,11,0.7)] ring-2 ring-[#070d0a]">
-              {activeDropsCount}
-            </span>
-          )}
-        </button>
-
         {/* Community Feed Button */}
         <button
           type="button"
@@ -2742,6 +2725,23 @@ export default function TrackerPage() {
           {feedUnreadCount > 0 && (
             <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-gradient-to-r from-emerald-400 to-teal-400 text-zinc-950 text-[10px] font-black rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(16,185,129,0.7)] ring-2 ring-[#070d0a]">
               {feedUnreadCount}
+            </span>
+          )}
+        </button>
+
+        {/* Bonus Drops Circular Button */}
+        <button
+          type="button"
+          onClick={() => setActiveDrawer((prev) => (prev === "drops" ? null : "drops"))}
+          aria-label="Open Bonus Drops"
+          title="Open Bonus Drops"
+          className="group h-10 w-10 rounded-full bg-gradient-to-b from-[#1f1a0e]/95 via-[#161208]/95 to-[#0e0c05]/95 border border-amber-500/50 hover:border-amber-400 active:scale-95 shadow-lg shadow-black/80 backdrop-blur-md flex items-center justify-center relative transition-all duration-300 cursor-pointer hover:shadow-[0_0_20px_rgba(245,158,11,0.4)]"
+        >
+          <span className="absolute inset-0 rounded-full bg-amber-400/10 animate-pulse pointer-events-none" />
+          <Gift className="w-5 h-5 text-amber-400 group-hover:text-amber-300 group-hover:scale-125 group-hover:rotate-12 transition-all duration-300 drop-shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
+          {activeDropsCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-gradient-to-r from-amber-400 to-amber-500 text-zinc-950 text-[10px] font-black rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(245,158,11,0.7)] ring-2 ring-[#070d0a]">
+              {activeDropsCount}
             </span>
           )}
         </button>
