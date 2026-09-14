@@ -1505,6 +1505,16 @@ export default function TrackerPage() {
     { available: 0, claimedToday: 0 },
   );
 
+  // Broadcast live SC available and claimed totals to TopBar
+  useEffect(() => {
+    try {
+      localStorage.setItem("dailyroll_sc_totals", JSON.stringify(dailyTotals));
+      window.dispatchEvent(new CustomEvent("dailyroll_sc_totals", { detail: dailyTotals }));
+    } catch {
+      // ignore
+    }
+  }, [dailyTotals.available, dailyTotals.claimedToday]);
+
   const readyCasinos = casinos.filter((c) => !c.hidden && statusFor(c).ready);
   // User's active Rollcall casinos (filtered strictly by non-hidden and active custom list)
   const activeCustomList = customLists.find((l) => l.id === activeListId) || customLists[0];
@@ -1953,29 +1963,6 @@ export default function TrackerPage() {
           </div>
         ) : (
           <div className="mx-auto max-w-4xl space-y-3 px-1 sm:px-2 pb-24">
-            {/* Tracker Counter Banner (Expanded Centered Stats Header) */}
-            <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-xl px-4 py-2.5 sm:py-3 shadow-sm">
-              <div className="flex items-center justify-center gap-4 sm:gap-8">
-                <div className="flex items-baseline gap-1.5 sm:gap-2">
-                  <span className="text-emerald-400 font-extrabold text-sm sm:text-base tracking-tight whitespace-nowrap">
-                    {dailyTotals.available.toFixed(2)} SC
-                  </span>
-                  <span className="text-[10px] sm:text-xs uppercase font-semibold text-zinc-400 tracking-wider">
-                    Available
-                  </span>
-                </div>
-                <div className="h-4 w-px bg-zinc-800 shrink-0" />
-                <div className="flex items-baseline gap-1.5 sm:gap-2">
-                  <span className="text-zinc-200 font-extrabold text-sm sm:text-base tracking-tight whitespace-nowrap">
-                    {dailyTotals.claimedToday.toFixed(2)} SC
-                  </span>
-                  <span className="text-[10px] sm:text-xs uppercase font-semibold text-zinc-400 tracking-wider">
-                    Claimed
-                  </span>
-                </div>
-              </div>
-            </div>
-
             {/* Custom Lists Tab Strip */}
             <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-none">
               <div className="flex items-center gap-1.5 min-w-0">

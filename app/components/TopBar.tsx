@@ -16,6 +16,35 @@ export function TopBar() {
   const [signedInUser, setSignedInUser] = useState<SignedInUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [scTotals, setScTotals] = useState<{ available: number; claimedToday: number } | null>(null);
+
+  // Live subscription to tracker SC available and claimed totals
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("dailyroll_sc_totals");
+      if (stored) {
+        setScTotals(JSON.parse(stored));
+      } else if (pathname === "/tracker") {
+        setScTotals({ available: 0, claimedToday: 0 });
+      }
+    } catch {
+      if (pathname === "/tracker") {
+        setScTotals({ available: 0, claimedToday: 0 });
+      }
+    }
+
+    const handleTotalsUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<{ available: number; claimedToday: number }>;
+      if (customEvent.detail) {
+        setScTotals(customEvent.detail);
+      }
+    };
+
+    window.addEventListener("dailyroll_sc_totals", handleTotalsUpdate);
+    return () => {
+      window.removeEventListener("dailyroll_sc_totals", handleTotalsUpdate);
+    };
+  }, [pathname]);
 
   // Re-sync session state whenever navigation happens, since this bar stays
   // mounted across route changes in the shared layout.
@@ -53,10 +82,34 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-30 bg-[#070d0a]/90 backdrop-blur-md border-b border-zinc-800/80">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-8 sm:py-4 lg:px-16">
-        <Logo />
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 sm:gap-4 px-3 py-2.5 sm:px-8 sm:py-4 lg:px-16 min-w-0">
+        <Logo className="shrink-0" />
+
+        {/* Centered Available & Claimed SC Balance Pill */}
+        {pathname === "/tracker" && scTotals && (
+          <div className="flex items-center gap-2 sm:gap-2.5 px-2.5 sm:px-3 py-0.5 sm:py-1 bg-zinc-900/90 border border-zinc-800 rounded-full text-[11px] sm:text-xs font-mono backdrop-blur-md shrink-0 shadow-sm">
+            <div className="flex items-baseline">
+              <span className="text-emerald-400 font-bold tracking-tight">
+                {scTotals.available.toFixed(2)} SC
+              </span>
+              <span className="text-[10px] text-zinc-400 font-sans uppercase ml-0.5 sm:ml-1">
+                Avail
+              </span>
+            </div>
+            <div className="h-3 w-px bg-zinc-800 mx-0.5 sm:mx-1 shrink-0" />
+            <div className="flex items-baseline">
+              <span className="text-zinc-200 font-bold tracking-tight">
+                {scTotals.claimedToday.toFixed(2)} SC
+              </span>
+              <span className="text-[10px] text-zinc-400 font-sans uppercase ml-0.5 sm:ml-1">
+                Claimed
+              </span>
+            </div>
+          </div>
+        )}
+
         <div
-          className={`flex items-center gap-2.5 sm:gap-3.5 transition-all ${
+          className={`flex items-center gap-2.5 sm:gap-3.5 transition-all shrink-0 ${
             pathname === "/tracker" ? "pr-12 sm:pr-14" : ""
           }`}
         >
