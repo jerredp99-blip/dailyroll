@@ -56,11 +56,15 @@ export function getCasinoLogoUrl(name: string, siteUrl?: string | null): string 
 export function CasinoLogo({
   name = "",
   siteUrl,
+  width = 32,
+  height = 32,
   className = "h-8 w-8 object-contain",
   fallbackClassName = "text-xs font-bold text-[#9bcf9c]",
 }: {
   name?: string;
   siteUrl?: string | null;
+  width?: number;
+  height?: number;
   className?: string;
   fallbackClassName?: string;
 }) {
@@ -76,6 +80,10 @@ export function CasinoLogo({
     <img
       src={logoUrl}
       alt={`${safeName} logo`}
+      width={width}
+      height={height}
+      loading="lazy"
+      decoding="async"
       className={className}
       onError={() => setHasError(true)}
     />
@@ -83,3 +91,4 @@ export function CasinoLogo({
 }
 
 export default CasinoLogo;
+

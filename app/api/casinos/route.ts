@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Not signed in." }, { status: 401 });
     }
     const requestedKey = request.nextUrl.searchParams.get("key");
-    const key = casinoKey(requestedKey);
+    const key = casinoKey(requestedKey || session.email);
     // Users can only access their own casinos. Admins can access any key.
     if (session.role !== "admin" && key !== casinoKey(session.email)) {
       return NextResponse.json({ error: "Not authorized." }, { status: 403 });
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Not signed in." }, { status: 401 });
     }
     const body = (await request.json()) as { key?: string; casinos: Casino[] };
-    const key = casinoKey(body.key);
+    const key = casinoKey(body.key || session.email);
     // Users can only save their own casinos. Admins can save any key.
     if (session.role !== "admin" && key !== casinoKey(session.email)) {
       return NextResponse.json({ error: "Not authorized." }, { status: 403 });
@@ -68,7 +68,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Not signed in." }, { status: 401 });
     }
     const requestedKey = request.nextUrl.searchParams.get("key");
-    const key = casinoKey(requestedKey);
+    const key = casinoKey(requestedKey || session.email);
     // Users can only delete their own casinos. Admins can delete any key.
     if (session.role !== "admin" && key !== casinoKey(session.email)) {
       return NextResponse.json({ error: "Not authorized." }, { status: 403 });

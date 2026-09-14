@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { CheckCircle2, Clock, ExternalLink, MoreHorizontal, X, RotateCcw } from "lucide-react";
 import type { Casino } from "@/types/casino";
@@ -12,7 +12,11 @@ import {
   formatSnoozeRemaining,
   SNOOZE_PRESETS,
   calculateCustomResetTimestamp,
+  calculateCasinoStatus,
+  useCurrentTimeContext,
 } from "@/lib/timerUtils";
+import { CasinoLogo } from "@/components/CasinoLogo";
+import { TrustpilotStars } from "@/components/TrustpilotStars";
 
 export type { CasinoStatus, StatusState };
 
@@ -37,12 +41,33 @@ const STATUS_STYLES: Record<
   },
 };
 
-export function RollcallCard({
+export interface RollcallCardProps {
+  casino: Casino;
+  status?: CasinoStatus;
+  now?: number;
+  rating?: number;
+  siteUrl?: string;
+  isActionMenuOpen?: boolean;
+  onToggleActionMenu?: (id: string) => void;
+  onClaim: (casino: Casino) => void;
+  onConfirmClaim?: (casino: Casino) => void;
+  onResetToReady?: (casino: Casino) => void;
+  onCancelSnooze?: (casino: Casino) => void;
+  onSnoozeDuration?: (casino: Casino, durationMs: number) => void;
+  onSetCustomTimer?: (casino: Casino, targetResetTimestamp: number) => void;
+  onOpenCasino: (casino: Casino) => void;
+  onOpenBonus?: (casino: Casino) => void;
+  renderLogo?: () => React.ReactNode;
+  renderTrustpilot?: () => React.ReactNode;
+}
+
+function RollcallCardComponent({
   casino,
   status,
+  now,
   rating,
   siteUrl,
-  isActionMenuOpen,
+  isActionMenuOpen = false,
   onToggleActionMenu,
   onClaim,
   onConfirmClaim,
@@ -54,24 +79,7 @@ export function RollcallCard({
   onOpenBonus,
   renderLogo,
   renderTrustpilot,
-}: {
-  casino: Casino;
-  status: CasinoStatus;
-  rating?: number;
-  siteUrl?: string;
-  isActionMenuOpen: boolean;
-  onToggleActionMenu: () => void;
-  onClaim: (casino: Casino) => void;
-  onConfirmClaim?: (casino: Casino) => void;
-  onResetToReady?: (casino: Casino) => void;
-  onCancelSnooze?: (casino: Casino) => void;
-  onSnoozeDuration?: (casino: Casino, durationMs: number) => void;
-  onSetCustomTimer?: (casino: Casino, targetResetTimestamp: number) => void;
-  onOpenCasino: (casino: Casino) => void;
-  onOpenBonus?: (casino: Casino) => void;
-  renderLogo?: () => React.ReactNode;
-  renderTrustpilot?: () => React.ReactNode;
-}) {
+}: RollcallCardProps) {
   const [isVerifying, setIsVerifying] = useState(false);
   const [showCustomTimer, setShowCustomTimer] = useState(false);
   const [customHours, setCustomHours] = useState("");
@@ -81,8 +89,12 @@ export function RollcallCard({
   const [showInlineAdjustTimer, setShowInlineAdjustTimer] = useState(false);
   const timerMenuRef = useRef<HTMLDivElement>(null);
 
-  const styles = STATUS_STYLES[status.state];
-  const formattedCountdown = formatRemainingTimer(status.remainingMs);
+  const contextNow = useCurrentTimeContext();
+  const currentNow = now ?? contextNow;
+  const currentStatus = status ?? calculateCasinoStatus(casino, currentNow);
+
+  const styles = STATUS_STYLES[currentStatus.state];
+  const formattedCountdown = formatRemainingTimer(currentStatus.remainingMs);
 
   // Close quick action menu on outside click
   useEffect(() => {
@@ -175,8 +187,8 @@ export function RollcallCard({
     event.preventDefault();
     event.stopPropagation();
     setIsTimerMenuOpen(false);
-    if (status.remainingMs > 0) {
-      const totalMinutes = Math.ceil(status.remainingMs / 60000);
+    if (currentStatus.remainingMs > 0) {
+      const totalMinutes = Math.ceil(currentStatus.remainingMs / 60000);
       const h = Math.floor(totalMinutes / 60);
       const m = totalMinutes % 60;
       setCustomHours(h > 0 ? String(h) : "");
@@ -225,13 +237,14 @@ export function RollcallCard({
     return (
       <article
         onClick={(e) => e.stopPropagation()}
+        style={{ contentVisibility: "auto", containIntrinsicSize: "0 72px" }}
         className="relative overflow-hidden rounded-xl border border-emerald-500/80 bg-gradient-to-br from-[#12281c] via-[#0f2117] to-[#12281c] p-3 sm:p-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition duration-200 ring-1 ring-emerald-500/50"
       >
         {/* Top Header Row: Casino Name + Question + Close (X) */}
         <div className="flex items-center justify-between gap-2 border-b border-emerald-900/60 pb-2.5">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[#294631] text-xs font-bold text-[#9bcf9c]">
-              {renderLogo ? renderLogo() : casino.name.slice(0, 2).toUpperCase()}
+              {renderLogo ? renderLogo() : <CasinoLogo name={casino.name} siteUrl={siteUrl} width={28} height={28} />}
             </div>
             <div className="truncate flex items-center gap-2">
               <span className="text-xs font-bold text-gray-300 truncate">{casino.name}:</span>
@@ -361,6 +374,7 @@ export function RollcallCard({
       }}
       role="link"
       tabIndex={0}
+      style={{ contentVisibility: "auto", containIntrinsicSize: "0 72px" }}
       className={`group flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-xl border py-2.5 px-3.5 sm:py-3 sm:px-4 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(0,0,0,0.2)] focus:outline-none focus:ring-2 focus:ring-[#79b77f]/60 ${styles.card} ${
         casino.hidden ? "border-dashed opacity-60 grayscale hover:opacity-90" : ""
       }`}
@@ -372,7 +386,7 @@ export function RollcallCard({
           className="group/link flex items-center gap-2.5 sm:gap-3 hover:opacity-85 transition cursor-pointer"
         >
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#294631] text-sm font-bold text-[#9bcf9c] transition group-hover/link:ring-1 group-hover/link:ring-emerald-400">
-            {renderLogo ? renderLogo() : casino.name.slice(0, 2).toUpperCase()}
+            {renderLogo ? renderLogo() : <CasinoLogo name={casino.name} siteUrl={siteUrl} />}
           </div>
           <h2 className="font-semibold text-[#e5eee3] text-sm sm:text-base leading-tight truncate group-hover/link:text-emerald-300 transition">
             {casino.name}
@@ -389,12 +403,28 @@ export function RollcallCard({
               Hidden
             </span>
           )}
-          {renderTrustpilot && renderTrustpilot()}
+          {renderTrustpilot ? (
+            renderTrustpilot()
+          ) : (
+            <a
+              href={`https://www.trustpilot.com/search?query=${encodeURIComponent(casino.name)}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                openInExternalBrowser(`https://www.trustpilot.com/search?query=${encodeURIComponent(casino.name)}`);
+              }}
+              className="text-xs text-[#91bf9b] hover:text-[#c2e4bd]"
+            >
+              <TrustpilotStars rating={rating ?? casino.trustpilotRating} />
+            </a>
+          )}
         </div>
       </div>
 
       {/* Claim Button (when ready) OR Dynamic Countdown Timer (when claimed/snoozed) */}
-      {status.ready ? (
+      {currentStatus.ready ? (
         <button
           type="button"
           onClick={handleClaimClick}
@@ -408,12 +438,12 @@ export function RollcallCard({
         <div className="ml-auto relative flex items-center gap-1.5 shrink-0">
           <div
             aria-label={
-              status.isSnoozed
+              currentStatus.isSnoozed
                 ? `Snoozed · ${formattedCountdown}`
                 : `Resets in ${formattedCountdown}`
             }
             className={`flex items-center justify-center gap-1.5 rounded-lg border px-2.5 sm:px-3 py-1.5 sm:py-2 font-mono text-xs font-semibold shadow-inner ${
-              status.isSnoozed
+              currentStatus.isSnoozed
                 ? "border-amber-700/60 bg-[#1c1810] text-amber-300"
                 : "border-[#3a4c40] bg-[#111c16] text-[#edf5ec]"
             }`}
@@ -423,7 +453,7 @@ export function RollcallCard({
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
             <span>
-              {status.isSnoozed
+              {currentStatus.isSnoozed
                 ? `Snoozed · ${formattedCountdown}`
                 : `Resets in ${formattedCountdown}`}
             </span>
@@ -477,7 +507,7 @@ export function RollcallCard({
                 </button>
 
                 {/* 3. Cancel Snooze (if snoozed) */}
-                {status.isSnoozed && (
+                {currentStatus.isSnoozed && (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -557,7 +587,10 @@ export function RollcallCard({
       <div className="relative flex w-full items-center justify-between gap-2">
         <button
           type="button"
-          onClick={onToggleActionMenu}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleActionMenu?.(casino.id);
+          }}
           aria-label={`More actions for ${casino.name}`}
           aria-expanded={isActionMenuOpen}
           className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#4c6d50] text-[#b7d5b5] hover:bg-[#2a4230]"
@@ -583,5 +616,44 @@ export function RollcallCard({
   );
 }
 
+function areRollcallCardPropsEqual(prev: RollcallCardProps, next: RollcallCardProps): boolean {
+  if (prev.casino !== next.casino) return false;
+  if (prev.isActionMenuOpen !== next.isActionMenuOpen) return false;
+  if (prev.siteUrl !== next.siteUrl) return false;
+  if (prev.rating !== next.rating) return false;
+  if (prev.onClaim !== next.onClaim) return false;
+  if (prev.onConfirmClaim !== next.onConfirmClaim) return false;
+  if (prev.onResetToReady !== next.onResetToReady) return false;
+  if (prev.onCancelSnooze !== next.onCancelSnooze) return false;
+  if (prev.onSnoozeDuration !== next.onSnoozeDuration) return false;
+  if (prev.onSetCustomTimer !== next.onSetCustomTimer) return false;
+  if (prev.onOpenCasino !== next.onOpenCasino) return false;
+  if (prev.onOpenBonus !== next.onOpenBonus) return false;
+  if (prev.onToggleActionMenu !== next.onToggleActionMenu) return false;
+  if (prev.renderLogo !== next.renderLogo) return false;
+  if (prev.renderTrustpilot !== next.renderTrustpilot) return false;
+
+  if (prev.status && next.status) {
+    if (prev.status.ready !== next.status.ready) return false;
+    if (prev.status.state !== next.status.state) return false;
+    if (prev.status.isSnoozed !== next.status.isSnoozed) return false;
+    if (prev.status.ready && next.status.ready) return true;
+    const prevSec = Math.floor(prev.status.remainingMs / 1000);
+    const nextSec = Math.floor(next.status.remainingMs / 1000);
+    if (prevSec !== nextSec) return false;
+    return true;
+  }
+  if (prev.now !== next.now) {
+    if (prev.now !== undefined && next.now !== undefined) {
+      const prevSec = Math.floor(prev.now / 1000);
+      const nextSec = Math.floor(next.now / 1000);
+      return prevSec === nextSec;
+    }
+    return false;
+  }
+  return true;
+}
+
+export const RollcallCard = React.memo(RollcallCardComponent, areRollcallCardPropsEqual);
 export const CasinoCard = RollcallCard;
 export default RollcallCard;

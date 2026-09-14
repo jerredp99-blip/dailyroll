@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   Heart,
   MessageSquare,
@@ -81,7 +81,7 @@ function formatDropTitle(casinoName: string | undefined | null, rawHeadline: str
   return trimmedHeadline.toUpperCase();
 }
 
-export function PostCard({
+function PostCardComponent({
   post,
   currentUserEmail,
   isAdmin,
@@ -98,7 +98,7 @@ export function PostCard({
   onPostUpdated?: (post: Post) => void;
   onPostDeleted?: (postId: string) => void;
   isMenuOpen?: boolean;
-  onToggleMenu?: (open: boolean) => void;
+  onToggleMenu?: (open: boolean, postId?: string) => void;
 }) {
   const [currentPost, setCurrentPost] = useState<Post>(post);
   const [showComments, setShowComments] = useState(false);
@@ -132,6 +132,10 @@ export function PostCard({
   const [internalShowMenu, setInternalShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    setCurrentPost(post);
+  }, [post]);
+
   const handleAddEditTag = (val: string) => {
     if (!val) return;
     const upper = val.trim().toUpperCase();
@@ -147,7 +151,7 @@ export function PostCard({
   const isMenuVisible = isMenuOpen !== undefined ? isMenuOpen : internalShowMenu;
   const setMenuVisible = (open: boolean) => {
     if (onToggleMenu) {
-      onToggleMenu(open);
+      onToggleMenu(open, currentPost.id);
     } else {
       setInternalShowMenu(open);
     }
@@ -388,6 +392,7 @@ export function PostCard({
   return (
     <article
       onClick={handleArticleClick}
+      style={{ contentVisibility: "auto", containIntrinsicSize: "0 72px" }}
       className={`rounded-2xl border ${
         isBonusDrop ? "py-2.5 px-3" : "p-3.5 sm:p-5"
       } backdrop-blur transition ${
@@ -406,6 +411,10 @@ export function PostCard({
             <img
               src={currentPost.authorAvatar}
               alt={currentPost.authorName}
+              width={isBonusDrop ? 24 : 36}
+              height={isBonusDrop ? 24 : 36}
+              loading="lazy"
+              decoding="async"
               className={`${
                 isBonusDrop ? "h-6 w-6" : "h-9 w-9 sm:h-10 sm:w-10"
               } rounded-full object-cover border border-emerald-500/40 shadow-sm shrink-0`}
@@ -817,6 +826,8 @@ export function PostCard({
                   <img
                     src={currentPost.mediaUrl}
                     alt="Post attachment"
+                    loading="lazy"
+                    decoding="async"
                     onError={() => setMediaError(true)}
                     className="max-h-80 sm:max-h-96 w-full object-contain transition hover:opacity-95"
                   />
@@ -1026,3 +1037,6 @@ export function PostCard({
     </article>
   );
 }
+
+export const PostCard = React.memo(PostCardComponent);
+export default PostCard;

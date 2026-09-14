@@ -25,7 +25,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
-import { calculateCasinoStatus, resetCasinoTimers, type CasinoStatus } from "@/lib/timerUtils";
+import { calculateCasinoStatus, resetCasinoTimers, useCurrentTime, type CasinoStatus } from "@/lib/timerUtils";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { SpeedRunModal } from "@/app/components/SpeedRunModal";
@@ -100,6 +100,10 @@ function CasinoLogo({ name = "", siteUrl }: { name?: string; siteUrl?: string })
     <img
       src={logoUrl}
       alt={`${safeName} logo`}
+      width={32}
+      height={32}
+      loading="lazy"
+      decoding="async"
       className="h-8 w-8 object-contain"
       onError={() => setHasError(true)}
     />
@@ -221,7 +225,11 @@ export default function TrackerPage() {
   const router = useRouter();
   const [casinos, setCasinos] = useState<Casino[]>([]);
   const [signedInUser, setSignedInUser] = useState<SignedInUser | null>(null);
-  const [now, setNow] = useState(Date.now);
+  const signedInUserRef = useRef<SignedInUser | null>(null);
+  useEffect(() => {
+    signedInUserRef.current = signedInUser;
+  }, [signedInUser]);
+  const now = useCurrentTime();
   const [name, setName] = useState("");
   const [bonus, setBonus] = useState("");
   const [url, setUrl] = useState("");
@@ -351,25 +359,21 @@ export default function TrackerPage() {
     (async () => {
       let user: SignedInUser | null = null;
       let admin = false;
-      try {
-        const response = await fetch("/api/auth/me", { cache: "no-store" });
-        const data = (await response.json()) as {
-          user: SignedInUser | null;
-          isAdmin: boolean;
-        };
-        user = data.user;
-        admin = data.isAdmin;
-      } catch {
-        // Not signed in.
-      }
-      if (cancelled) return;
 
-      await migrateLegacyLocalStorage();
-      const [saved, directoryData] = await Promise.all([
-        apiGetCasinos(user?.email),
+      const [authData, saved, directoryData] = await Promise.all([
+        fetch("/api/auth/me", { cache: "no-store" })
+          .then((res) => (res.ok ? (res.json() as Promise<{ user: SignedInUser | null; isAdmin: boolean }>) : null))
+          .catch(() => null),
+        apiGetCasinos(),
         apiGetDirectory(),
+        migrateLegacyLocalStorage(),
       ]);
       if (cancelled) return;
+
+      if (authData) {
+        user = authData.user;
+        admin = authData.isAdmin;
+      }
 
       const sharedUrls = directoryData.urls;
       const sharedUrlsByName = Object.fromEntries(
@@ -544,26 +548,24 @@ export default function TrackerPage() {
       }
     })();
 
-    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => {
       cancelled = true;
-      clearInterval(timer);
     };
   }, []);
 
-  function saveCasinos(updated: Casino[]) {
+  const saveCasinos = useCallback((updated: Casino[]) => {
     setCasinos(updated);
-    apiSaveCasinos(signedInUser?.email, updated);
-  }
+    apiSaveCasinos(signedInUserRef.current?.email, updated);
+  }, []);
 
-  function statusFor(casino: Casino): CasinoStatus {
+  const statusFor = useCallback((casino: Casino): CasinoStatus => {
     return calculateCasinoStatus(casino, now);
-  }
+  }, [now]);
 
-  function siteUrlFor(casino?: Casino | null): string | undefined {
+  const siteUrlFor = useCallback((casino?: Casino | null): string | undefined => {
     if (!casino) return undefined;
     return (casino.siteUrl ?? casino.url) || undefined;
-  }
+  }, []);
 
   const handleClaimSuccess = useCallback(
     (casinoId: string, updatedData?: Partial<Casino>) => {
@@ -580,7 +582,7 @@ export default function TrackerPage() {
               }
             : item,
         );
-        apiSaveCasinos(signedInUser?.email, updated);
+        apiSaveCasinos(signedInUserRef.current?.email, updated);
         return updated;
       });
 
@@ -592,41 +594,41 @@ export default function TrackerPage() {
         // ignore
       }
     },
-    [signedInUser?.email],
+    [],
   );
 
-  function markClaimed(casino: Casino) {
+  const markClaimed = useCallback((casino: Casino) => {
     handleClaimSuccess(casino.id);
-  }
+  }, [handleClaimSuccess]);
 
-  function handleUpdateCasino(targetCasino: Casino, updates: Partial<Casino>) {
+  const handleUpdateCasino = useCallback((targetCasino: Casino, updates: Partial<Casino>) => {
     setCasinos((prev) => {
       const updated = prev.map((item) =>
         item.id === targetCasino.id ? { ...item, ...updates } : item,
       );
-      apiSaveCasinos(signedInUser?.email, updated);
+      apiSaveCasinos(signedInUserRef.current?.email, updated);
       return updated;
     });
-  }
+  }, []);
 
-  function handleSnoozeCasino(targetCasino: Casino, snoozedUntil: string) {
+  const handleSnoozeCasino = useCallback((targetCasino: Casino, snoozedUntil: string) => {
     setCasinos((prev) => {
       const updated = prev.map((item) =>
         item.id === targetCasino.id
           ? { ...item, snoozedUntil, targetResetTimestamp: null }
           : item,
       );
-      apiSaveCasinos(signedInUser?.email, updated);
+      apiSaveCasinos(signedInUserRef.current?.email, updated);
       return updated;
     });
-  }
+  }, []);
 
-  function handleSnoozeDuration(targetCasino: Casino, durationMs: number) {
+  const handleSnoozeDuration = useCallback((targetCasino: Casino, durationMs: number) => {
     const snoozedUntil = new Date(Date.now() + durationMs).toISOString();
     handleSnoozeCasino(targetCasino, snoozedUntil);
-  }
+  }, [handleSnoozeCasino]);
 
-  function handleSetCustomTimer(targetCasino: Casino, targetResetTimestamp: number) {
+  const handleSetCustomTimer = useCallback((targetCasino: Casino, targetResetTimestamp: number) => {
     const nowIso = new Date().toISOString();
     setCasinos((prev) => {
       const updated = prev.map((item) =>
@@ -639,12 +641,12 @@ export default function TrackerPage() {
             }
           : item,
       );
-      apiSaveCasinos(signedInUser?.email, updated);
+      apiSaveCasinos(signedInUserRef.current?.email, updated);
       return updated;
     });
-  }
+  }, []);
 
-  function handleResetToReady(targetCasino: Casino) {
+  const handleResetToReady = useCallback((targetCasino: Casino) => {
     setCasinos((prev) => {
       const updated = prev.map((item) =>
         item.id === targetCasino.id
@@ -654,7 +656,7 @@ export default function TrackerPage() {
             }
           : item,
       );
-      apiSaveCasinos(signedInUser?.email, updated);
+      apiSaveCasinos(signedInUserRef.current?.email, updated);
       return updated;
     });
 
@@ -665,9 +667,9 @@ export default function TrackerPage() {
     } catch {
       // ignore
     }
-  }
+  }, []);
 
-  function handleCancelSnooze(targetCasino: Casino) {
+  const handleCancelSnooze = useCallback((targetCasino: Casino) => {
     setCasinos((prev) => {
       const updated = prev.map((item) =>
         item.id === targetCasino.id
@@ -677,10 +679,10 @@ export default function TrackerPage() {
             }
           : item,
       );
-      apiSaveCasinos(signedInUser?.email, updated);
+      apiSaveCasinos(signedInUserRef.current?.email, updated);
       return updated;
     });
-  }
+  }, []);
 
   function handleOpenAllReady() {
     const readyList = casinos.filter((c) => !c.hidden && statusFor(c).ready);
@@ -768,33 +770,39 @@ export default function TrackerPage() {
     setStaggerStatus(null);
   }
 
-  function openCasino(casino: Casino) {
+  const openCasino = useCallback((casino: Casino) => {
     const target = siteUrlFor(casino);
     if (target) openInExternalBrowser(target);
-  }
+  }, [siteUrlFor]);
 
-  function handleClaimFromFeed(casino: Casino) {
+  const handleClaimFromFeed = useCallback((casino: Casino) => {
     // 1. Requirement 3: Ensure user interaction state fires immediately before navigation
     markClaimed(casino);
     const target = casino.claimUrl || siteUrlFor(casino) || "https://google.com";
     openInExternalBrowser(target);
-  }
+  }, [markClaimed, siteUrlFor]);
 
-  function openBonus(casino: Casino) {
+  const openBonus = useCallback((casino: Casino) => {
     if (casino.bonusUrl) openInExternalBrowser(casino.bonusUrl);
-  }
+  }, []);
 
-  function unclaim(casino: Casino) {
+  const unclaim = useCallback((casino: Casino) => {
     handleResetToReady(casino);
-  }
+  }, [handleResetToReady]);
 
-  function toggleHiddenCasino(casino: Casino) {
-    saveCasinos(
-      casinos.map((item) =>
+  const toggleHiddenCasino = useCallback((casino: Casino) => {
+    setCasinos((prev) => {
+      const updated = prev.map((item) =>
         item.id === casino.id ? { ...item, hidden: !item.hidden } : item,
-      ),
-    );
-  }
+      );
+      apiSaveCasinos(signedInUserRef.current?.email, updated);
+      return updated;
+    });
+  }, []);
+
+  const handleToggleActionMenu = useCallback((id: string) => {
+    setOpenActionMenu((open) => (open === id ? null : id));
+  }, []);
 
   const profileInitial = isAdmin ? "A" : signedInUser?.name.trim().charAt(0).toUpperCase() ?? "";
 
@@ -1036,7 +1044,7 @@ export default function TrackerPage() {
     return match ? Number(match[0]) : 0;
   };
 
-  const ratingForCasino = (casinoName: string, recordRating?: number | null) => {
+  const ratingForCasino = useCallback((casinoName: string, recordRating?: number | null) => {
     const matchingName = Object.keys(directoryRatings).find(
       (name) => name.toLowerCase() === casinoName.toLowerCase(),
     );
@@ -1046,7 +1054,7 @@ export default function TrackerPage() {
     }
     const numericRecordRating = Number(recordRating);
     return Number.isFinite(numericRecordRating) ? numericRecordRating : undefined;
-  };
+  }, [directoryRatings]);
 
   const sortedCasinos = casinos
     .filter((casino) => {
@@ -1692,10 +1700,9 @@ export default function TrackerPage() {
                     casino={casino}
                     status={statusFor(casino)}
                     siteUrl={siteUrlFor(casino)}
+                    rating={ratingForCasino(casino.name, casino.trustpilotRating)}
                     isActionMenuOpen={openActionMenu === casino.id}
-                    onToggleActionMenu={() =>
-                      setOpenActionMenu((open) => (open === casino.id ? null : casino.id))
-                    }
+                    onToggleActionMenu={handleToggleActionMenu}
                     onClaim={markClaimed}
                     onConfirmClaim={markClaimed}
                     onResetToReady={handleResetToReady}
@@ -1704,22 +1711,6 @@ export default function TrackerPage() {
                     onSetCustomTimer={handleSetCustomTimer}
                     onOpenCasino={openCasino}
                     onOpenBonus={casino.bonusUrl ? openBonus : undefined}
-                    renderLogo={() => <CasinoLogo name={casino.name} siteUrl={siteUrlFor(casino)} />}
-                    renderTrustpilot={() => (
-                      <a
-                        href={`https://www.trustpilot.com/search?query=${encodeURIComponent(casino.name)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          openInExternalBrowser(`https://www.trustpilot.com/search?query=${encodeURIComponent(casino.name)}`);
-                        }}
-                        className="text-xs text-[#91bf9b] hover:text-[#c2e4bd]"
-                      >
-                        <TrustpilotStars rating={ratingForCasino(casino.name, casino.trustpilotRating)} />
-                      </a>
-                    )}
                   />
                 ))}
                 {sortedCasinos.length === 0 && (

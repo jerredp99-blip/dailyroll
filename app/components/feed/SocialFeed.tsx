@@ -193,19 +193,27 @@ export function SocialFeed({
     fetchPosts(false);
   };
 
-  const handleNewPost = (newPost: Post) => {
+  const handleNewPost = useCallback((newPost: Post) => {
     setPosts((prev) => [newPost, ...prev]);
-  };
+  }, []);
 
-  const handlePostUpdated = (updatedPost: Post) => {
+  const handlePostUpdated = useCallback((updatedPost: Post) => {
     setPosts((prev) =>
       prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
     );
-  };
+  }, []);
 
-  const handlePostDeleted = (deletedId: string) => {
+  const handlePostDeleted = useCallback((deletedId: string) => {
     setPosts((prev) => prev.filter((p) => p.id !== deletedId));
-  };
+  }, []);
+
+  const handleSelectTag = useCallback((tag: string) => {
+    setSelectedTag(tag);
+  }, []);
+
+  const handleToggleMenu = useCallback((open: boolean, postId?: string) => {
+    setOpenMenuPostId(open && postId ? postId : null);
+  }, []);
 
   const handleShareClaim = async (casinoName: string, amount: string) => {
     const casinoTag = `$${casinoName.replace(/\s+/g, "").toUpperCase()}`;
@@ -555,11 +563,11 @@ export function SocialFeed({
                   post={post}
                   currentUserEmail={currentUserEmail}
                   isAdmin={isAdmin}
-                  onSelectTag={(tag) => setSelectedTag(tag)}
+                  onSelectTag={handleSelectTag}
                   onPostUpdated={handlePostUpdated}
                   onPostDeleted={handlePostDeleted}
                   isMenuOpen={openMenuPostId === post.id}
-                  onToggleMenu={(open) => setOpenMenuPostId(open ? post.id : null)}
+                  onToggleMenu={handleToggleMenu}
                 />
               ))}
             </div>

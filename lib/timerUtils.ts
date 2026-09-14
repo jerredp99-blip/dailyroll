@@ -1,4 +1,26 @@
+import React, { useState, useEffect, createContext, useContext } from "react";
 import type { Casino } from "@/types/casino";
+
+export function useCurrentTime(): number {
+  const [now, setNow] = useState(() => (typeof window !== "undefined" ? Date.now() : 0));
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+export const TimeContext = createContext<number>(0);
+
+export function TimeProvider({ children }: { children: React.ReactNode }) {
+  const now = useCurrentTime();
+  return React.createElement(TimeContext.Provider, { value: now }, children);
+}
+
+export function useCurrentTimeContext(): number {
+  const ctx = useContext(TimeContext);
+  return ctx || Date.now();
+}
 
 export type StatusState = "ready" | "pending" | "claimed";
 

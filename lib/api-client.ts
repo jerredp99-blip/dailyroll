@@ -67,10 +67,8 @@ export async function apiSaveProfile(
 }
 
 export async function apiGetCasinos(key?: string | null): Promise<Casino[] | null> {
-  const res = await fetch(
-    `/api/casinos?key=${encodeURIComponent(key || "admin")}`,
-    NO_CACHE_FETCH_OPTIONS,
-  );
+  const url = key ? `/api/casinos?key=${encodeURIComponent(key)}` : `/api/casinos`;
+  const res = await fetch(url, NO_CACHE_FETCH_OPTIONS);
   const data = await readApiResponse<{ casinos: Casino[] | null }>(res);
   return data.casinos;
 }
