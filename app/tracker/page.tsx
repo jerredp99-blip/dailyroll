@@ -32,6 +32,7 @@ import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { SpeedRunModal } from "@/app/components/SpeedRunModal";
 import { SpeedRunErrorBoundary } from "@/components/SpeedRunErrorBoundary";
 import { AddCasinosModal } from "@/components/AddCasinosModal";
+import { CustomTimerModal } from "@/components/CustomTimerModal";
 import { getCasinoDefaultMetadata, MASTER_CASINOS_DATA } from "@/lib/casinosData";
 // import { BankrollSummary } from "@/app/components/BankrollSummary";
 import {
@@ -340,8 +341,9 @@ export default function TrackerPage() {
   const [editBonus, setEditBonus] = useState("");
   const [editTrustpilotRating, setEditTrustpilotRating] = useState("");
   const [editUseSpecificReset, setEditUseSpecificReset] = useState(false);
-    const [editResetTime, setEditResetTime] = useState("00:00");
+  const [editResetTime, setEditResetTime] = useState("00:00");
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
+  const [customTimerCasino, setCustomTimerCasino] = useState<Casino | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [casinoFilter, setCasinoFilter] = useState<"all" | "ready" | "claimed">("all");
@@ -1916,7 +1918,6 @@ export default function TrackerPage() {
                 </div>
               </div>
 
-              {/* Compact Filter & Sort Toolbar Row */}
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-3.5 py-2 text-xs text-zinc-400 shadow-sm backdrop-blur-sm">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <div className="flex items-center gap-1.5">
@@ -2057,6 +2058,17 @@ export default function TrackerPage() {
                 >
                   <RotateCcw size={16} /> Mark as Ready to Claim
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = actionCasino;
+                    setOpenActionMenu(null);
+                    setCustomTimerCasino(target);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-xl border border-zinc-700/80 px-4 py-3 text-left text-sm font-semibold text-zinc-200 hover:bg-zinc-800"
+                >
+                  <Clock size={16} className="text-[#f0a03c]" /> Set Custom Timer
+                </button>
                 {actionCasino.snoozedUntil && (
                   <button
                     type="button"
@@ -2083,6 +2095,19 @@ export default function TrackerPage() {
             </div>
           </div>
         )}
+      {customTimerCasino && (
+        <CustomTimerModal
+          isOpen={Boolean(customTimerCasino)}
+          casino={customTimerCasino}
+          currentRemainingMs={statusFor(customTimerCasino).remainingMs}
+          onClose={() => setCustomTimerCasino(null)}
+          onSave={(target, targetResetTimestamp) => {
+            const casinoObj = typeof target === "string" ? customTimerCasino : target;
+            handleSetCustomTimer(casinoObj, targetResetTimestamp);
+            setCustomTimerCasino(null);
+          }}
+        />
+      )}
       {editingCasino && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3.5 sm:p-5 backdrop-blur-sm"
