@@ -85,32 +85,45 @@ export function TopBar() {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 sm:gap-4 px-3 py-2.5 sm:px-8 sm:py-4 lg:px-16 min-w-0">
         <Logo className="shrink-0" />
 
-        {/* Centered Available & Claimed SC Balance Pill */}
+        {/* Centered Available & Claimed SC Motivation Badge */}
         {pathname === "/tracker" && scTotals && (
-          <div className="flex items-center gap-2 sm:gap-2.5 px-2.5 sm:px-3 py-0.5 sm:py-1 bg-zinc-900/90 border border-zinc-800 rounded-full text-[11px] sm:text-xs font-mono backdrop-blur-md shrink-0 shadow-sm">
-            <div className="flex items-baseline">
-              <span className="text-emerald-400 font-bold tracking-tight">
+          <div className="flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl bg-zinc-900/90 border border-zinc-800 shadow-lg shadow-black/40 backdrop-blur-md shrink-0 select-none">
+            {/* Available SC (The Reward / Call-to-Action) */}
+            <div className="flex flex-col items-center leading-tight">
+              <span
+                className={`font-mono text-sm sm:text-base tracking-tight ${
+                  scTotals.available > 0
+                    ? "text-emerald-400 font-black drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]"
+                    : "text-zinc-400 font-extrabold"
+                }`}
+              >
                 {scTotals.available.toFixed(2)} SC
               </span>
-              <span className="text-[10px] text-zinc-400 font-sans uppercase ml-0.5 sm:ml-1">
-                Avail
+              <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-emerald-400/80 mt-0.5">
+                <span className="hidden sm:inline">READY TO CLAIM</span>
+                <span className="sm:hidden">AVAIL</span>
               </span>
             </div>
-            <div className="h-3 w-px bg-zinc-800 mx-0.5 sm:mx-1 shrink-0" />
-            <div className="flex items-baseline">
-              <span className="text-zinc-200 font-bold tracking-tight">
+
+            {/* Vertical Divider */}
+            <div className="h-6 w-px bg-zinc-700/60 mx-0.5 shrink-0" />
+
+            {/* Claimed SC (The Daily Streak / Score) */}
+            <div className="flex flex-col items-center leading-tight">
+              <span className="text-zinc-100 font-extrabold font-mono text-sm sm:text-base tracking-tight">
                 {scTotals.claimedToday.toFixed(2)} SC
               </span>
-              <span className="text-[10px] text-zinc-400 font-sans uppercase ml-0.5 sm:ml-1">
-                Claimed
+              <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-zinc-400 mt-0.5">
+                <span className="hidden sm:inline">CLAIMED TODAY</span>
+                <span className="sm:hidden">SECURED</span>
               </span>
             </div>
           </div>
         )}
 
         <div
-          className={`flex items-center gap-2.5 sm:gap-3.5 transition-all shrink-0 ${
-            pathname === "/tracker" ? "pr-12 sm:pr-14" : ""
+          className={`flex items-center gap-2 sm:gap-3.5 transition-all shrink-0 ${
+            pathname === "/tracker" ? "sm:pr-14" : ""
           }`}
         >
           {(signedInUser || isAdmin) && pathname !== "/tracker" && (
@@ -129,7 +142,7 @@ export function TopBar() {
               Admin
             </Link>
           )}
-          {(signedInUser || isAdmin) && pathname !== "/tracker" && (
+          {(signedInUser || isAdmin) && (
             <Link
               href="/profile"
               title={signedInUser?.name ? `${signedInUser.name} (Profile)` : "View Profile"}
