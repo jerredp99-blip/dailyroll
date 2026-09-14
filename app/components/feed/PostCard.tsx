@@ -392,7 +392,7 @@ function PostCardComponent({
   return (
     <article
       onClick={handleArticleClick}
-      style={{ contentVisibility: "auto", containIntrinsicSize: "0 72px" }}
+      style={{ contentVisibility: "auto", containIntrinsicSize: "0 120px" }}
       className={`rounded-2xl border ${
         isBonusDrop ? "py-2.5 px-3" : "p-3.5 sm:p-5"
       } backdrop-blur transition ${

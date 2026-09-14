@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Clock, ExternalLink, Zap, Flame } from "lucide-react";
 import type { Casino } from "@/lib/store";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
-import { calculateCasinoStatus } from "@/lib/timerUtils";
+import { calculateCasinoStatus, useCurrentTimeContext } from "@/lib/timerUtils";
 
 export function CompactTrackerSidebar({
   casinos: propCasinos,
@@ -19,13 +19,7 @@ export function CompactTrackerSidebar({
 }) {
   const [internalCasinos, setInternalCasinos] = useState<Casino[]>([]);
   const [loading, setLoading] = useState(false);
-  const [now, setNow] = useState<number>(Date.now());
-
-  // Second ticker to keep remaining countdowns live
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const now = useCurrentTimeContext();
 
   // Fetch only if propCasinos is not supplied by parent
   useEffect(() => {

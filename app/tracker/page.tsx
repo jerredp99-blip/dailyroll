@@ -234,6 +234,71 @@ export default function TrackerPage() {
     signedInUserRef.current = signedInUser;
   }, [signedInUser]);
   const now = useCurrentTime();
+  const [pendingClaims, setPendingClaims] = useState<Record<string, { expiresAt: number; isDefocused: boolean }>>({});
+
+  // Global Defocus Detection for 90-Second Pending Claims
+  useEffect(() => {
+    const handleDefocusAll = () => {
+      setPendingClaims((prev) => {
+        let changed = false;
+        const next: Record<string, { expiresAt: number; isDefocused: boolean }> = {};
+        for (const [id, claim] of Object.entries(prev)) {
+          if (!claim.isDefocused) {
+            next[id] = { ...claim, isDefocused: true };
+            changed = true;
+          } else {
+            next[id] = claim;
+          }
+        }
+        return changed ? next : prev;
+      });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        handleDefocusAll();
+      }
+    };
+
+    const handleDocumentMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const pendingCard = target.closest("[data-pending-card='true']");
+      if (pendingCard) {
+        const clickedId = pendingCard.getAttribute("data-pending-id");
+        if (clickedId) {
+          setPendingClaims((prev) => {
+            let changed = false;
+            const next: Record<string, { expiresAt: number; isDefocused: boolean }> = {};
+            for (const [id, claim] of Object.entries(prev)) {
+              const shouldBeDefocused = id !== clickedId;
+              if (claim.isDefocused !== shouldBeDefocused) {
+                next[id] = { ...claim, isDefocused: shouldBeDefocused };
+                changed = true;
+              } else {
+                next[id] = claim;
+              }
+            }
+            return changed ? next : prev;
+          });
+          return;
+        }
+      }
+
+      // Clicked outside any pending card
+      handleDefocusAll();
+    };
+
+    window.addEventListener("blur", handleDefocusAll);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("mousedown", handleDocumentMouseDown);
+
+    return () => {
+      window.removeEventListener("blur", handleDefocusAll);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("mousedown", handleDocumentMouseDown);
+    };
+  }, []);
   const [name, setName] = useState("");
   const [bonus, setBonus] = useState("");
   const [url, setUrl] = useState("");
@@ -635,6 +700,68 @@ export default function TrackerPage() {
     handleClaimSuccess(casino.id);
   }, [handleClaimSuccess]);
 
+  // Auto-Commit Pending Claims at 0s (expiresAt <= now)
+  useEffect(() => {
+    const expiredIds: string[] = [];
+    for (const [id, claim] of Object.entries(pendingClaims)) {
+      if (now >= claim.expiresAt) {
+        expiredIds.push(id);
+      }
+    }
+    if (expiredIds.length > 0) {
+      setPendingClaims((prev) => {
+        const next = { ...prev };
+        for (const id of expiredIds) {
+          delete next[id];
+        }
+        return next;
+      });
+      for (const id of expiredIds) {
+        const targetCasino = casinos.find((c) => c.id === id);
+        if (targetCasino) {
+          markClaimed(targetCasino);
+        }
+      }
+    }
+  }, [now, pendingClaims, casinos, markClaimed]);
+
+  const handleInitiateClaim = useCallback((casino: Casino) => {
+    const target = casino.claimUrl ?? siteUrlFor(casino);
+    if (target) {
+      openInExternalBrowser(target);
+    }
+    setPendingClaims((prev) => {
+      const next: Record<string, { expiresAt: number; isDefocused: boolean }> = {};
+      for (const id of Object.keys(prev)) {
+        next[id] = { ...prev[id], isDefocused: true };
+      }
+      next[casino.id] = {
+        expiresAt: Date.now() + 90000,
+        isDefocused: false,
+      };
+      return next;
+    });
+  }, [siteUrlFor]);
+
+  const handleConfirmClaim = useCallback((casino: Casino) => {
+    setPendingClaims((prev) => {
+      if (!prev[casino.id]) return prev;
+      const next = { ...prev };
+      delete next[casino.id];
+      return next;
+    });
+    markClaimed(casino);
+  }, [markClaimed]);
+
+  const handleUndoClaim = useCallback((casino: Casino) => {
+    setPendingClaims((prev) => {
+      if (!prev[casino.id]) return prev;
+      const next = { ...prev };
+      delete next[casino.id];
+      return next;
+    });
+  }, []);
+
   const handleUpdateCasino = useCallback((targetCasino: Casino, updates: Partial<Casino>) => {
     setCasinos((prev) => {
       const updated = prev.map((item) =>
@@ -658,11 +785,23 @@ export default function TrackerPage() {
   }, []);
 
   const handleSnoozeDuration = useCallback((targetCasino: Casino, durationMs: number) => {
+    setPendingClaims((prev) => {
+      if (!prev[targetCasino.id]) return prev;
+      const next = { ...prev };
+      delete next[targetCasino.id];
+      return next;
+    });
     const snoozedUntil = new Date(Date.now() + durationMs).toISOString();
     handleSnoozeCasino(targetCasino, snoozedUntil);
   }, [handleSnoozeCasino]);
 
   const handleSetCustomTimer = useCallback((targetCasino: Casino, targetResetTimestamp: number) => {
+    setPendingClaims((prev) => {
+      if (!prev[targetCasino.id]) return prev;
+      const next = { ...prev };
+      delete next[targetCasino.id];
+      return next;
+    });
     const nowIso = new Date().toISOString();
     setCasinos((prev) => {
       const updated = prev.map((item) =>
@@ -681,6 +820,12 @@ export default function TrackerPage() {
   }, []);
 
   const handleResetToReady = useCallback((targetCasino: Casino) => {
+    setPendingClaims((prev) => {
+      if (!prev[targetCasino.id]) return prev;
+      const next = { ...prev };
+      delete next[targetCasino.id];
+      return next;
+    });
     setCasinos((prev) => {
       const updated = prev.map((item) =>
         item.id === targetCasino.id
@@ -704,6 +849,12 @@ export default function TrackerPage() {
   }, []);
 
   const handleCancelSnooze = useCallback((targetCasino: Casino) => {
+    setPendingClaims((prev) => {
+      if (!prev[targetCasino.id]) return prev;
+      const next = { ...prev };
+      delete next[targetCasino.id];
+      return next;
+    });
     setCasinos((prev) => {
       const updated = prev.map((item) =>
         item.id === targetCasino.id
@@ -1100,11 +1251,40 @@ export default function TrackerPage() {
   const sortedCasinos = casinos
     .filter((casino) => {
       if (!showHidden && casino.hidden) return false;
-      if (casinoFilter === "ready") return statusFor(casino).ready;
-      if (casinoFilter === "claimed") return !statusFor(casino).ready;
+      const isPending = Boolean(pendingClaims[casino.id]);
+      const isReady = statusFor(casino).ready;
+      if (casinoFilter === "ready") return isReady || isPending;
+      if (casinoFilter === "claimed") return !isReady && !isPending;
       return true;
     })
     .sort((firstCasino, secondCasino) => {
+      const firstPending = pendingClaims[firstCasino.id];
+      const secondPending = pendingClaims[secondCasino.id];
+
+      // 4-tier ranking:
+      // Rank 0: Focused pending claim (active at top)
+      // Rank 1: Ready cards
+      // Rank 2: Defocused pending claim (below all ready cards, above completed/cooldown cards)
+      // Rank 3: Cooldown/Claimed cards
+      const getRank = (casino: Casino, pending?: { expiresAt: number; isDefocused: boolean }) => {
+        if (pending) {
+          return pending.isDefocused ? 2 : 0;
+        }
+        return statusFor(casino).ready ? 1 : 3;
+      };
+
+      const rank1 = getRank(firstCasino, firstPending);
+      const rank2 = getRank(secondCasino, secondPending);
+
+      if (rank1 !== rank2) {
+        return rank1 - rank2;
+      }
+
+      // If both are in pending tier (0 or 2), sort by expiresAt (soonest to expire first)
+      if (rank1 === 0 || rank1 === 2) {
+        return (firstPending?.expiresAt ?? 0) - (secondPending?.expiresAt ?? 0);
+      }
+
       if (casinoSort === "name-asc") {
         return firstCasino.name.localeCompare(secondCasino.name);
       }
@@ -1793,14 +1973,16 @@ export default function TrackerPage() {
                     rating={ratingForCasino(casino.name, casino.trustpilotRating)}
                     isActionMenuOpen={openActionMenu === casino.id}
                     onToggleActionMenu={handleToggleActionMenu}
-                    onClaim={markClaimed}
-                    onConfirmClaim={markClaimed}
+                    onClaim={handleInitiateClaim}
+                    onConfirmClaim={handleConfirmClaim}
+                    onUndoClaim={handleUndoClaim}
                     onResetToReady={handleResetToReady}
                     onCancelSnooze={handleCancelSnooze}
                     onSnoozeDuration={handleSnoozeDuration}
                     onSetCustomTimer={handleSetCustomTimer}
                     onOpenCasino={openCasino}
                     onOpenBonus={casino.bonusUrl ? openBonus : undefined}
+                    pendingInfo={pendingClaims[casino.id]}
                   />
                 ))}
                 {sortedCasinos.length === 0 && (

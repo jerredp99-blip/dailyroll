@@ -52,6 +52,7 @@ export interface RollcallCardProps {
   onToggleActionMenu?: (id: string) => void;
   onClaim: (casino: Casino) => void;
   onConfirmClaim?: (casino: Casino) => void;
+  onUndoClaim?: (casino: Casino) => void;
   onResetToReady?: (casino: Casino) => void;
   onCancelSnooze?: (casino: Casino) => void;
   onSnoozeDuration?: (casino: Casino, durationMs: number) => void;
@@ -60,6 +61,7 @@ export interface RollcallCardProps {
   onOpenBonus?: (casino: Casino) => void;
   renderLogo?: () => React.ReactNode;
   renderTrustpilot?: () => React.ReactNode;
+  pendingInfo?: { expiresAt: number; isDefocused: boolean };
 }
 
 function RollcallCardComponent({
@@ -72,6 +74,7 @@ function RollcallCardComponent({
   onToggleActionMenu,
   onClaim,
   onConfirmClaim,
+  onUndoClaim,
   onResetToReady,
   onCancelSnooze,
   onSnoozeDuration,
@@ -80,12 +83,8 @@ function RollcallCardComponent({
   onOpenBonus,
   renderLogo,
   renderTrustpilot,
+  pendingInfo,
 }: RollcallCardProps) {
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [showCustomTimer, setShowCustomTimer] = useState(false);
-  const [customHours, setCustomHours] = useState("");
-  const [customMinutes, setCustomMinutes] = useState("");
-  const [snoozeSelection, setSnoozeSelection] = useState("");
   const [isCardMenuOpen, setIsCardMenuOpen] = useState(false);
   const [isCustomTimerOpen, setIsCustomTimerOpen] = useState(false);
   const cardMenuRef = useRef<HTMLDivElement>(null);
@@ -96,6 +95,9 @@ function RollcallCardComponent({
 
   const styles = STATUS_STYLES[currentStatus.state];
   const formattedCountdown = formatRemainingTimer(currentStatus.remainingMs);
+
+  const isPending = Boolean(pendingInfo);
+  const isDefocused = Boolean(pendingInfo?.isDefocused);
 
   // Close kebab menu on outside click or ESC key
   useEffect(() => {
@@ -122,225 +124,41 @@ function RollcallCardComponent({
   const handleClaimClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    // 1. Launch external casino link
     const target = casino.claimUrl ?? siteUrl;
     if (target) {
       openInExternalBrowser(target);
     }
-    // 2. Open inline verification overlay without modifying database yet
-    setIsVerifying(true);
-  };
-
-  const handleDismissVerification = (event?: React.MouseEvent) => {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    setIsVerifying(false);
-    setShowCustomTimer(false);
-    setSnoozeSelection("");
-    onResetToReady?.(casino);
-  };
-
-  const handleConfirmClaimed = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsVerifying(false);
-    setShowCustomTimer(false);
-    setSnoozeSelection("");
-    if (onConfirmClaim) {
-      onConfirmClaim(casino);
-    } else {
-      onClaim(casino);
-    }
-  };
-
-  const handleNotClaimed = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsVerifying(false);
-    setShowCustomTimer(false);
-    setSnoozeSelection("");
-    onResetToReady?.(casino);
-  };
-
-  const handleSnoozeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    event.stopPropagation();
-    const durationMs = Number(event.target.value);
-    if (!durationMs) return;
-    setIsVerifying(false);
-    setShowCustomTimer(false);
-    setSnoozeSelection("");
-    if (onSnoozeDuration) {
-      onSnoozeDuration(casino, durationMs);
-    }
-  };
-
-  const handleApplyCustomTimer = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const h = parseInt(customHours || "0", 10);
-    const m = parseInt(customMinutes || "0", 10);
-    if (isNaN(h) && isNaN(m)) return;
-    const targetReset = calculateCustomResetTimestamp(Math.max(0, h || 0), Math.max(0, m || 0));
-    setIsVerifying(false);
-    setShowCustomTimer(false);
-    setCustomHours("");
-    setCustomMinutes("");
-    setSnoozeSelection("");
-    if (onSetCustomTimer) {
-      onSetCustomTimer(casino, targetReset);
-    }
+    onClaim(casino);
   };
 
   // -------------------------------------------------------------
-  // Verification Mode Card View
-  // -------------------------------------------------------------
-  if (isVerifying) {
-    return (
-      <article
-        onClick={(e) => e.stopPropagation()}
-        style={{ contentVisibility: "auto", containIntrinsicSize: "0 72px" }}
-        className="relative overflow-hidden rounded-xl border border-emerald-500/80 bg-gradient-to-br from-[#12281c] via-[#0f2117] to-[#12281c] p-3 sm:p-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition duration-200 ring-1 ring-emerald-500/50"
-      >
-        {/* Top Header Row: Casino Name + Question + Close (X) */}
-        <div className="flex items-center justify-between gap-2 border-b border-emerald-900/60 pb-2.5">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[#294631] text-xs font-bold text-[#9bcf9c]">
-              {renderLogo ? renderLogo() : <CasinoLogo name={casino.name} siteUrl={siteUrl} width={28} height={28} />}
-            </div>
-            <div className="truncate flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-300 truncate">{casino.name}:</span>
-              <span className="text-xs font-extrabold text-emerald-300">Did you claim it?</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleDismissVerification}
-            aria-label="Cancel verification"
-            title="Cancel verification"
-            className="rounded-md p-1 text-gray-400 hover:bg-emerald-950/60 hover:text-white transition cursor-pointer"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Action Controls Row */}
-        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            {/* Primary: Yes, Claimed */}
-            <button
-              type="button"
-              onClick={handleConfirmClaimed}
-              className="flex items-center gap-1.5 rounded-lg bg-[#39ff6a] px-3 py-1.5 text-xs font-extrabold text-[#0d1712] shadow-[0_4px_12px_rgba(57,255,106,0.3)] transition hover:bg-[#5aff84] hover:shadow-[0_6px_16px_rgba(57,255,106,0.4)] active:scale-95 cursor-pointer"
-            >
-              <CheckCircle2 size={14} strokeWidth={2.5} />
-              <span>Yes, Claimed</span>
-            </button>
-
-            {/* Secondary: Not Claimed */}
-            <button
-              type="button"
-              onClick={handleNotClaimed}
-              className="rounded-lg border border-[#395040] bg-[#14221a] px-2.5 py-1.5 text-xs font-semibold text-gray-300 transition hover:bg-[#1c3024] hover:text-white active:scale-95 cursor-pointer"
-            >
-              Not Claimed
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 ml-auto">
-            {/* Tertiary 1: Snooze Dropdown */}
-            <select
-              value={snoozeSelection}
-              onChange={handleSnoozeChange}
-              aria-label="Snooze casino"
-              className="h-7 rounded-lg border border-amber-600/50 bg-[#1e1b13] px-2 text-[11px] font-semibold text-amber-300 outline-none hover:border-amber-500 focus:border-amber-400 cursor-pointer"
-            >
-              <option value="">⏱ Snooze...</option>
-              {SNOOZE_PRESETS.map((preset) => (
-                <option key={preset.ms} value={preset.ms}>
-                  {preset.label}
-                </option>
-              ))}
-            </select>
-
-            {/* Tertiary 2: Set Custom Timer Toggle */}
-            <button
-              type="button"
-              onClick={() => setShowCustomTimer((prev) => !prev)}
-              title="Set exact cooldown time left"
-              className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition cursor-pointer ${
-                showCustomTimer
-                  ? "border-emerald-500 bg-emerald-950/70 text-emerald-300"
-                  : "border-[#395040] bg-[#14221a] text-[#8ea794] hover:border-[#4c6d50] hover:text-white"
-              }`}
-            >
-              <Clock size={12} />
-              <span>Set Timer</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Expandable Exact Time Left Row */}
-        {showCustomTimer && (
-          <div className="mt-2.5 flex flex-wrap items-center gap-2 rounded-lg border border-emerald-900/60 bg-[#0a1610] p-2 text-xs">
-            <span className="text-[11px] font-semibold text-[#8ea794]">Exact time left:</span>
-            <div className="flex items-center gap-1">
-              <input
-                type="number"
-                min="0"
-                max="72"
-                placeholder="0"
-                value={customHours}
-                onChange={(e) => setCustomHours(e.target.value)}
-                className="w-12 rounded border border-[#395040] bg-[#101e16] px-1.5 py-0.5 text-center text-xs text-white outline-none focus:border-emerald-400"
-              />
-              <span className="text-[11px] text-gray-400">h</span>
-              <input
-                type="number"
-                min="0"
-                max="59"
-                placeholder="0"
-                value={customMinutes}
-                onChange={(e) => setCustomMinutes(e.target.value)}
-                className="w-12 rounded border border-[#395040] bg-[#101e16] px-1.5 py-0.5 text-center text-xs text-white outline-none focus:border-emerald-400"
-              />
-              <span className="text-[11px] text-gray-400">m</span>
-            </div>
-            <button
-              type="button"
-              onClick={handleApplyCustomTimer}
-              className="ml-auto rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white transition hover:bg-emerald-500 cursor-pointer"
-            >
-              Apply Timer
-            </button>
-          </div>
-        )}
-      </article>
-    );
-  }
-
-  // -------------------------------------------------------------
-  // Default Card View
+  // Card View (Normal & Pending Modes)
   // -------------------------------------------------------------
   return (
     <article
+      data-pending-card={isPending ? "true" : undefined}
+      data-pending-id={isPending ? casino.id : undefined}
       onClick={(event) => {
         if ((event.target as HTMLElement).closest("button, a, input, select, textarea, [role='button']")) return;
+        if (isPending) return;
         onOpenCasino(casino);
       }}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onOpenCasino(casino);
+          if (!isPending) onOpenCasino(casino);
         }
       }}
-      role="link"
+      role="article"
       tabIndex={0}
       style={{ contentVisibility: "auto", containIntrinsicSize: "0 72px" }}
-      className={`group flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-xl border py-2.5 px-3.5 sm:py-3 sm:px-4 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(0,0,0,0.2)] focus:outline-none focus:ring-2 focus:ring-[#79b77f]/60 ${styles.card} ${
-        casino.hidden ? "border-dashed opacity-60 grayscale hover:opacity-90" : ""
-      }`}
+      className={`group flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-xl border py-2.5 px-3.5 sm:py-3 sm:px-4 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(0,0,0,0.2)] focus:outline-none focus:ring-2 focus:ring-[#79b77f]/60 ${
+        isPending
+          ? isDefocused
+            ? "border-emerald-700/50 bg-[#101e16] shadow-sm"
+            : "border-emerald-500/80 bg-gradient-to-r from-[#14281e] via-[#102219] to-[#14281e] shadow-[0_4px_20px_rgba(16,185,129,0.18)] ring-1 ring-emerald-500/60"
+          : styles.card
+      } ${casino.hidden ? "border-dashed opacity-60 grayscale hover:opacity-90" : ""}`}
     >
       <div className="flex items-center gap-3">
         <Link
@@ -396,8 +214,85 @@ function RollcallCardComponent({
         </div>
       </div>
 
-      {/* Claim Button (when ready) OR Dynamic Countdown Timer (when claimed/snoozed) */}
-      {currentStatus.ready ? (
+      {/* Action / Countdown / Pending Controls */}
+      {isPending ? (
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {/* Pulsing Dot + Live 90s Countdown */}
+          <div className="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-[#0c1a13] px-2.5 py-1.5 font-mono text-xs font-semibold text-emerald-300 shadow-inner shrink-0">
+            <span className="relative flex h-2 w-2 mr-0.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span>
+              Confirming in {Math.max(0, Math.ceil((pendingInfo!.expiresAt - currentNow) / 1000))}s...
+            </span>
+          </div>
+
+          {/* [Claimed ✓] Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (onConfirmClaim) onConfirmClaim(casino);
+              else onClaim(casino);
+            }}
+            className="flex items-center gap-1.5 rounded-lg bg-[#39ff6a] hover:bg-[#5aff84] px-3 py-1.5 text-xs font-extrabold text-[#0d1712] shadow-[0_4px_12px_rgba(57,255,106,0.3)] transition active:scale-95 cursor-pointer shrink-0"
+          >
+            <CheckCircle2 size={14} strokeWidth={2.5} />
+            <span>Claimed ✓</span>
+          </button>
+
+          {/* [Didn't Claim / Undo] Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onUndoClaim?.(casino);
+            }}
+            className="rounded-lg border border-[#395040] bg-[#14221a] hover:bg-[#1c3024] hover:text-white px-2.5 py-1.5 text-xs font-semibold text-gray-300 transition active:scale-95 cursor-pointer shrink-0"
+          >
+            Didn't Claim / Undo
+          </button>
+
+          {/* [Snooze ⌵] Select */}
+          <select
+            value=""
+            onChange={(e) => {
+              e.stopPropagation();
+              const durationMs = Number(e.target.value);
+              if (durationMs && onSnoozeDuration) {
+                onSnoozeDuration(casino, durationMs);
+              }
+            }}
+            aria-label="Snooze casino"
+            className="h-8 rounded-lg border border-amber-600/50 bg-[#1e1b13] px-2 text-xs font-semibold text-amber-300 outline-none hover:border-amber-500 focus:border-amber-400 cursor-pointer shrink-0"
+          >
+            <option value="">Snooze ⌵</option>
+            {SNOOZE_PRESETS.map((preset) => (
+              <option key={preset.ms} value={preset.ms} className="bg-[#101b15] text-white">
+                {preset.label}
+              </option>
+            ))}
+          </select>
+
+          {/* [Custom Timer] Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsCustomTimerOpen(true);
+            }}
+            title="Set custom cooldown timer"
+            className="flex items-center gap-1 rounded-lg border border-emerald-800/60 bg-[#14231b] hover:bg-[#1c3226] text-emerald-300 hover:text-white px-2.5 py-1.5 text-xs font-medium transition cursor-pointer shrink-0"
+          >
+            <Clock size={13} />
+            <span>Custom Timer</span>
+          </button>
+        </div>
+      ) : currentStatus.ready ? (
         <button
           type="button"
           onClick={handleClaimClick}
@@ -567,6 +462,7 @@ function areRollcallCardPropsEqual(prev: RollcallCardProps, next: RollcallCardPr
   if (prev.rating !== next.rating) return false;
   if (prev.onClaim !== next.onClaim) return false;
   if (prev.onConfirmClaim !== next.onConfirmClaim) return false;
+  if (prev.onUndoClaim !== next.onUndoClaim) return false;
   if (prev.onResetToReady !== next.onResetToReady) return false;
   if (prev.onCancelSnooze !== next.onCancelSnooze) return false;
   if (prev.onSnoozeDuration !== next.onSnoozeDuration) return false;
@@ -576,6 +472,17 @@ function areRollcallCardPropsEqual(prev: RollcallCardProps, next: RollcallCardPr
   if (prev.onToggleActionMenu !== next.onToggleActionMenu) return false;
   if (prev.renderLogo !== next.renderLogo) return false;
   if (prev.renderTrustpilot !== next.renderTrustpilot) return false;
+
+  const prevPending = prev.pendingInfo;
+  const nextPending = next.pendingInfo;
+  if (Boolean(prevPending) !== Boolean(nextPending)) return false;
+  if (prevPending && nextPending) {
+    if (prevPending.isDefocused !== nextPending.isDefocused) return false;
+    if (prevPending.expiresAt !== nextPending.expiresAt) return false;
+    const prevSec = Math.max(0, Math.ceil((prevPending.expiresAt - (prev.now ?? 0)) / 1000));
+    const nextSec = Math.max(0, Math.ceil((nextPending.expiresAt - (next.now ?? 0)) / 1000));
+    if (prevSec !== nextSec) return false;
+  }
 
   if (prev.status && next.status) {
     if (prev.status.ready !== next.status.ready) return false;
