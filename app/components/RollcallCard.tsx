@@ -341,19 +341,26 @@ function RollcallCardComponent({
             </>
           ) : (
             <>
-              {/* Scaled-down Countdown Timer Badge */}
-              <div
+              {/* Scaled-down Countdown Timer Badge (click to override timer) */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsCustomTimerOpen(true);
+                }}
+                title="Click to override timer"
                 aria-label={
                   currentStatus.isSnoozed
-                    ? `Snoozed · ${formattedCountdown}`
-                    : `Resets in ${formattedCountdown}`
+                    ? `Snoozed · ${formattedCountdown}. Click to override timer`
+                    : `Resets in ${formattedCountdown}. Click to override timer`
                 }
-                className={`h-7 py-1 px-2.5 rounded-md border flex items-center justify-center gap-1.5 font-mono text-[11px] font-medium tracking-tight shadow-inner shrink-0 ${
+                className={`h-7 py-1 px-2.5 rounded-md border flex items-center justify-center gap-1.5 font-mono text-[11px] font-medium tracking-tight shadow-inner shrink-0 cursor-pointer hover:border-emerald-500/60 transition active:scale-95 ${
                   currentStatus.isSnoozed
-                    ? "border-amber-700/60 bg-amber-950/30 text-amber-300"
+                    ? "border-amber-700/60 bg-amber-950/30 text-amber-300 hover:bg-amber-950/50"
                     : currentStatus.remainingMs < 3600000
-                    ? "border-amber-700/60 bg-amber-950/60 text-amber-300"
-                    : "border-rose-800/60 bg-rose-950/60 text-rose-300"
+                    ? "border-amber-700/60 bg-amber-950/60 text-amber-300 hover:bg-amber-950/80"
+                    : "border-rose-800/60 bg-rose-950/60 text-rose-300 hover:bg-rose-950/80"
                 }`}
               >
                 <span className="relative flex h-1.5 w-1.5 mr-1.5 shrink-0">
@@ -371,7 +378,7 @@ function RollcallCardComponent({
                     ? `Snoozed · ${formattedCountdown}`
                     : `Resets in ${formattedCountdown}`}
                 </span>
-              </div>
+              </button>
 
               {/* Inline Kebab Button (kept to the right when on cooldown/timer) */}
               <button
@@ -409,6 +416,9 @@ function RollcallCardComponent({
 
 function areRollcallCardPropsEqual(prev: RollcallCardProps, next: RollcallCardProps): boolean {
   if (prev.casino !== next.casino) return false;
+  if (prev.casino.targetResetTimestamp !== next.casino.targetResetTimestamp) return false;
+  if (prev.casino.snoozedUntil !== next.casino.snoozedUntil) return false;
+  if (prev.casino.lastClaimedAt !== next.casino.lastClaimedAt) return false;
   if (prev.casino.hasStreak !== next.casino.hasStreak) return false;
   if (prev.casino.minRedemption !== next.casino.minRedemption) return false;
   if (prev.casino.dailyBonus !== next.casino.dailyBonus) return false;

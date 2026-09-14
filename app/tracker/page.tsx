@@ -27,7 +27,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
-import { calculateCasinoStatus, resetCasinoTimers, useCurrentTime, type CasinoStatus } from "@/lib/timerUtils";
+import { calculateCasinoStatus, resetCasinoTimers, useCurrentTime, SNOOZE_PRESETS, type CasinoStatus } from "@/lib/timerUtils";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { SpeedRunModal } from "@/app/components/SpeedRunModal";
@@ -822,9 +822,17 @@ export default function TrackerPage() {
   }, []);
 
   const handleUpdateCasino = useCallback((targetCasino: Casino, updates: Partial<Casino>) => {
+    const nowIso = new Date().toISOString();
+    const normalizedUpdates: Partial<Casino> = { ...updates };
+    if (
+      (updates.targetResetTimestamp !== undefined || updates.snoozedUntil !== undefined) &&
+      !updates.lastClaimedAt
+    ) {
+      normalizedUpdates.lastClaimedAt = nowIso;
+    }
     setCasinos((prev) => {
       const updated = prev.map((item) =>
-        item.id === targetCasino.id ? { ...item, ...updates } : item,
+        item.id === targetCasino.id ? { ...item, ...normalizedUpdates } : item,
       );
       apiSaveCasinos(signedInUserRef.current?.email, updated);
       return updated;
@@ -832,10 +840,24 @@ export default function TrackerPage() {
   }, []);
 
   const handleSnoozeCasino = useCallback((targetCasino: Casino, snoozedUntil: string) => {
+    setPendingClaims((prev) => {
+      if (!prev[targetCasino.id]) return prev;
+      const next = { ...prev };
+      delete next[targetCasino.id];
+      return next;
+    });
+    const newResetTimestamp = new Date(snoozedUntil).getTime();
+    const nowIso = new Date().toISOString();
+
     setCasinos((prev) => {
       const updated = prev.map((item) =>
         item.id === targetCasino.id
-          ? { ...item, snoozedUntil, targetResetTimestamp: null }
+          ? {
+              ...item,
+              snoozedUntil,
+              targetResetTimestamp: !isNaN(newResetTimestamp) ? newResetTimestamp : null,
+              lastClaimedAt: nowIso,
+            }
           : item,
       );
       apiSaveCasinos(signedInUserRef.current?.email, updated);
@@ -850,9 +872,25 @@ export default function TrackerPage() {
       delete next[targetCasino.id];
       return next;
     });
-    const snoozedUntil = new Date(Date.now() + durationMs).toISOString();
-    handleSnoozeCasino(targetCasino, snoozedUntil);
-  }, [handleSnoozeCasino]);
+    const newResetTimestamp = Date.now() + durationMs;
+    const snoozedUntil = new Date(newResetTimestamp).toISOString();
+    const nowIso = new Date().toISOString();
+
+    setCasinos((prev) => {
+      const updated = prev.map((item) =>
+        item.id === targetCasino.id
+          ? {
+              ...item,
+              snoozedUntil,
+              targetResetTimestamp: newResetTimestamp,
+              lastClaimedAt: nowIso,
+            }
+          : item,
+      );
+      apiSaveCasinos(signedInUserRef.current?.email, updated);
+      return updated;
+    });
+  }, []);
 
   const handleSetCustomTimer = useCallback((targetCasino: Casino, targetResetTimestamp: number, customSc?: number) => {
     setPendingClaims((prev) => {
@@ -1430,12 +1468,21 @@ export default function TrackerPage() {
     { available: 0, claimedToday: 0 },
   );
 
-  const readyCasinos = casinos.filter((c) => !c.hidden && statusFor(c).ready);
-  const readyCount = readyCasinos.length;
+  // User's active Rollcall casinos (filtered strictly by non-hidden and active custom list)
+  const activeCustomList = customLists.find((l) => l.id === activeListId) || customLists[0];
+  const userRollcallCasinos = casinos.filter((c) => {
+    if (c.hidden) return false;
+    if (activeCustomList && activeCustomList.id !== "all") {
+      return activeCustomList.casinoIds.includes(c.id);
+    }
+    return true;
+  });
+
+  const readyRollcallCasinos = userRollcallCasinos.filter((c) => statusFor(c).ready);
+  const readyCount = readyRollcallCasinos.length;
 
   const handleOpenSpeedRun = () => {
-    const readyList = casinos.filter((c) => !c.hidden && statusFor(c).ready);
-    if (!readyList || readyList.length === 0) return;
+    if (readyCount === 0 || readyRollcallCasinos.length === 0) return;
     setIsSpeedRunOpen(true);
   };
 
@@ -1927,7 +1974,7 @@ export default function TrackerPage() {
                     className={`flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-xs font-bold transition-all active:scale-[0.98] shadow-sm ${
                       readyCount > 0
                         ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/50 cursor-pointer shadow-[0_0_12px_rgba(16,185,129,0.15)]"
-                        : "border border-zinc-800 bg-zinc-900/40 text-zinc-600 cursor-not-allowed opacity-50"
+                        : "border border-zinc-800 bg-zinc-900/40 text-zinc-600 cursor-not-allowed opacity-50 pointer-events-none"
                     }`}
                   >
                     <Zap size={14} fill={readyCount > 0 ? "currentColor" : "none"} />
@@ -2103,6 +2150,7 @@ export default function TrackerPage() {
                 <RollcallCard
                   key={casino.id}
                   casino={casino}
+                  now={now}
                   status={statusFor(casino)}
                   siteUrl={siteUrlFor(casino)}
                   rating={ratingForCasino(casino.name, casino.trustpilotRating)}
@@ -2208,10 +2256,32 @@ export default function TrackerPage() {
                     setOpenActionMenu(null);
                     setCustomTimerCasino(target);
                   }}
-                  className="flex w-full items-center gap-2 rounded-xl border border-zinc-700/80 px-4 py-3 text-left text-sm font-semibold text-zinc-200 hover:bg-zinc-800"
+                  className="flex w-full items-center gap-2 rounded-xl border border-zinc-700/80 px-4 py-3 text-left text-sm font-semibold text-zinc-200 hover:bg-zinc-800 cursor-pointer"
                 >
                   <Clock size={16} className="text-[#f0a03c]" /> Set Custom Timer
                 </button>
+                <div className="flex items-center gap-2 rounded-xl border border-amber-800/50 bg-amber-950/20 px-4 py-2.5">
+                  <span className="text-xs font-semibold text-amber-300 shrink-0">Snooze:</span>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const ms = Number(e.target.value);
+                      if (ms) {
+                        setOpenActionMenu(null);
+                        handleSnoozeDuration(actionCasino, ms);
+                      }
+                    }}
+                    aria-label="Snooze casino"
+                    className="flex-1 rounded-lg border border-amber-700/60 bg-[#16130b] px-2 py-1 text-xs font-medium text-amber-200 outline-none hover:border-amber-500 cursor-pointer"
+                  >
+                    <option value="">Select duration...</option>
+                    {SNOOZE_PRESETS.map((p) => (
+                      <option key={p.ms} value={p.ms} className="bg-[#101b15] text-white">
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 {actionCasino.snoozedUntil && (
                   <button
                     type="button"
@@ -2219,7 +2289,7 @@ export default function TrackerPage() {
                       setOpenActionMenu(null);
                       handleCancelSnooze(actionCasino);
                     }}
-                    className="flex w-full items-center gap-2 rounded-xl border border-amber-800/60 px-4 py-3 text-left text-sm font-semibold text-amber-300 hover:bg-amber-950/40"
+                    className="flex w-full items-center gap-2 rounded-xl border border-amber-800/60 px-4 py-3 text-left text-sm font-semibold text-amber-300 hover:bg-amber-950/40 cursor-pointer"
                   >
                     <X size={16} /> Cancel Snooze
                   </button>
@@ -2583,8 +2653,8 @@ export default function TrackerPage() {
         <SpeedRunModal
           isOpen={isSpeedRunOpen}
           onClose={() => setIsSpeedRunOpen(false)}
-          readyCasinos={casinos.filter((c) => !c.hidden && statusFor(c).ready)}
-          allCasinos={casinos}
+          readyCasinos={readyRollcallCasinos}
+          allCasinos={userRollcallCasinos}
           onClaim={markClaimed}
           onClaimSuccess={handleClaimSuccess}
           onUpdateCasino={handleUpdateCasino}

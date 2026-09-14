@@ -70,27 +70,7 @@ export function calculateCustomResetTimestamp(
 }
 
 export function calculateCasinoStatus(casino: Casino, now: number = Date.now()): CasinoStatus {
-  // 1. Check if casino is snoozed
-  if (casino.snoozedUntil) {
-    const snoozeEnd = new Date(casino.snoozedUntil).getTime();
-    if (!isNaN(snoozeEnd) && snoozeEnd > now) {
-      const remaining = snoozeEnd - now;
-      const hours = Math.floor(remaining / 3600000);
-      const minutes = Math.floor((remaining % 3600000) / 60000);
-      const seconds = Math.floor((remaining % 60000) / 1000);
-      const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m ${seconds}s`;
-      return {
-        ready: false,
-        state: "pending",
-        label: `Snoozed (${timeStr})`,
-        shortLabel: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`,
-        remainingMs: remaining,
-        isSnoozed: true,
-      };
-    }
-  }
-
-  // 2. Check if an exact target reset timestamp is set
+  // 1. Explicit target reset timestamp (highest priority: Custom Timer or Snooze Override)
   if (casino.targetResetTimestamp) {
     const targetReset =
       typeof casino.targetResetTimestamp === "string"
@@ -108,15 +88,54 @@ export function calculateCasinoStatus(casino: Casino, now: number = Date.now()):
           remainingMs: 0,
         };
       }
+
+      const isSnoozed = Boolean(
+        casino.snoozedUntil &&
+        new Date(casino.snoozedUntil).getTime() > now
+      );
+
       const hours = Math.floor(remaining / 3600000);
       const minutes = Math.floor((remaining % 3600000) / 60000);
       const seconds = Math.floor((remaining % 60000) / 1000);
+      const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m ${seconds}s`;
+
       return {
         ready: false,
         state: remaining <= 3600000 ? "pending" : "claimed",
-        label: `${hours}h ${minutes}m ${seconds}s`,
+        label: isSnoozed ? `Snoozed (${timeStr})` : `${hours}h ${minutes}m ${seconds}s`,
         shortLabel: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m ${seconds}s`,
         remainingMs: remaining,
+        isSnoozed,
+      };
+    }
+  }
+
+  // 2. Fallback Snooze hold if targetResetTimestamp was not set
+  if (casino.snoozedUntil) {
+    const snoozeEnd = new Date(casino.snoozedUntil).getTime();
+    if (!isNaN(snoozeEnd)) {
+      const remaining = snoozeEnd - now;
+      if (remaining <= 0) {
+        // Snooze duration has expired; casino is ready to claim
+        return {
+          ready: true,
+          state: "ready",
+          label: "Ready to claim",
+          shortLabel: "now",
+          remainingMs: 0,
+        };
+      }
+      const hours = Math.floor(remaining / 3600000);
+      const minutes = Math.floor((remaining % 3600000) / 60000);
+      const seconds = Math.floor((remaining % 60000) / 1000);
+      const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m ${seconds}s`;
+      return {
+        ready: false,
+        state: "pending",
+        label: `Snoozed (${timeStr})`,
+        shortLabel: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`,
+        remainingMs: remaining,
+        isSnoozed: true,
       };
     }
   }

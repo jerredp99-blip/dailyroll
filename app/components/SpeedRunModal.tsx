@@ -109,8 +109,14 @@ export function SpeedRunModal({
     wasOpenRef.current = true;
 
     let cancelled = false;
-    const currentReady = readyCasinosRef.current;
-    const currentMap = casinoMapRef.current;
+    const currentReady = readyCasinosRef.current.filter((c) => !c.hidden);
+    const readyIds = new Set(currentReady.map((c) => c.id));
+
+    if (currentReady.length === 0) {
+      clearSpeedRunSession();
+      setSession(null);
+      return;
+    }
 
     try {
       const existing = loadSpeedRunSession();
@@ -120,12 +126,13 @@ export function SpeedRunModal({
         existing.queueIds.length > 0 &&
         !existing.completed
       ) {
-        const hasValidItems = existing.queueIds.some((id) => currentMap.has(id));
-        if (hasValidItems) {
+        // Filter existing queue strictly by currently ready casino IDs
+        const validQueueIds = existing.queueIds.filter((id) => readyIds.has(id));
+        if (validQueueIds.length > 0) {
           const safeIndex =
             typeof existing.currentIndex === "number" &&
             existing.currentIndex >= 0 &&
-            existing.currentIndex < existing.queueIds.length
+            existing.currentIndex < validQueueIds.length
               ? existing.currentIndex
               : 0;
           const safeStep: SpeedRunStep =
@@ -135,31 +142,22 @@ export function SpeedRunModal({
 
           setSession({
             ...existing,
+            queueIds: validQueueIds,
             currentIndex: safeIndex,
             currentStep: safeStep,
           });
         } else {
           clearSpeedRunSession();
-          if (currentReady.length > 0) {
-            setSession(createSpeedRunSession(currentReady));
-          } else {
-            setSession(null);
-          }
+          setSession(createSpeedRunSession(currentReady));
         }
-      } else if (currentReady.length > 0) {
+      } else {
         const newSession = createSpeedRunSession(currentReady);
         setSession(newSession);
-      } else {
-        setSession(null);
       }
     } catch (err) {
       console.error("Failed to load Speed Run session:", err);
       clearSpeedRunSession();
-      if (currentReady.length > 0) {
-        setSession(createSpeedRunSession(currentReady));
-      } else {
-        setSession(null);
-      }
+      setSession(createSpeedRunSession(currentReady));
     }
 
     // Cross-browser persistence: sync latest session from server once on open
@@ -173,14 +171,30 @@ export function SpeedRunModal({
       ) {
         return;
       }
+      const filteredQueueIds = serverSession.queueIds.filter((id) => readyIds.has(id));
+      if (filteredQueueIds.length === 0) return;
+
+      const safeIndex =
+        typeof serverSession.currentIndex === "number" &&
+        serverSession.currentIndex >= 0 &&
+        serverSession.currentIndex < filteredQueueIds.length
+          ? serverSession.currentIndex
+          : 0;
+
+      const normalizedServerSession = {
+        ...serverSession,
+        queueIds: filteredQueueIds,
+        currentIndex: safeIndex,
+      };
+
       setSession((prev) => {
-        if (!prev) return serverSession;
+        if (!prev) return normalizedServerSession;
         if (
-          serverSession.currentIndex > prev.currentIndex ||
-          (serverSession.currentIndex === prev.currentIndex &&
-            serverSession.currentStep >= prev.currentStep)
+          normalizedServerSession.currentIndex > prev.currentIndex ||
+          (normalizedServerSession.currentIndex === prev.currentIndex &&
+            normalizedServerSession.currentStep >= prev.currentStep)
         ) {
-          return serverSession;
+          return normalizedServerSession;
         }
         return prev;
       });
@@ -452,21 +466,24 @@ export function SpeedRunModal({
   function handleSnoozeDuration(durationMs: number) {
     if (!currentCasino || !session) return;
 
-    const snoozedUntil = new Date(Date.now() + durationMs).toISOString();
+    const newResetTimestamp = Date.now() + durationMs;
+    const snoozedUntil = new Date(newResetTimestamp).toISOString();
+    const nowIso = new Date().toISOString();
     const parsedSc = claimScInput.trim() !== "" ? parseFloat(claimScInput) : undefined;
     const updates: Partial<Casino> = {
       snoozedUntil,
-      targetResetTimestamp: null,
+      targetResetTimestamp: newResetTimestamp,
+      lastClaimedAt: nowIso,
       ...(typeof parsedSc === "number" && !isNaN(parsedSc)
         ? { dailyBonusSc: String(parsedSc), dailyBonus: `${parsedSc} SC` }
         : {}),
     };
 
     try {
-      if (onSnooze) {
-        onSnooze(currentCasino, snoozedUntil);
-      } else if (onUpdateCasino) {
+      if (onUpdateCasino) {
         onUpdateCasino(currentCasino, updates);
+      } else if (onSnooze) {
+        onSnooze(currentCasino, snoozedUntil);
       }
     } catch (err) {
       console.error("Failed to snooze casino in onSnooze:", err);
@@ -481,9 +498,11 @@ export function SpeedRunModal({
   function handleCustomTimerSave(targetResetTimestamp: number, customSc?: number) {
     if (!currentCasino || !session) return;
 
+    const nowIso = new Date().toISOString();
     const updates: Partial<Casino> = {
       targetResetTimestamp,
       snoozedUntil: null,
+      lastClaimedAt: nowIso,
       ...(customSc !== undefined
         ? { dailyBonusSc: String(customSc), dailyBonus: `${customSc} SC` }
         : {}),
@@ -620,13 +639,10 @@ export function SpeedRunModal({
     handleCloseModal();
   }
 
-  // Restart Run (e.g. for any remaining or all non-hidden)
+  // Restart Run (strictly ready casinos only)
   function handleRestart() {
     clearSpeedRunSession();
-    const ready =
-      readyCasinosRef.current.length > 0
-        ? readyCasinosRef.current
-        : allCasinosRef.current.filter((c) => !c.hidden);
+    const ready = readyCasinosRef.current.filter((c) => !c.hidden);
     if (ready.length > 0) {
       const newSession = createSpeedRunSession(ready);
       setSession(newSession);
