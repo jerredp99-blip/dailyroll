@@ -1998,66 +1998,51 @@ export default function TrackerPage() {
       </div>
         {actionCasino && (
           <div
-            className="fixed inset-0 z-20 grid place-items-center bg-black/65 p-5"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
             role="presentation"
-            onMouseDown={() => setOpenActionMenu(null)}
+            onClick={() => setOpenActionMenu(null)}
           >
             <div
-              className="w-full max-w-sm rounded-2xl border border-[#38503d] bg-[#19251f] p-6 shadow-2xl"
+              className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900/95 p-5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
               role="dialog"
               aria-modal="true"
               aria-labelledby="casino-actions-title"
-              onMouseDown={(event) => event.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">
-                    Casino actions
+              <div className="flex items-start justify-between gap-3 border-b border-zinc-800/80 pb-3">
+                <div className="min-w-0">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-emerald-400 font-semibold">
+                    Casino Settings
                   </p>
-                  <h2 id="casino-actions-title" className="mt-2 font-serif text-2xl font-semibold text-[#e5eee3]">
+                  <h2 id="casino-actions-title" className="mt-1 text-base font-bold text-zinc-100 truncate">
                     {actionCasino.name}
                   </h2>
                 </div>
                 <button
                   type="button"
                   onClick={() => setOpenActionMenu(null)}
-                  aria-label="Close casino actions"
-                  className="text-[#91a595] hover:text-white"
+                  aria-label="Close casino settings"
+                  className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800/80 hover:text-white transition cursor-pointer"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
-              <div className="mt-6 grid gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenActionMenu(null);
-                    toggleHiddenCasino(actionCasino);
-                  }}
-                  className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-[#d4e4d2] hover:bg-[#2a4230]"
-                >
-                  <EyeOff size={16} /> {actionCasino.hidden ? "Unhide casino" : "Hide casino"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenActionMenu(null);
-                    openCasinoEditor(actionCasino);
-                  }}
-                  className="w-full rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-[#d4e4d2] hover:bg-[#2a4230]"
-                >
-                  Edit casino
-                </button>
+
+              <div className="mt-4 grid gap-2">
+                {/* 1. Mark as Ready */}
                 <button
                   type="button"
                   onClick={() => {
                     setOpenActionMenu(null);
                     handleResetToReady(actionCasino);
                   }}
-                  className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-emerald-400 hover:bg-[#2a4230]"
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-emerald-900/40 bg-emerald-950/20 px-3.5 py-2.5 text-left text-xs font-bold text-emerald-400 hover:bg-emerald-950/50 hover:border-emerald-700/60 transition cursor-pointer"
                 >
-                  <RotateCcw size={16} /> Mark as Ready to Claim
+                  <RotateCcw size={15} className="shrink-0" />
+                  <span>Mark as Ready to Claim</span>
                 </button>
+
+                {/* 2. Set Custom Timer */}
                 <button
                   type="button"
                   onClick={() => {
@@ -2065,10 +2050,13 @@ export default function TrackerPage() {
                     setOpenActionMenu(null);
                     setCustomTimerCasino(target);
                   }}
-                  className="flex w-full items-center gap-2 rounded-xl border border-zinc-700/80 px-4 py-3 text-left text-sm font-semibold text-zinc-200 hover:bg-zinc-800"
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-950/60 px-3.5 py-2.5 text-left text-xs font-semibold text-zinc-200 hover:bg-zinc-800/80 hover:border-zinc-700 transition cursor-pointer"
                 >
-                  <Clock size={16} className="text-[#f0a03c]" /> Set Custom Timer
+                  <Clock size={15} className="shrink-0 text-amber-400" />
+                  <span>Set Custom Timer</span>
                 </button>
+
+                {/* 3. Cancel Snooze (if snoozed) */}
                 {actionCasino.snoozedUntil && (
                   <button
                     type="button"
@@ -2076,20 +2064,50 @@ export default function TrackerPage() {
                       setOpenActionMenu(null);
                       handleCancelSnooze(actionCasino);
                     }}
-                    className="flex w-full items-center gap-2 rounded-xl border border-amber-800/60 px-4 py-3 text-left text-sm font-semibold text-amber-300 hover:bg-amber-950/40"
+                    className="flex w-full items-center gap-2.5 rounded-xl border border-amber-900/40 bg-amber-950/20 px-3.5 py-2.5 text-left text-xs font-semibold text-amber-300 hover:bg-amber-950/50 hover:border-amber-700/60 transition cursor-pointer"
                   >
-                    <X size={16} /> Cancel Snooze
+                    <X size={15} className="shrink-0" />
+                    <span>Cancel Snooze</span>
                   </button>
                 )}
+
+                {/* 4. Edit Casino Details */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenActionMenu(null);
+                    openCasinoEditor(actionCasino);
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-950/60 px-3.5 py-2.5 text-left text-xs font-semibold text-zinc-200 hover:bg-zinc-800/80 hover:border-zinc-700 transition cursor-pointer"
+                >
+                  <Settings size={15} className="shrink-0 text-zinc-400" />
+                  <span>Edit Casino Details</span>
+                </button>
+
+                {/* 5. Hide / Unhide Casino */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenActionMenu(null);
+                    toggleHiddenCasino(actionCasino);
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-950/60 px-3.5 py-2.5 text-left text-xs font-semibold text-zinc-300 hover:bg-zinc-800/80 hover:border-zinc-700 transition cursor-pointer"
+                >
+                  <EyeOff size={15} className="shrink-0 text-zinc-400" />
+                  <span>{actionCasino.hidden ? "Unhide Casino" : "Hide Casino"}</span>
+                </button>
+
+                {/* 6. Delete Casino */}
                 <button
                   type="button"
                   onClick={() => {
                     setOpenActionMenu(null);
                     saveCasinos(casinos.filter((item) => item.id !== actionCasino.id));
                   }}
-                  className="flex w-full items-center gap-2 rounded-xl border border-[#633c3d] px-4 py-3 text-left text-sm font-semibold text-[#e69b91] hover:bg-[#422c2b]"
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-red-900/40 bg-red-950/20 px-3.5 py-2.5 text-left text-xs font-semibold text-red-300 hover:bg-red-950/40 hover:border-red-800/60 transition cursor-pointer"
                 >
-                  <Trash2 size={16} /> Delete casino
+                  <Trash2 size={15} className="shrink-0 text-red-400" />
+                  <span>Delete Casino</span>
                 </button>
               </div>
             </div>

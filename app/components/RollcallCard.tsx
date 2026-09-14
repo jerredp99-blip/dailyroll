@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Clock, ExternalLink, MoreHorizontal, X, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { CheckCircle2, Clock, ExternalLink, MoreHorizontal } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import {
@@ -85,9 +85,7 @@ function RollcallCardComponent({
   renderTrustpilot,
   pendingInfo,
 }: RollcallCardProps) {
-  const [isCardMenuOpen, setIsCardMenuOpen] = useState(false);
   const [isCustomTimerOpen, setIsCustomTimerOpen] = useState(false);
-  const cardMenuRef = useRef<HTMLDivElement>(null);
 
   const contextNow = useCurrentTimeContext();
   const currentNow = now ?? contextNow;
@@ -98,27 +96,6 @@ function RollcallCardComponent({
 
   const isPending = Boolean(pendingInfo);
   const isDefocused = Boolean(pendingInfo?.isDefocused);
-
-  // Close kebab menu on outside click or ESC key
-  useEffect(() => {
-    if (!isCardMenuOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (cardMenuRef.current && !cardMenuRef.current.contains(e.target as Node)) {
-        setIsCardMenuOpen(false);
-      }
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIsCardMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isCardMenuOpen]);
 
   // Triggered when user clicks "Claim [Reward]!"
   const handleClaimClick = (event: React.MouseEvent) => {
@@ -329,97 +306,20 @@ function RollcallCardComponent({
 
       {/* Bottom Actions */}
       <div className="relative flex w-full items-center justify-between gap-2">
-        {/* Card Kebab Menu */}
-        <div className="relative" ref={cardMenuRef}>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setIsCardMenuOpen((prev) => !prev);
-            }}
-            aria-label={`More actions for ${casino.name}`}
-            aria-expanded={isCardMenuOpen}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-200 transition cursor-pointer"
-          >
-            <MoreHorizontal size={16} />
-          </button>
-
-          {isCardMenuOpen && (
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className="absolute left-0 bottom-full mb-2 z-40 w-52 rounded-xl border border-zinc-800 bg-zinc-900/95 p-1.5 shadow-xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-100"
-            >
-              {/* 1. Mark Ready to Claim */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsCardMenuOpen(false);
-                  onResetToReady?.(casino);
-                }}
-                className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-emerald-400 hover:bg-emerald-950/60 hover:text-emerald-300 transition text-left cursor-pointer"
-              >
-                <RotateCcw size={14} className="shrink-0" />
-                <span>Mark Ready to Claim</span>
-              </button>
-
-              {/* 2. Set Custom Timer */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsCardMenuOpen(false);
-                  setIsCustomTimerOpen(true);
-                }}
-                className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800/70 hover:text-white transition text-left cursor-pointer"
-              >
-                <Clock size={14} className="shrink-0 text-[#f0a03c]" />
-                <span>Set Custom Timer</span>
-              </button>
-
-              {/* 3. Cancel Snooze (if snoozed) */}
-              {currentStatus.isSnoozed && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsCardMenuOpen(false);
-                    if (onCancelSnooze) {
-                      onCancelSnooze(casino);
-                    } else {
-                      onResetToReady?.(casino);
-                    }
-                  }}
-                  className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-950/50 hover:text-amber-200 transition text-left cursor-pointer border-t border-zinc-800/80 mt-1"
-                >
-                  <X size={14} className="shrink-0" />
-                  <span>Cancel Snooze</span>
-                </button>
-              )}
-
-              {/* 4. Casino Settings / Details */}
-              {onToggleActionMenu && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsCardMenuOpen(false);
-                    onToggleActionMenu(casino.id);
-                  }}
-                  className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200 transition text-left cursor-pointer border-t border-zinc-800/80 mt-1"
-                >
-                  <SlidersHorizontal size={14} className="shrink-0 text-zinc-400" />
-                  <span>Casino Settings...</span>
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+        {/* Card Kebab Menu - Opens Casino Settings immediately */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleActionMenu?.(casino.id);
+          }}
+          aria-label={`Settings for ${casino.name}`}
+          title={`Settings for ${casino.name}`}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-200 transition cursor-pointer"
+        >
+          <MoreHorizontal size={16} />
+        </button>
 
         {casino.bonusUrl && onOpenBonus && (
           <button
