@@ -58,6 +58,12 @@ export function AiAssistant() {
     checkKeyAndQuota();
   }, [isOpen]);
 
+  useEffect(() => {
+    const handleOpen = () => setIsOpen(true);
+    window.addEventListener("dailyroll_open_ai_assistant", handleOpen);
+    return () => window.removeEventListener("dailyroll_open_ai_assistant", handleOpen);
+  }, []);
+
   const handleSaveKey = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!apiKeyInput.trim() || savingKey) return;
@@ -146,14 +152,14 @@ export function AiAssistant() {
 
   return (
     <>
-      {/* Floating Trigger Button */}
+      {/* Floating Trigger Button (Hidden on Mobile to Prevent Viewport Collisions) */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-950/40 transition hover:scale-105 hover:shadow-emerald-900/60 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+        className="fixed bottom-6 right-6 z-40 hidden md:flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-950/40 transition hover:scale-105 hover:shadow-emerald-900/60 focus:outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer"
         aria-label="Open AI Bonus Assistant"
       >
         <Sparkles className="h-5 w-5 text-emerald-100 animate-pulse" />
-        <span className="hidden sm:inline">AI Bonus Assistant</span>
+        <span>AI Bonus Assistant</span>
       </button>
 
       {/* AI Assistant Modal */}

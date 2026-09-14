@@ -22,6 +22,7 @@ import {
   Zap,
   RotateCcw,
   Flame,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -341,16 +342,15 @@ export default function TrackerPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [casinoFilter, setCasinoFilter] = useState<"all" | "ready" | "claimed">("all");
-  type CasinoSortOption = "next-available" | "provider" | "f2p" | "trustpilot" | "name-asc" | "name-desc";
-  const [casinoSort, setCasinoSort] = useState<CasinoSortOption>((): CasinoSortOption => {
+  const [casinoSort, setCasinoSort] = useState<
+    "status" | "next-available" | "provider" | "f2p" | "trustpilot" | "name-asc" | "name-desc"
+  >(() => {
     if (typeof window === "undefined") return "next-available";
     try {
-      const saved = localStorage.getItem("dailyroll_casino_sort");
-      if (saved && saved !== "status" && saved !== "f2p") {
-        return saved as CasinoSortOption;
-      }
-    } catch {}
-    return "next-available";
+      return (localStorage.getItem("dailyroll_casino_sort") as any) || "next-available";
+    } catch {
+      return "next-available";
+    }
   });
   const [customLists, setCustomLists] = useState<CustomCasinoList[]>(() => {
     if (typeof window === "undefined") return DEFAULT_CUSTOM_LISTS;
@@ -699,26 +699,12 @@ export default function TrackerPage() {
           const parsedPreferences = JSON.parse(storedPreferences) as {
             sortOrder?: typeof casinoSort;
           };
-          if (
-            parsedPreferences.sortOrder === ("status" as any) ||
-            parsedPreferences.sortOrder === "f2p"
-          ) {
-            parsedPreferences.sortOrder = "next-available";
-            localStorage.setItem("dailyroll_profile_prefs", JSON.stringify(parsedPreferences));
+          if (parsedPreferences.sortOrder && (parsedPreferences.sortOrder as string) !== "status") {
+            setCasinoSort(parsedPreferences.sortOrder);
           }
         } catch {
           // Ignore malformed saved preferences.
         }
-      }
-
-      const savedTrackerSort = localStorage.getItem("dailyroll_casino_sort");
-      if (savedTrackerSort && savedTrackerSort !== "status" && savedTrackerSort !== "f2p") {
-        setCasinoSort(savedTrackerSort as typeof casinoSort);
-      } else {
-        setCasinoSort("next-available");
-        try {
-          localStorage.setItem("dailyroll_casino_sort", "next-available");
-        } catch {}
       }
       setDirectorySnapshot(directoryData);
       if (directoryData.list) setDirectory(directoryData.list);
@@ -916,25 +902,9 @@ export default function TrackerPage() {
       delete next[targetCasino.id];
       return next;
     });
-    const newResetTimestamp = Date.now() + durationMs;
-    const snoozedUntil = new Date(newResetTimestamp).toISOString();
-    const nowIso = new Date().toISOString();
-
-    setCasinos((prev) => {
-      const updated = prev.map((item) =>
-        item.id === targetCasino.id
-          ? {
-              ...item,
-              snoozedUntil,
-              targetResetTimestamp: newResetTimestamp,
-              lastClaimedAt: nowIso,
-            }
-          : item,
-      );
-      apiSaveCasinos(signedInUserRef.current?.email, updated);
-      return updated;
-    });
-  }, []);
+    const snoozedUntil = new Date(Date.now() + durationMs).toISOString();
+    handleSnoozeCasino(targetCasino, snoozedUntil);
+  }, [handleSnoozeCasino]);
 
   const handleSetCustomTimer = useCallback((targetCasino: Casino, targetResetTimestamp: number, customSc?: number) => {
     setPendingClaims((prev) => {
@@ -943,15 +913,14 @@ export default function TrackerPage() {
       delete next[targetCasino.id];
       return next;
     });
-    const isReadyNow = targetResetTimestamp <= Date.now();
     const nowIso = new Date().toISOString();
     setCasinos((prev) => {
       const updated = prev.map((item) =>
         item.id === targetCasino.id
           ? {
               ...item,
-              targetResetTimestamp: isReadyNow ? null : targetResetTimestamp,
-              lastClaimedAt: isReadyNow ? null : nowIso,
+              targetResetTimestamp,
+              lastClaimedAt: nowIso,
               snoozedUntil: null,
               ...(customSc !== undefined
                 ? { dailyBonusSc: String(customSc), dailyBonus: `${customSc} SC` }
@@ -1470,16 +1439,7 @@ export default function TrackerPage() {
         const secondRating = secondCasino.trustpilotRating ?? -1;
         return secondRating - firstRating;
       }
-      // Fallback: Next Available (Ready first, then shortest remaining cooldown)
-      const status1 = statusFor(firstCasino);
-      const status2 = statusFor(secondCasino);
-      if (status1.ready !== status2.ready) {
-        return Number(status2.ready) - Number(status1.ready);
-      }
-      if (!status1.ready && !status2.ready) {
-        return status1.remainingMs - status2.remainingMs;
-      }
-      return firstCasino.name.localeCompare(secondCasino.name);
+      return Number(statusFor(secondCasino).ready) - Number(statusFor(firstCasino).ready);
     });
 
   const visibleDirectory = [...directory]
@@ -1522,6 +1482,7 @@ export default function TrackerPage() {
     { available: 0, claimedToday: 0 },
   );
 
+  const readyCasinos = casinos.filter((c) => !c.hidden && statusFor(c).ready);
   // User's active Rollcall casinos (filtered strictly by non-hidden and active custom list)
   const activeCustomList = customLists.find((l) => l.id === activeListId) || customLists[0];
   const userRollcallCasinos = casinos.filter((c) => {
@@ -1536,6 +1497,8 @@ export default function TrackerPage() {
   const readyCount = readyRollcallCasinos.length;
 
   const handleOpenSpeedRun = () => {
+    const readyList = casinos.filter((c) => !c.hidden && statusFor(c).ready);
+    if (!readyList || readyList.length === 0) return;
     if (readyCount === 0 || readyRollcallCasinos.length === 0) return;
     setIsSpeedRunOpen(true);
   };
@@ -1681,6 +1644,18 @@ export default function TrackerPage() {
             >
               <Settings size={16} /> Profile settings
             </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSidebarOpen(false);
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("dailyroll_open_ai_assistant"));
+                }
+              }}
+              className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium text-emerald-400 transition-colors hover:bg-emerald-950/30 hover:text-emerald-300 cursor-pointer"
+            >
+              <Sparkles size={16} /> AI Bonus Assistant
+            </button>
             {!signedInUser && (
               <Link
                 href="/dashboard#sign-ups"
@@ -1748,9 +1723,9 @@ export default function TrackerPage() {
           </header>
         )}
 
-        {/* Mobile Sub-Navigation Pills in Regular Document Flow */}
+        {/* Sub-Navigation Pills in Regular Document Flow (Hidden on mobile) */}
         {!isAddCasinosPage && (
-          <div className="mb-3 max-w-4xl mx-auto md:hidden">
+          <div className="mb-3 max-w-4xl mx-auto hidden md:flex">
             <div className="flex rounded-xl bg-zinc-900/90 p-1 border border-zinc-800">
               <button
                 type="button"
@@ -1982,41 +1957,41 @@ export default function TrackerPage() {
           </div>
         ) : (
           <div className="mx-auto max-w-4xl space-y-3 px-1 sm:px-2 pb-24">
-            {/* Tracker Counter Banner with Batch Claim */}
-            <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-xl px-4 py-2 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            {/* Tracker Counter Banner with Batch Claim (Compact Single Row on Mobile & Desktop) */}
+            <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 shadow-sm">
+              <div className="flex items-center justify-between gap-2 overflow-x-auto scrollbar-none">
                 {/* Metric Balance Pill */}
-                <div className="flex items-center">
-                  <div className="flex items-baseline">
-                    <span className="text-emerald-400 font-bold text-sm sm:text-base">
+                <div className="flex items-center shrink-0">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-emerald-400 font-bold text-xs sm:text-sm whitespace-nowrap">
                       {dailyTotals.available.toFixed(2)} SC
                     </span>
-                    <span className="text-[10px] uppercase font-semibold text-zinc-400 tracking-wider ml-1">
+                    <span className="text-[9px] sm:text-[10px] uppercase font-semibold text-zinc-400 tracking-wider">
                       Available
                     </span>
                   </div>
-                  <div className="h-4 w-px bg-zinc-800 mx-3" />
-                  <div className="flex items-baseline">
-                    <span className="text-zinc-200 font-bold text-sm sm:text-base">
+                  <div className="h-3.5 w-px bg-zinc-800 mx-2 sm:mx-3 shrink-0" />
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-zinc-200 font-bold text-xs sm:text-sm whitespace-nowrap">
                       {dailyTotals.claimedToday.toFixed(2)} SC
                     </span>
-                    <span className="text-[10px] uppercase font-semibold text-zinc-400 tracking-wider ml-1">
+                    <span className="text-[9px] sm:text-[10px] uppercase font-semibold text-zinc-400 tracking-wider">
                       Claimed
                     </span>
                   </div>
                 </div>
 
-                {/* Consolidate Action Buttons into a single compact row */}
-                <div className="flex flex-wrap items-center gap-2">
+                {/* Compact Action Buttons Tool Row */}
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                   {/* Add Casinos button */}
                   <button
                     type="button"
                     onClick={() => setIsAddCasinosModalOpen(true)}
                     title="Add casinos to your rollcall"
-                    className="flex h-9 items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 text-xs font-semibold text-zinc-300 hover:text-white hover:border-zinc-700 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+                    className="flex h-8 sm:h-9 items-center gap-1 sm:gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/80 px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-white hover:border-zinc-700 active:scale-[0.98] transition-all cursor-pointer shadow-sm whitespace-nowrap"
                   >
-                    <Plus size={14} className="text-emerald-400" />
-                    <span>+ Add Casinos</span>
+                    <Plus size={13} className="text-emerald-400 shrink-0" />
+                    <span>Add Casinos</span>
                   </button>
 
                   {/* Primary Action: Speed Run */}
@@ -2025,30 +2000,30 @@ export default function TrackerPage() {
                     onClick={handleOpenSpeedRun}
                     disabled={readyCount === 0}
                     title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
-                    className={`flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-xs font-bold transition-all active:scale-[0.98] shadow-sm ${
+                    className={`flex h-8 sm:h-9 items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3.5 text-[11px] sm:text-xs font-bold transition-all active:scale-[0.98] shadow-sm whitespace-nowrap ${
                       readyCount > 0
                         ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/50 cursor-pointer shadow-[0_0_12px_rgba(16,185,129,0.15)]"
                         : "border border-zinc-800 bg-zinc-900/40 text-zinc-600 cursor-not-allowed opacity-50 pointer-events-none"
                     }`}
                   >
-                    <Zap size={14} fill={readyCount > 0 ? "currentColor" : "none"} />
+                    <Zap size={13} fill={readyCount > 0 ? "currentColor" : "none"} className="shrink-0" />
                     <span>Speed Run ({readyCount})</span>
                   </button>
 
                   {/* Secondary Action: Staggered Open All / Cancel */}
                   {isStaggering ? (
-                    <div className="flex h-9 items-center gap-1.5">
-                      <div className="flex h-9 items-center gap-1.5 rounded-lg bg-zinc-900/90 border border-amber-500/50 px-3 text-xs font-semibold text-amber-300 animate-pulse">
-                        <Loader2 size={14} className="animate-spin text-amber-400" />
+                    <div className="flex h-8 sm:h-9 items-center gap-1.5 whitespace-nowrap">
+                      <div className="flex h-8 sm:h-9 items-center gap-1.5 rounded-lg bg-zinc-900/90 border border-amber-500/50 px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold text-amber-300 animate-pulse">
+                        <Loader2 size={13} className="animate-spin text-amber-400" />
                         <span>{staggerStatus || "Launching..."}</span>
                       </div>
                       <button
                         type="button"
                         onClick={handleCancelStagger}
                         title="Cancel launching remaining casinos"
-                        className="flex h-9 items-center gap-1 rounded-lg border border-red-800/60 bg-red-950/40 px-2.5 text-xs font-bold text-red-300 hover:bg-red-900/50 hover:text-white transition-all active:scale-[0.98] cursor-pointer"
+                        className="flex h-8 sm:h-9 items-center gap-1 rounded-lg border border-red-800/60 bg-red-950/40 px-2 text-[11px] sm:text-xs font-bold text-red-300 hover:bg-red-900/50 hover:text-white transition-all active:scale-[0.98] cursor-pointer"
                       >
-                        <X size={14} />
+                        <X size={13} />
                         <span>Cancel</span>
                       </button>
                     </div>
@@ -2062,13 +2037,13 @@ export default function TrackerPage() {
                           ? `Open all ${readyCount} ready casinos (staggered to prevent popup blocking)`
                           : "No casinos currently ready to claim"
                       }
-                      className={`flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-all active:scale-[0.98] shadow-sm ${
+                      className={`flex h-8 sm:h-9 items-center gap-1 sm:gap-1.5 rounded-lg border px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold transition-all active:scale-[0.98] shadow-sm whitespace-nowrap ${
                         readyCount > 0
                           ? "border-zinc-800 bg-zinc-900/80 text-zinc-200 hover:text-white hover:border-zinc-700 cursor-pointer"
                           : "border border-zinc-800 bg-zinc-900/40 text-zinc-600 cursor-not-allowed opacity-50"
                       }`}
                     >
-                      <ExternalLink size={14} />
+                      <ExternalLink size={13} className="shrink-0" />
                       <span>Open All ({readyCount})</span>
                     </button>
                   )}
@@ -2171,12 +2146,6 @@ export default function TrackerPage() {
                       setCasinoSort(next);
                       try {
                         localStorage.setItem("dailyroll_casino_sort", next);
-                        const stored = localStorage.getItem("dailyroll_profile_prefs");
-                        if (stored) {
-                          const parsed = JSON.parse(stored);
-                          parsed.sortOrder = next;
-                          localStorage.setItem("dailyroll_profile_prefs", JSON.stringify(parsed));
-                        }
                       } catch {}
                     }}
                     aria-label="Sort casinos"
@@ -2735,10 +2704,10 @@ export default function TrackerPage() {
         isAdmin={isAdmin}
       />
 
-      {/* Floating Feed & Drops Circular Icon Badges (Docked Top-Right under Profile Avatar) */}
+      {/* Floating Feed & Drops Circular Icon Badges (Docked Top-Left under Header) */}
       <aside
         aria-label="Quick Access Feeds"
-        className="fixed right-3.5 top-16 z-40 flex flex-col items-center gap-3 sm:right-6 sm:top-16 lg:right-8"
+        className="fixed top-16 left-4 z-40 flex items-center gap-2.5"
       >
         {/* Bonus Drops Circular Button */}
         <button
@@ -2757,7 +2726,7 @@ export default function TrackerPage() {
           )}
         </button>
 
-        {/* Community Feed Circular Button */}
+        {/* Community Feed Button */}
         <button
           type="button"
           onClick={() => setActiveDrawer((prev) => (prev === "feed" ? null : "feed"))}
@@ -2777,7 +2746,7 @@ export default function TrackerPage() {
 
       {/* Slide-Over Drawer Overlay for Community Feed & Drops */}
       {activeDrawer && (
-        <div className="fixed inset-0 z-50 flex justify-end">
+        <div className="fixed inset-0 z-50 flex justify-start">
           {/* Backdrop Blur */}
           <div
             className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity cursor-pointer"
@@ -2786,7 +2755,7 @@ export default function TrackerPage() {
           />
 
           {/* Drawer Container */}
-          <div className="relative z-50 flex flex-col w-full sm:w-[500px] lg:w-[560px] h-full bg-[#0c1a13] border-l border-emerald-900/60 shadow-2xl animate-in slide-in-from-right duration-200 overflow-hidden">
+          <div className="relative z-50 flex flex-col w-full sm:w-[500px] lg:w-[560px] h-full bg-[#0c1a13] border-r border-emerald-900/60 shadow-2xl animate-in slide-in-from-left duration-200 overflow-hidden">
             {/* Drawer Header */}
             <div className="flex items-center justify-between border-b border-emerald-950/80 bg-[#0a150f] px-4 py-3 shrink-0">
               <div className="flex items-center gap-2">
