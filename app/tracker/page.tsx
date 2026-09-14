@@ -1969,103 +1969,95 @@ export default function TrackerPage() {
           </div>
         ) : (
           <div className="mx-auto max-w-4xl space-y-3 px-1 sm:px-2 pb-24">
-            {/* Controls Card: Lists, Filter & Sort Dropdowns */}
-            <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-3 sm:p-3.5 text-xs text-zinc-400 shadow-sm backdrop-blur-sm space-y-2.5">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 w-full items-center">
-                {/* Group 1: Lists Dropdown */}
-                <div className="flex items-center w-full min-w-0">
-                  <span className="text-xs font-semibold text-zinc-400 mr-2 shrink-0">List:</span>
-                  <select
-                    value={activeListId}
-                    onChange={(event) => {
-                      const val = event.target.value;
-                      if (val === "__create_new__") {
-                        setIsNewListModalOpen(true);
-                      } else if (val) {
-                        handleSelectActiveList(val);
+            {/* Controls Card: Lists, Filter & Sort Toolbar + Action Buttons */}
+            <div className="w-full bg-zinc-900/90 border border-zinc-800/80 rounded-2xl p-2 sm:p-2.5 backdrop-blur-md shadow-sm space-y-2">
+              {/* Single Horizontal Row for Dropdowns */}
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2 w-full items-center">
+                {/* Dropdown 1: Lists */}
+                <select
+                  value={activeListId}
+                  onChange={(event) => {
+                    const val = event.target.value;
+                    if (val === "__create_new__") {
+                      setIsNewListModalOpen(true);
+                    } else if (val) {
+                      handleSelectActiveList(val);
+                    }
+                  }}
+                  aria-label="Select casino list"
+                  className="h-8 w-full bg-zinc-950/80 border border-zinc-800 text-[11px] font-medium text-zinc-200 rounded-xl px-2 py-0 focus:outline-none focus:border-emerald-500 truncate cursor-pointer"
+                >
+                  {customLists.map((list) => {
+                    const count =
+                      list.id === "all"
+                        ? casinos.filter((c) => !c.hidden).length
+                        : list.casinoIds.filter((id) => casinos.some((c) => c.id === id && !c.hidden)).length;
+                    return (
+                      <option key={list.id} value={list.id} className="bg-zinc-900 text-zinc-200">
+                        {list.id === "all" ? `All (${count})` : `${list.name} (${count})`}
+                      </option>
+                    );
+                  })}
+                  <option value="hidden" className="bg-zinc-900 text-zinc-400">
+                    Hidden ({casinos.filter((c) => Boolean(c.hidden)).length})
+                  </option>
+                  <option disabled value="" className="bg-zinc-900 text-zinc-600">
+                    ──────────
+                  </option>
+                  <option value="__create_new__" className="bg-zinc-900 text-emerald-400 font-semibold">
+                    + New List...
+                  </option>
+                </select>
+
+                {/* Dropdown 2: Filter */}
+                <select
+                  value={casinoFilter}
+                  onChange={(event) => setCasinoFilter(event.target.value as typeof casinoFilter)}
+                  aria-label="Filter casinos"
+                  className="h-8 w-full bg-zinc-950/80 border border-zinc-800 text-[11px] font-medium text-zinc-200 rounded-xl px-2 py-0 focus:outline-none focus:border-emerald-500 truncate cursor-pointer"
+                >
+                  <option value="all" className="bg-zinc-900 text-zinc-200">Filter: All</option>
+                  <option value="ready" className="bg-zinc-900 text-zinc-200">Ready</option>
+                  <option value="claimed" className="bg-zinc-900 text-zinc-200">Claimed</option>
+                </select>
+
+                {/* Dropdown 3: Sort */}
+                <select
+                  value={casinoSort}
+                  onChange={(event) => {
+                    const next = event.target.value as typeof casinoSort;
+                    setCasinoSort(next);
+                    try {
+                      localStorage.setItem("dailyroll_casino_sort", next);
+                      localStorage.setItem("dailyroll_sort_migrated_v2", "true");
+                      const stored = localStorage.getItem("dailyroll_profile_prefs");
+                      if (stored) {
+                        const parsed = JSON.parse(stored);
+                        parsed.sortOrder = next;
+                        localStorage.setItem("dailyroll_profile_prefs", JSON.stringify(parsed));
                       }
-                    }}
-                    aria-label="Select casino list"
-                    className="h-9 w-full rounded-xl bg-zinc-950/80 border border-zinc-800 text-zinc-200 text-xs px-3 focus:border-emerald-500 focus:outline-none transition-colors cursor-pointer"
-                  >
-                    {customLists.map((list) => {
-                      const count =
-                        list.id === "all"
-                          ? casinos.filter((c) => !c.hidden).length
-                          : list.casinoIds.filter((id) => casinos.some((c) => c.id === id && !c.hidden)).length;
-                      return (
-                        <option key={list.id} value={list.id} className="bg-zinc-900 text-zinc-200">
-                          {list.name} ({count})
-                        </option>
-                      );
-                    })}
-                    <option value="hidden" className="bg-zinc-900 text-zinc-400">
-                      Hidden Casinos ({casinos.filter((c) => Boolean(c.hidden)).length})
-                    </option>
-                    <option disabled value="" className="bg-zinc-900 text-zinc-600">
-                      ──────────
-                    </option>
-                    <option value="__create_new__" className="bg-zinc-900 text-emerald-400 font-semibold">
-                      + Create New List...
-                    </option>
-                  </select>
-                </div>
-
-                {/* Group 2: Filter Dropdown */}
-                <div className="flex items-center w-full min-w-0">
-                  <span className="text-xs font-semibold text-zinc-400 mr-2 shrink-0">Filter:</span>
-                  <select
-                    value={casinoFilter}
-                    onChange={(event) => setCasinoFilter(event.target.value as typeof casinoFilter)}
-                    aria-label="Filter casinos"
-                    className="h-9 w-full rounded-xl bg-zinc-950/80 border border-zinc-800 text-zinc-200 text-xs px-3 focus:border-emerald-500 focus:outline-none transition-colors cursor-pointer"
-                  >
-                    <option value="all" className="bg-zinc-900 text-zinc-200">All casinos</option>
-                    <option value="ready" className="bg-zinc-900 text-zinc-200">Ready to claim</option>
-                    <option value="claimed" className="bg-zinc-900 text-zinc-200">Claimed</option>
-                  </select>
-                </div>
-
-                {/* Group 3: Sort Dropdown */}
-                <div className="flex items-center w-full min-w-0">
-                  <span className="text-xs font-semibold text-zinc-400 mr-2 shrink-0">Sort:</span>
-                  <select
-                    value={casinoSort}
-                    onChange={(event) => {
-                      const next = event.target.value as typeof casinoSort;
-                      setCasinoSort(next);
-                      try {
-                        localStorage.setItem("dailyroll_casino_sort", next);
-                        localStorage.setItem("dailyroll_sort_migrated_v2", "true");
-                        const stored = localStorage.getItem("dailyroll_profile_prefs");
-                        if (stored) {
-                          const parsed = JSON.parse(stored);
-                          parsed.sortOrder = next;
-                          localStorage.setItem("dailyroll_profile_prefs", JSON.stringify(parsed));
-                        }
-                      } catch {}
-                    }}
-                    aria-label="Sort casinos"
-                    className="h-9 w-full rounded-xl bg-zinc-950/80 border border-zinc-800 text-zinc-200 text-xs px-3 focus:border-emerald-500 focus:outline-none transition-colors cursor-pointer"
-                  >
-                    <option value="next-available" className="bg-zinc-900 text-zinc-200">Next Available</option>
-                    <option value="provider" className="bg-zinc-900 text-zinc-200">Provider</option>
-                    <option value="f2p" className="bg-zinc-900 text-zinc-200">Best F2P</option>
-                    <option value="trustpilot" className="bg-zinc-900 text-zinc-200">Trustpilot</option>
-                    <option value="name-asc" className="bg-zinc-900 text-zinc-200">Name A-Z</option>
-                    <option value="name-desc" className="bg-zinc-900 text-zinc-200">Name Z-A</option>
-                  </select>
-                </div>
+                    } catch {}
+                  }}
+                  aria-label="Sort casinos"
+                  className="h-8 w-full bg-zinc-950/80 border border-zinc-800 text-[11px] font-medium text-zinc-200 rounded-xl px-2 py-0 focus:outline-none focus:border-emerald-500 truncate cursor-pointer"
+                >
+                  <option value="next-available" className="bg-zinc-900 text-zinc-200">Next Avail</option>
+                  <option value="provider" className="bg-zinc-900 text-zinc-200">Provider</option>
+                  <option value="f2p" className="bg-zinc-900 text-zinc-200">Best F2P</option>
+                  <option value="trustpilot" className="bg-zinc-900 text-zinc-200">Trustpilot</option>
+                  <option value="name-asc" className="bg-zinc-900 text-zinc-200">Name A-Z</option>
+                  <option value="name-desc" className="bg-zinc-900 text-zinc-200">Name Z-A</option>
+                </select>
               </div>
 
               {/* Auxiliary Controls: Active List Management & Hidden List Indicator */}
               {activeListId !== "all" && (
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-800/40">
+                <div className="flex items-center justify-between gap-2 pt-1 border-t border-zinc-800/40">
                   {activeListId === "hidden" ? (
                     <div className="flex items-center gap-1.5 text-[11px] text-zinc-400">
                       <EyeOff size={12} className="text-zinc-500 shrink-0" />
                       <span className="font-medium text-zinc-300">
-                        Viewing Hidden Casinos ({casinos.filter((c) => Boolean(c.hidden)).length})
+                        Hidden ({casinos.filter((c) => Boolean(c.hidden)).length})
                       </span>
                       <span className="hidden sm:inline text-zinc-600">• Use card menu (•••) to unhide</span>
                     </div>
@@ -2095,13 +2087,13 @@ export default function TrackerPage() {
               )}
 
               {/* Primary Action Buttons Row (Embedded Inside Controls Card) */}
-              <div className="grid grid-cols-3 gap-2 w-full pt-2 border-t border-zinc-800/50">
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2 w-full pt-1.5 border-t border-zinc-800/50">
                 {/* 1. Open All (X) */}
                 {isStaggering ? (
-                  <div className="h-9 px-2 sm:px-3 rounded-xl bg-zinc-900 border border-amber-500/50 text-amber-300 font-semibold text-xs flex items-center justify-between gap-1 whitespace-nowrap animate-pulse shadow-sm">
+                  <div className="h-8 sm:h-9 px-1.5 sm:px-2.5 rounded-xl bg-zinc-900 border border-amber-500/50 text-amber-300 font-semibold text-[11px] sm:text-xs flex items-center justify-between gap-1 whitespace-nowrap animate-pulse shadow-sm">
                     <div className="flex items-center gap-1 min-w-0">
-                      <Loader2 size={13} className="animate-spin text-amber-400 shrink-0" />
-                      <span className="truncate text-[11px]">{staggerStatus || "Launching..."}</span>
+                      <Loader2 size={12} className="animate-spin text-amber-400 shrink-0" />
+                      <span className="truncate text-[10px] sm:text-[11px]">{staggerStatus || "Launching..."}</span>
                     </div>
                     <button
                       type="button"
@@ -2109,7 +2101,7 @@ export default function TrackerPage() {
                       title="Cancel launching remaining casinos"
                       className="p-1 text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded transition shrink-0 cursor-pointer"
                     >
-                      <X size={12} />
+                      <X size={11} />
                     </button>
                   </div>
                 ) : (
@@ -2122,14 +2114,14 @@ export default function TrackerPage() {
                         ? `Open all ${readyCount} ready casinos (staggered to prevent popup blocking)`
                         : "No casinos currently ready to claim"
                     }
-                    className={`h-9 px-2 sm:px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${
+                    className={`h-8 sm:h-9 px-1.5 sm:px-2.5 rounded-xl text-[11px] sm:text-xs flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap transition-all ${
                       readyCount > 0
                         ? "bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-zinc-950 font-extrabold shadow-md shadow-emerald-950/60 border border-emerald-300/60 active:translate-y-[1px] active:scale-[0.98] cursor-pointer"
                         : "bg-zinc-950/60 border border-zinc-800/80 text-zinc-600 font-medium opacity-50 cursor-not-allowed shadow-none"
                     }`}
                   >
-                    <ExternalLink size={13} strokeWidth={readyCount > 0 ? 2.5 : 2} className="shrink-0" />
-                    <span>Open All ({readyCount})</span>
+                    <ExternalLink size={12} strokeWidth={readyCount > 0 ? 2.5 : 2} className="shrink-0" />
+                    <span className="truncate">Open All ({readyCount})</span>
                   </button>
                 )}
 
@@ -2138,10 +2130,10 @@ export default function TrackerPage() {
                   type="button"
                   onClick={() => setIsAddCasinosModalOpen(true)}
                   title="Add casinos to your rollcall"
-                  className="h-9 px-2 sm:px-3 rounded-xl bg-gradient-to-b from-zinc-800 to-zinc-900 hover:from-zinc-750 hover:to-zinc-850 text-zinc-100 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-black/40 border border-zinc-700 hover:border-emerald-500/60 active:translate-y-[1px] active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
+                  className="h-8 sm:h-9 px-1.5 sm:px-2.5 rounded-xl bg-gradient-to-b from-zinc-800 to-zinc-900 hover:from-zinc-750 hover:to-zinc-850 text-zinc-100 font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1 sm:gap-1.5 shadow-md shadow-black/40 border border-zinc-700 hover:border-emerald-500/60 active:translate-y-[1px] active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
                 >
-                  <Plus size={14} strokeWidth={2.5} className="text-emerald-400 shrink-0" />
-                  <span>Add Casinos</span>
+                  <Plus size={13} strokeWidth={2.5} className="text-emerald-400 shrink-0" />
+                  <span className="truncate">Add Casinos</span>
                 </button>
 
                 {/* 3. Speed Run (X) */}
@@ -2150,14 +2142,14 @@ export default function TrackerPage() {
                   onClick={handleOpenSpeedRun}
                   disabled={readyCount === 0}
                   title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
-                  className={`h-9 px-2 sm:px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${
+                  className={`h-8 sm:h-9 px-1.5 sm:px-2.5 rounded-xl text-[11px] sm:text-xs flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap transition-all ${
                     readyCount > 0
                       ? "bg-gradient-to-b from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-zinc-950 font-extrabold shadow-md shadow-amber-950/60 border border-amber-300/60 active:translate-y-[1px] active:scale-[0.98] cursor-pointer"
                       : "bg-zinc-950/60 border border-zinc-800/80 text-zinc-600 font-medium opacity-50 cursor-not-allowed shadow-none"
                   }`}
                 >
-                  <Zap size={13} fill={readyCount > 0 ? "currentColor" : "none"} strokeWidth={readyCount > 0 ? 2.5 : 2} className="shrink-0" />
-                  <span>Speed Run ({readyCount})</span>
+                  <Zap size={12} fill={readyCount > 0 ? "currentColor" : "none"} strokeWidth={readyCount > 0 ? 2.5 : 2} className="shrink-0" />
+                  <span className="truncate">Speed Run ({readyCount})</span>
                 </button>
               </div>
             </div>
