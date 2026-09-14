@@ -16,6 +16,31 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+export function GeminiLogo({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id="gemini-bubble-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#1BA1E3" />
+          <stop offset="35%" stopColor="#5460E6" />
+          <stop offset="70%" stopColor="#9B72CB" />
+          <stop offset="100%" stopColor="#F472B6" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M11.04 19.32Q12 21.6 12 24q0-2.4.96-4.68.96-2.28 2.58-3.9 1.62-1.62 3.9-2.58Q21.6 12 24 12q-2.4 0-4.56-.96-2.28-.96-3.9-2.58-1.62-1.62-2.58-3.9Q12 2.4 12 0q0 2.4-.96 4.56-.96 2.28-2.58 3.9-1.62 1.62-3.9 2.58Q2.4 12 0 12q2.4 0 4.56.96 2.28.96 3.9 2.58 1.62 1.62 2.58 3.9Z"
+        fill="url(#gemini-bubble-gradient)"
+      />
+    </svg>
+  );
+}
+
 export function AiAssistant() {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<"advisor" | "extract">("advisor");
@@ -152,14 +177,16 @@ export function AiAssistant() {
 
   return (
     <>
-      {/* Floating Trigger Button (Hidden on Mobile to Prevent Viewport Collisions) */}
+      {/* Floating Gemini AI Trigger Bubble (Small Gemini Logo) */}
       <button
+        type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-40 hidden md:flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-950/40 transition hover:scale-105 hover:shadow-emerald-900/60 focus:outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer"
-        aria-label="Open AI Bonus Assistant"
+        className="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 z-40 flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-gradient-to-b from-[#131d27]/95 via-[#0d161d]/95 to-[#080d12]/95 border border-cyan-500/40 hover:border-cyan-300 active:scale-95 shadow-xl shadow-black/80 backdrop-blur-md transition-all duration-300 cursor-pointer hover:shadow-[0_0_22px_rgba(56,189,248,0.45)] group"
+        aria-label="Open Dailyroll Gemini AI Assistant"
+        title="Dailyroll Gemini AI Assistant"
       >
-        <Sparkles className="h-5 w-5 text-emerald-100 animate-pulse" />
-        <span>AI Bonus Assistant</span>
+        <span className="absolute inset-0 rounded-full bg-cyan-400/10 animate-pulse pointer-events-none" />
+        <GeminiLogo className="h-5 w-5 sm:h-5.5 sm:w-5.5 transition-transform duration-300 group-hover:scale-110 drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]" />
       </button>
 
       {/* AI Assistant Modal */}
@@ -169,8 +196,8 @@ export function AiAssistant() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-emerald-900/40 bg-[#15231c] px-5 py-3.5">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                  <Bot className="h-5 w-5" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                  <GeminiLogo className="h-5 w-5" />
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-semibold text-emerald-300 flex items-center gap-2">
