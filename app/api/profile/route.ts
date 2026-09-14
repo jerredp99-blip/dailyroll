@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const prefUpdate: Partial<UserPreferences> = {};
     if ("notifications" in body) prefUpdate.notifications = Boolean(body.notifications);
     if ("amoe" in body) prefUpdate.amoe = Boolean(body.amoe);
-    if ("sortOrder" in body) prefUpdate.sortOrder = body.sortOrder ?? "status";
+    if ("sortOrder" in body) prefUpdate.sortOrder = body.sortOrder ?? "next-available";
     if ("name" in body) prefUpdate.name = body.name ? String(body.name).trim() : "";
     if ("contactEmail" in body) {
       prefUpdate.contactEmail =

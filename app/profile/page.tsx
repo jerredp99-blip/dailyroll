@@ -18,7 +18,7 @@ import type { Post } from "@/lib/store";
 
 const PREFERENCES_KEY = "dailyroll_profile_prefs";
 
-type SortOrder = "status" | "f2p" | "trustpilot";
+type SortOrder = "next-available" | "f2p" | "trustpilot";
 
 type StoredPreferences = {
   name: string;
@@ -34,7 +34,7 @@ const DEFAULT_PREFERENCES: StoredPreferences = {
   email: "player@example.com",
   notifications: false,
   amoe: true,
-  sortOrder: "status",
+  sortOrder: "next-available",
 };
 
 export default function ProfilePage() {
@@ -71,7 +71,9 @@ export default function ProfilePage() {
           if (typeof parsed.avatarUrl === "string") setAvatarUrl(parsed.avatarUrl);
           if (typeof parsed.notifications === "boolean") setNotifications(parsed.notifications);
           if (typeof parsed.amoe === "boolean") setAmoeEnabled(parsed.amoe);
-          if (parsed.sortOrder) setSortOrder(parsed.sortOrder);
+          if (parsed.sortOrder) {
+            setSortOrder(parsed.sortOrder === ("status" as any) ? "next-available" : parsed.sortOrder);
+          }
         } catch {
           // Ignore malformed local preferences.
         }
@@ -89,7 +91,7 @@ export default function ProfilePage() {
           setNotifications(data.preferences.notifications);
           setAmoeEnabled(data.preferences.amoe);
           const savedOrder = data.preferences.sortOrder;
-          setSortOrder(savedOrder === "f2p" || savedOrder === "trustpilot" ? savedOrder : "status");
+          setSortOrder(savedOrder === "f2p" || savedOrder === "trustpilot" ? savedOrder : "next-available");
           if (data.preferences.contactEmail) setEmail(data.preferences.contactEmail);
           if (data.preferences.avatarUrl) setAvatarUrl(data.preferences.avatarUrl);
         }
@@ -440,7 +442,7 @@ export default function ProfilePage() {
                     onChange={(e) => setSortOrder(e.target.value as SortOrder)}
                     className="w-full appearance-none rounded-xl border border-[#243d2e] bg-[#0d1611] px-4 py-2.5 text-xs text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   >
-                    <option value="status">Ready to claim first</option>
+                    <option value="next-available">Next Available (Ready first)</option>
                     <option value="trustpilot">Highest Trustpilot rating</option>
                     <option value="f2p">Best F2P / Free to play</option>
                   </select>

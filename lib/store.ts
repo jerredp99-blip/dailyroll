@@ -9,7 +9,7 @@ export type UserPreferences = {
   /** AMOE / mail-in entry tracking opt-in. */
   amoe: boolean;
   /** Default sort order for the rollcall list. */
-  sortOrder: "status" | "f2p" | "trustpilot" | "name-asc" | "name-desc";
+  sortOrder: "next-available" | "provider" | "f2p" | "trustpilot" | "name-asc" | "name-desc";
   /** Display name typed on /profile — applied to the account when saved. */
   name?: string;
   /** Contact email saved from /profile (never used for sign-in). */
