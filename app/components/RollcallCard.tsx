@@ -1,7 +1,9 @@
 "use client";
 
+import React, { useState, useRef, useEffect } from "react";
 import React, { useState } from "react";
 import Link from "next/link";
+import { CheckCircle2, Clock, ExternalLink, MoreHorizontal, X, RotateCcw } from "lucide-react";
 import { CheckCircle2, Clock, ExternalLink, MoreHorizontal, X } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
@@ -85,6 +87,9 @@ function RollcallCardComponent({
   const [customHours, setCustomHours] = useState("");
   const [customMinutes, setCustomMinutes] = useState("");
   const [snoozeSelection, setSnoozeSelection] = useState("");
+  const [isTimerMenuOpen, setIsTimerMenuOpen] = useState(false);
+  const [showInlineAdjustTimer, setShowInlineAdjustTimer] = useState(false);
+  const timerMenuRef = useRef<HTMLDivElement>(null);
 
   const contextNow = useCurrentTimeContext();
   const currentNow = now ?? contextNow;
@@ -92,6 +97,18 @@ function RollcallCardComponent({
 
   const styles = STATUS_STYLES[currentStatus.state];
   const formattedCountdown = formatRemainingTimer(currentStatus.remainingMs);
+
+  // Close quick action menu on outside click
+  useEffect(() => {
+    if (!isTimerMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (timerMenuRef.current && !timerMenuRef.current.contains(e.target as Node)) {
+        setIsTimerMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isTimerMenuOpen]);
 
   // Triggered when user clicks "Claim [Reward]!"
   const handleClaimClick = (event: React.MouseEvent) => {
@@ -166,6 +183,53 @@ function RollcallCardComponent({
     if (onSetCustomTimer) {
       onSetCustomTimer(casino, targetReset);
     }
+  };
+
+  const handleOpenAdjustTimer = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsTimerMenuOpen(false);
+    if (currentStatus.remainingMs > 0) {
+      const totalMinutes = Math.ceil(currentStatus.remainingMs / 60000);
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+      setCustomHours(h > 0 ? String(h) : "");
+      setCustomMinutes(m > 0 ? String(m) : "");
+    } else {
+      setCustomHours("");
+      setCustomMinutes("");
+    }
+    setShowInlineAdjustTimer(true);
+  };
+
+  const handleApplyInlineAdjustTimer = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const h = parseInt(customHours || "0", 10);
+    const m = parseInt(customMinutes || "0", 10);
+    if (isNaN(h) && isNaN(m)) return;
+    if (h === 0 && m === 0) {
+      setShowInlineAdjustTimer(false);
+      setCustomHours("");
+      setCustomMinutes("");
+      onResetToReady?.(casino);
+      return;
+    }
+    const targetReset = calculateCustomResetTimestamp(Math.max(0, h || 0), Math.max(0, m || 0));
+    setShowInlineAdjustTimer(false);
+    setCustomHours("");
+    setCustomMinutes("");
+    if (onSetCustomTimer) {
+      onSetCustomTimer(casino, targetReset);
+    }
+  };
+
+  const handleCancelInlineAdjustTimer = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setShowInlineAdjustTimer(false);
+    setCustomHours("");
+    setCustomMinutes("");
   };
 
   // -------------------------------------------------------------
@@ -383,7 +447,109 @@ function RollcallCardComponent({
           <span>Claim {casino.dailyBonus}!</span>
         </button>
       ) : (
+        <div className="ml-auto relative flex items-center gap-1.5 shrink-0">
+          <div
+            aria-label={
+              currentStatus.isSnoozed
+                ? `Snoozed · ${formattedCountdown}`
+                : `Resets in ${formattedCountdown}`
+            }
+            className={`flex items-center justify-center gap-1.5 rounded-lg border px-2.5 sm:px-3 py-1.5 sm:py-2 font-mono text-xs font-semibold shadow-inner ${
+              currentStatus.isSnoozed
+                ? "border-amber-700/60 bg-[#1c1810] text-amber-300"
+                : "border-[#3a4c40] bg-[#111c16] text-[#edf5ec]"
+            }`}
+          >
+            <span className="relative flex h-2 w-2 mr-1 sm:mr-1.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span>
+              {currentStatus.isSnoozed
+                ? `Snoozed · ${formattedCountdown}`
+                : `Resets in ${formattedCountdown}`}
+            </span>
+          </div>
+
+          {/* Quick-action trigger (kebab ⋯) */}
+          <div className="relative" ref={timerMenuRef}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsTimerMenuOpen((prev) => !prev);
+              }}
+              aria-label="Manage active timer"
+              title="Reset, edit, or adjust timer"
+              className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-lg border border-[#395040] bg-[#14221a] text-gray-300 hover:text-white hover:border-[#4c6d50] hover:bg-[#1f3326] transition cursor-pointer"
+            >
+              <MoreHorizontal size={15} />
+            </button>
+
+            {isTimerMenuOpen && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute right-0 top-full mt-1.5 z-30 w-52 rounded-xl border border-emerald-900/80 bg-[#0d1a13] p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.6)] backdrop-blur-md"
+              >
+                {/* 1. Mark as Ready to Claim */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsTimerMenuOpen(false);
+                    setShowInlineAdjustTimer(false);
+                    onResetToReady?.(casino);
+                  }}
+                  className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-emerald-400 hover:bg-emerald-950/70 hover:text-emerald-300 transition text-left cursor-pointer"
+                >
+                  <RotateCcw size={14} className="shrink-0" />
+                  <span>Mark as Ready to Claim</span>
+                </button>
+
+                {/* 2. Adjust Timer */}
+                <button
+                  type="button"
+                  onClick={handleOpenAdjustTimer}
+                  className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-semibold text-gray-200 hover:bg-[#1a2d21] hover:text-white transition text-left cursor-pointer"
+                >
+                  <Clock size={14} className="shrink-0 text-[#f0a03c]" />
+                  <span>Adjust Timer</span>
+                </button>
+
+                {/* 3. Cancel Snooze (if snoozed) */}
+                {currentStatus.isSnoozed && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsTimerMenuOpen(false);
+                      setShowInlineAdjustTimer(false);
+                      if (onCancelSnooze) {
+                        onCancelSnooze(casino);
+                      } else {
+                        onResetToReady?.(casino);
+                      }
+                    }}
+                    className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-950/50 hover:text-amber-200 transition text-left cursor-pointer border-t border-emerald-900/40 mt-1"
+                  >
+                    <X size={14} className="shrink-0" />
+                    <span>Cancel Snooze</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Inline Adjust Timer Row */}
+      {showInlineAdjustTimer && (
         <div
+          onClick={(e) => e.stopPropagation()}
+          className="w-full flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-900/60 bg-[#0a1610] p-2.5 text-xs animate-in fade-in duration-150"
           aria-label={
             currentStatus.isSnoozed
               ? `Snoozed · ${formattedCountdown}`
@@ -395,6 +561,47 @@ function RollcallCardComponent({
               : "border-[#3a4c40] bg-[#111c16] text-[#edf5ec]"
           }`}
         >
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-[#8ea794]">Time remaining:</span>
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                min="0"
+                max="72"
+                placeholder="0"
+                value={customHours}
+                onChange={(e) => setCustomHours(e.target.value)}
+                className="w-12 rounded border border-[#395040] bg-[#101e16] px-1.5 py-1 text-center text-xs text-white outline-none focus:border-emerald-400"
+              />
+              <span className="text-[11px] text-gray-400">h</span>
+              <input
+                type="number"
+                min="0"
+                max="59"
+                placeholder="0"
+                value={customMinutes}
+                onChange={(e) => setCustomMinutes(e.target.value)}
+                className="w-12 rounded border border-[#395040] bg-[#101e16] px-1.5 py-1 text-center text-xs text-white outline-none focus:border-emerald-400"
+              />
+              <span className="text-[11px] text-gray-400">m</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 ml-auto">
+            <button
+              type="button"
+              onClick={handleCancelInlineAdjustTimer}
+              className="rounded-md border border-[#395040] bg-[#14221a] px-2.5 py-1 text-[11px] font-semibold text-gray-300 hover:text-white transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleApplyInlineAdjustTimer}
+              className="rounded-md bg-emerald-600 px-3 py-1 text-[11px] font-bold text-white transition hover:bg-emerald-500 cursor-pointer shadow-[0_2px_8px_rgba(16,185,129,0.3)]"
+            >
+              Save Timer
+            </button>
+          </div>
           <span className="relative flex h-2 w-2 mr-1 sm:mr-1.5 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />

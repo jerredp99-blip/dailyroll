@@ -26,7 +26,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
-import { calculateCasinoStatus, resetCasinoTimers, useCurrentTime, calculateCustomResetTimestamp, type CasinoStatus } from "@/lib/timerUtils";
+import { calculateCasinoStatus, resetCasinoTimers, useCurrentTime, type CasinoStatus } from "@/lib/timerUtils";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { SpeedRunModal } from "@/app/components/SpeedRunModal";
@@ -275,11 +275,8 @@ export default function TrackerPage() {
   const [editBonus, setEditBonus] = useState("");
   const [editTrustpilotRating, setEditTrustpilotRating] = useState("");
   const [editUseSpecificReset, setEditUseSpecificReset] = useState(false);
-  const [editResetTime, setEditResetTime] = useState("00:00");
+    const [editResetTime, setEditResetTime] = useState("00:00");
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
-  const [actionAdjustTimer, setActionAdjustTimer] = useState(false);
-  const [actionCustomHours, setActionCustomHours] = useState("");
-  const [actionCustomMinutes, setActionCustomMinutes] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [casinoFilter, setCasinoFilter] = useState<"all" | "ready" | "claimed">("all");
@@ -839,7 +836,6 @@ export default function TrackerPage() {
 
   const handleToggleActionMenu = useCallback((id: string) => {
     setOpenActionMenu((open) => (open === id ? null : id));
-    setActionAdjustTimer(false);
   }, []);
 
   const profileInitial = isAdmin ? "A" : signedInUser?.name.trim().charAt(0).toUpperCase() ?? "";
@@ -1821,10 +1817,7 @@ export default function TrackerPage() {
           <div
             className="fixed inset-0 z-20 grid place-items-center bg-black/65 p-5"
             role="presentation"
-            onMouseDown={() => {
-              setOpenActionMenu(null);
-              setActionAdjustTimer(false);
-            }}
+            onMouseDown={() => setOpenActionMenu(null)}
           >
             <div
               className="w-full max-w-sm rounded-2xl border border-[#38503d] bg-[#19251f] p-6 shadow-2xl"
@@ -1844,12 +1837,9 @@ export default function TrackerPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setOpenActionMenu(null);
-                    setActionAdjustTimer(false);
-                  }}
+                  onClick={() => setOpenActionMenu(null)}
                   aria-label="Close casino actions"
-                  className="text-[#91a595] hover:text-white cursor-pointer"
+                  className="text-[#91a595] hover:text-white"
                 >
                   <X size={20} />
                 </button>
@@ -1859,10 +1849,9 @@ export default function TrackerPage() {
                   type="button"
                   onClick={() => {
                     setOpenActionMenu(null);
-                    setActionAdjustTimer(false);
                     toggleHiddenCasino(actionCasino);
                   }}
-                  className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-[#d4e4d2] hover:bg-[#2a4230] cursor-pointer"
+                  className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-[#d4e4d2] hover:bg-[#2a4230]"
                 >
                   <EyeOff size={16} /> {actionCasino.hidden ? "Unhide casino" : "Hide casino"}
                 </button>
@@ -1870,10 +1859,9 @@ export default function TrackerPage() {
                   type="button"
                   onClick={() => {
                     setOpenActionMenu(null);
-                    setActionAdjustTimer(false);
                     openCasinoEditor(actionCasino);
                   }}
-                  className="w-full rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-[#d4e4d2] hover:bg-[#2a4230] cursor-pointer"
+                  className="w-full rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-[#d4e4d2] hover:bg-[#2a4230]"
                 >
                   Edit casino
                 </button>
@@ -1881,99 +1869,20 @@ export default function TrackerPage() {
                   type="button"
                   onClick={() => {
                     setOpenActionMenu(null);
-                    setActionAdjustTimer(false);
                     handleResetToReady(actionCasino);
                   }}
-                  className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-emerald-400 hover:bg-[#2a4230] cursor-pointer"
+                  className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-emerald-400 hover:bg-[#2a4230]"
                 >
                   <RotateCcw size={16} /> Mark as Ready to Claim
                 </button>
-                {!actionAdjustTimer ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const stat = statusFor(actionCasino);
-                      if (stat.remainingMs > 0) {
-                        const totalMinutes = Math.ceil(stat.remainingMs / 60000);
-                        const h = Math.floor(totalMinutes / 60);
-                        const m = totalMinutes % 60;
-                        setActionCustomHours(h > 0 ? String(h) : "");
-                        setActionCustomMinutes(m > 0 ? String(m) : "");
-                      } else {
-                        setActionCustomHours("");
-                        setActionCustomMinutes("");
-                      }
-                      setActionAdjustTimer(true);
-                    }}
-                    className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-[#d4e4d2] hover:bg-[#2a4230] cursor-pointer"
-                  >
-                    <Clock size={16} className="text-[#f0a03c]" /> Adjust Timer
-                  </button>
-                ) : (
-                  <div className="rounded-xl border border-emerald-800/60 bg-[#121f17] p-3 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-emerald-300">Set cooldown time:</span>
-                      <button
-                        type="button"
-                        onClick={() => setActionAdjustTimer(false)}
-                        className="text-xs text-gray-400 hover:text-white cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          min="0"
-                          max="72"
-                          placeholder="0"
-                          value={actionCustomHours}
-                          onChange={(e) => setActionCustomHours(e.target.value)}
-                          className="w-14 rounded-lg border border-[#395040] bg-[#101e16] px-2 py-1 text-center text-xs text-white outline-none focus:border-emerald-400"
-                        />
-                        <span className="text-xs text-gray-400">h</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max="59"
-                          placeholder="0"
-                          value={actionCustomMinutes}
-                          onChange={(e) => setActionCustomMinutes(e.target.value)}
-                          className="w-14 rounded-lg border border-[#395040] bg-[#101e16] px-2 py-1 text-center text-xs text-white outline-none focus:border-emerald-400"
-                        />
-                        <span className="text-xs text-gray-400">m</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const h = parseInt(actionCustomHours || "0", 10);
-                          const m = parseInt(actionCustomMinutes || "0", 10);
-                          if (h === 0 && m === 0) {
-                            handleResetToReady(actionCasino);
-                          } else if (!isNaN(h) || !isNaN(m)) {
-                            const targetReset = calculateCustomResetTimestamp(Math.max(0, h || 0), Math.max(0, m || 0));
-                            handleSetCustomTimer(actionCasino, targetReset);
-                          }
-                          setOpenActionMenu(null);
-                          setActionAdjustTimer(false);
-                        }}
-                        className="ml-auto rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 transition cursor-pointer"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                  </div>
-                )}
                 {actionCasino.snoozedUntil && (
                   <button
                     type="button"
                     onClick={() => {
                       setOpenActionMenu(null);
-                      setActionAdjustTimer(false);
                       handleCancelSnooze(actionCasino);
                     }}
-                    className="flex w-full items-center gap-2 rounded-xl border border-amber-800/60 px-4 py-3 text-left text-sm font-semibold text-amber-300 hover:bg-amber-950/40 cursor-pointer"
+                    className="flex w-full items-center gap-2 rounded-xl border border-amber-800/60 px-4 py-3 text-left text-sm font-semibold text-amber-300 hover:bg-amber-950/40"
                   >
                     <X size={16} /> Cancel Snooze
                   </button>
@@ -1982,10 +1891,9 @@ export default function TrackerPage() {
                   type="button"
                   onClick={() => {
                     setOpenActionMenu(null);
-                    setActionAdjustTimer(false);
                     saveCasinos(casinos.filter((item) => item.id !== actionCasino.id));
                   }}
-                  className="flex w-full items-center gap-2 rounded-xl border border-[#633c3d] px-4 py-3 text-left text-sm font-semibold text-[#e69b91] hover:bg-[#422c2b] cursor-pointer"
+                  className="flex w-full items-center gap-2 rounded-xl border border-[#633c3d] px-4 py-3 text-left text-sm font-semibold text-[#e69b91] hover:bg-[#422c2b]"
                 >
                   <Trash2 size={16} /> Delete casino
                 </button>
