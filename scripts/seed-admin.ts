@@ -1,8 +1,28 @@
 import { seedAdminUserIfMissing, getUsers } from "../lib/store";
+import { NEW_DISCOVERED_CASINOS } from "../lib/casinosData";
+import { updateCasinoMetadata } from "../lib/db";
+
+export async function seedMasterCasinos() {
+  console.log("Seeding master casinos baseline values into store...");
+  for (const casino of NEW_DISCOVERED_CASINOS) {
+    await updateCasinoMetadata({
+      name: casino.name,
+      siteUrl: casino.siteUrl,
+      dailyBonus: casino.dailyBonus,
+      dailyBonusSc: casino.dailyBonusSc,
+      minRedemption: casino.minRedemption,
+      resetRule: casino.resetRule,
+      hasStreak: casino.hasStreak,
+      intervalHours: casino.intervalHours,
+    });
+    console.log(`Seeded casino: ${casino.name}`);
+  }
+}
 
 export async function seedAdmin() {
   console.log("Seeding and authorizing default admin account for Timber420@gmail.com...");
   await seedAdminUserIfMissing();
+  await seedMasterCasinos();
   const users = await getUsers();
   const adminUser = users.find((u) => u.email.toLowerCase() === "timber420@gmail.com");
 

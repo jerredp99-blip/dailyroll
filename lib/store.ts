@@ -45,6 +45,8 @@ export const DEFAULT_ADMIN_USER: UserProfile = {
 
 import type { Casino, SpeedRunSessionState } from "@/types/casino";
 export type { Casino, SpeedRunSessionState };
+import { MASTER_CASINOS_DATA } from "@/lib/casinosData";
+import { casinoDirectory, casinoDirectoryUrls } from "@/lib/casino-directory";
 
 export type Session = {
   token: string;
@@ -123,6 +125,7 @@ type Store = {
   directoryResetTimes?: Record<string, string | null>;
   directoryDetails?: Record<string, string>;
   directoryProviders?: Record<string, string>;
+  directoryHasStreak?: Record<string, boolean>;
   sessions: Record<string, Session>;
   magicLinks: Record<string, MagicLink>;
   posts: Post[];
@@ -254,6 +257,7 @@ const EMPTY_STORE: Store = {
   directoryResetTimes: {},
   directoryDetails: {},
   directoryProviders: {},
+  directoryHasStreak: {},
   sessions: {},
   magicLinks: {},
   posts: INITIAL_POSTS,
@@ -472,25 +476,54 @@ export async function deleteSpeedRunSessionStore(key: string): Promise<void> {
 
 export async function getDirectory() {
   const store = await readStore();
+
+  const defaultUrls: Record<string, string> = { ...casinoDirectoryUrls };
+  const defaultDailyBonuses: Record<string, string> = {};
+  const defaultDailyBonusSc: Record<string, string> = {};
+  const defaultDailyBonusGc: Record<string, string> = {};
+  const defaultMinRedemption: Record<string, string> = {};
+  const defaultResetRules: Record<string, string> = {};
+  const defaultHasStreak: Record<string, boolean> = {};
+
+  for (const c of MASTER_CASINOS_DATA) {
+    if (c.siteUrl) defaultUrls[c.name] = c.siteUrl;
+    if (c.dailyBonus) defaultDailyBonuses[c.name] = c.dailyBonus;
+    if (c.dailyBonusSc) defaultDailyBonusSc[c.name] = c.dailyBonusSc;
+    if (c.dailyBonusGc) defaultDailyBonusGc[c.name] = c.dailyBonusGc;
+    if (c.minRedemption) defaultMinRedemption[c.name] = c.minRedemption;
+    if (c.resetRule) defaultResetRules[c.name] = c.resetRule;
+    if (c.hasStreak !== undefined) defaultHasStreak[c.name] = c.hasStreak;
+  }
+
+  const rawList = store.directoryList && store.directoryList.length > 0 ? store.directoryList : casinoDirectory;
+  const listSet = new Set(rawList);
+  for (const c of MASTER_CASINOS_DATA) {
+    if (!listSet.has(c.name)) {
+      listSet.add(c.name);
+    }
+  }
+  const mergedList = Array.from(listSet);
+
   return {
-    list: store.directoryList,
-    urls: store.directoryUrls || {},
+    list: mergedList,
+    urls: { ...defaultUrls, ...(store.directoryUrls || {}) },
     affiliateUrls: store.affiliateUrls || {},
     claimUrls: store.claimUrls || {},
     bonusUrls: store.bonusUrls || {},
     bonusTitles: store.bonusTitles || {},
     ratings: store.directoryRatings || {},
-    dailyBonuses: store.directoryDailyBonuses || {},
-    dailyBonusSc: store.directoryDailyBonusSc || {},
-    dailyBonusGc: store.directoryDailyBonusGc || {},
-    minRedemption: store.directoryMinRedemption || {},
+    dailyBonuses: { ...defaultDailyBonuses, ...(store.directoryDailyBonuses || {}) },
+    dailyBonusSc: { ...defaultDailyBonusSc, ...(store.directoryDailyBonusSc || {}) },
+    dailyBonusGc: { ...defaultDailyBonusGc, ...(store.directoryDailyBonusGc || {}) },
+    minRedemption: { ...defaultMinRedemption, ...(store.directoryMinRedemption || {}) },
     payoutMethods: store.directoryPayoutMethods || {},
     payoutSpeed: store.directoryPayoutSpeed || {},
-    resetRules: store.directoryResetRules || {},
+    resetRules: { ...defaultResetRules, ...(store.directoryResetRules || {}) },
     restrictedStates: store.directoryRestrictedStates || {},
     resetTimes: store.directoryResetTimes || {},
     details: store.directoryDetails || {},
     providers: store.directoryProviders || {},
+    hasStreak: { ...defaultHasStreak, ...(store.directoryHasStreak || {}) },
   };
 }
 
@@ -513,6 +546,7 @@ export async function saveDirectory(update: {
   resetTimes?: Record<string, string | null>;
   details?: Record<string, string>;
   providers?: Record<string, string>;
+  hasStreak?: Record<string, boolean>;
 }) {
   return queueMutation((store) => {
     if (update.list) store.directoryList = update.list;
@@ -545,6 +579,8 @@ export async function saveDirectory(update: {
       store.directoryDetails = { ...(store.directoryDetails || {}), ...update.details };
     if (update.providers)
       store.directoryProviders = { ...(store.directoryProviders || {}), ...update.providers };
+    if (update.hasStreak)
+      store.directoryHasStreak = { ...(store.directoryHasStreak || {}), ...update.hasStreak };
     return {
       list: store.directoryList,
       urls: store.directoryUrls || {},
@@ -564,6 +600,7 @@ export async function saveDirectory(update: {
       resetTimes: store.directoryResetTimes || {},
       details: store.directoryDetails || {},
       providers: store.directoryProviders || {},
+      hasStreak: store.directoryHasStreak || {},
     };
   });
 }

@@ -49,6 +49,14 @@ export async function POST(request: NextRequest) {
       resetAtTime?: string | null;
       intervalHours?: number | string | null;
       provider?: string | null;
+      dailyBonusSc?: string | null;
+      dailyBonusGc?: string | null;
+      minRedemption?: string | null;
+      payoutMethods?: string | null;
+      payoutSpeed?: string | null;
+      resetRule?: string | null;
+      restrictedStates?: string | null;
+      hasStreak?: boolean | string | null;
     };
 
     if (!body?.name?.trim()) {
@@ -67,6 +75,14 @@ export async function POST(request: NextRequest) {
     if ("resetAtTime" in body) updateData.resetAtTime = body.resetAtTime === "" ? null : body.resetAtTime;
     if ("intervalHours" in body) updateData.intervalHours = (body.intervalHours === "" || body.intervalHours === null) ? 24 : Number(body.intervalHours);
     if ("provider" in body) updateData.provider = body.provider === "" ? null : body.provider;
+    if ("dailyBonusSc" in body) updateData.dailyBonusSc = body.dailyBonusSc === "" ? null : body.dailyBonusSc;
+    if ("dailyBonusGc" in body) updateData.dailyBonusGc = body.dailyBonusGc === "" ? null : body.dailyBonusGc;
+    if ("minRedemption" in body) updateData.minRedemption = body.minRedemption === "" ? null : body.minRedemption;
+    if ("payoutMethods" in body) updateData.payoutMethods = body.payoutMethods === "" ? null : body.payoutMethods;
+    if ("payoutSpeed" in body) updateData.payoutSpeed = body.payoutSpeed === "" ? null : body.payoutSpeed;
+    if ("resetRule" in body) updateData.resetRule = body.resetRule === "" ? null : body.resetRule;
+    if ("restrictedStates" in body) updateData.restrictedStates = body.restrictedStates === "" ? null : body.restrictedStates;
+    if ("hasStreak" in body) updateData.hasStreak = (body.hasStreak === "" || body.hasStreak === null) ? null : Boolean(body.hasStreak);
 
     // 1. Audit Persistence: Write directly to shared Upstash Redis / DB
     const directory = await updateCasinoMetadata(updateData as any);

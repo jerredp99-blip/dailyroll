@@ -96,9 +96,17 @@ export type DirectoryData = {
   bonusTitles: Record<string, string>;
   ratings: Record<string, number>;
   dailyBonuses?: Record<string, string>;
+  dailyBonusSc?: Record<string, string>;
+  dailyBonusGc?: Record<string, string>;
+  minRedemption?: Record<string, string>;
+  payoutMethods?: Record<string, string>;
+  payoutSpeed?: Record<string, string>;
+  resetRules?: Record<string, string>;
+  restrictedStates?: Record<string, string>;
   resetTimes?: Record<string, string | null>;
   details?: Record<string, string>;
   providers?: Record<string, string>;
+  hasStreak?: Record<string, boolean>;
 };
 
 export async function apiGetDirectory(): Promise<DirectoryData> {
@@ -115,9 +123,17 @@ export async function apiSaveDirectory(update: {
   bonusTitles?: Record<string, string>;
   ratings?: Record<string, number>;
   dailyBonuses?: Record<string, string>;
+  dailyBonusSc?: Record<string, string>;
+  dailyBonusGc?: Record<string, string>;
+  minRedemption?: Record<string, string>;
+  payoutMethods?: Record<string, string>;
+  payoutSpeed?: Record<string, string>;
+  resetRules?: Record<string, string>;
+  restrictedStates?: Record<string, string>;
   resetTimes?: Record<string, string | null>;
   details?: Record<string, string>;
   providers?: Record<string, string>;
+  hasStreak?: Record<string, boolean>;
 }): Promise<DirectoryData> {
   const res = await fetch("/api/directory", {
     method: "POST",
@@ -140,6 +156,14 @@ export async function apiUpdateAdminCasino(data: {
   resetAtTime?: string | null;
   intervalHours?: number | null;
   provider?: string | null;
+  dailyBonusSc?: string | null;
+  dailyBonusGc?: string | null;
+  minRedemption?: string | null;
+  payoutMethods?: string | null;
+  payoutSpeed?: string | null;
+  resetRule?: string | null;
+  restrictedStates?: string | null;
+  hasStreak?: boolean | null;
 }): Promise<{ ok: boolean; directory: DirectoryData }> {
   const res = await fetch("/api/admin/casinos", {
     method: "POST",

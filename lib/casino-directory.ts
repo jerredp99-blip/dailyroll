@@ -47,6 +47,11 @@ export const casinoDirectory = [
   "Fortune Wins",
   "AceBet",
   "Stake",
+  "ThrillCoins",
+  "SweepstakesCasino.com",
+  "BangCoins",
+  "DimeSweeps",
+  "SweepsRoyal",
 ];
 
 export const casinoDirectoryUrls: Record<string, string> = {
@@ -95,4 +100,9 @@ export const casinoDirectoryUrls: Record<string, string> = {
   "Fortune Wins": "https://fortunewins.com",
   AceBet: "https://acebet.com",
   Stake: "https://stake.us",
+  ThrillCoins: "https://thrillcoins.com",
+  "SweepstakesCasino.com": "https://sweepstakescasino.com",
+  BangCoins: "https://bangcoins.com",
+  DimeSweeps: "https://dimesweeps.com",
+  SweepsRoyal: "https://sweepsroyal.com",
 };

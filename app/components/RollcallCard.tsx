@@ -393,6 +393,16 @@ function RollcallCardComponent({
           </h2>
         </Link>
         <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+          {casino.hasStreak && (
+            <span className="rounded-full border border-orange-500/40 bg-orange-950/40 px-2 py-0.5 text-[10px] sm:text-[11px] font-bold text-orange-400">
+              🔥 Streak
+            </span>
+          )}
+          {casino.minRedemption && (
+            <span className="rounded-full border border-[#38503f] bg-[#122218] px-2 py-0.5 text-[10px] sm:text-[11px] font-medium text-[#86a88d]">
+              {casino.minRedemption}
+            </span>
+          )}
           {casino.provider && (
             <span className="rounded-full border border-[#38503f] bg-[#122218] px-2 py-0.5 text-[10px] sm:text-[11px] font-medium text-[#86a88d]">
               {casino.provider}
@@ -618,6 +628,9 @@ function RollcallCardComponent({
 
 function areRollcallCardPropsEqual(prev: RollcallCardProps, next: RollcallCardProps): boolean {
   if (prev.casino !== next.casino) return false;
+  if (prev.casino.hasStreak !== next.casino.hasStreak) return false;
+  if (prev.casino.minRedemption !== next.casino.minRedemption) return false;
+  if (prev.casino.dailyBonus !== next.casino.dailyBonus) return false;
   if (prev.isActionMenuOpen !== next.isActionMenuOpen) return false;
   if (prev.siteUrl !== next.siteUrl) return false;
   if (prev.rating !== next.rating) return false;

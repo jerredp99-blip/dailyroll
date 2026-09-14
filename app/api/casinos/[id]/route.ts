@@ -9,6 +9,7 @@ import {
 import { updateCasinoMetadata } from "@/lib/db";
 import { getCurrentSession } from "@/lib/auth";
 import { casinoDirectory, casinoDirectoryUrls } from "@/lib/casino-directory";
+import { MASTER_CASINOS_DATA } from "@/lib/casinosData";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -27,6 +28,10 @@ function slugify(text: string): string {
 }
 
 const DEFAULT_KNOWN_CASINOS: Partial<Casino>[] = [
+  ...MASTER_CASINOS_DATA.map((c, i) => ({
+    id: `known-${i + 1}`,
+    ...c,
+  })),
   {
     id: "1",
     name: "Crown Coins",
@@ -261,6 +266,13 @@ async function resolveCasino(idOrSlug: string, userEmail?: string | null): Promi
     adminMatchedCasino?.resetAtTime ??
     null;
 
+  const hasStreak =
+    directory.hasStreak?.[canonicalName] ??
+    userMatchedCasino?.hasStreak ??
+    adminMatchedCasino?.hasStreak ??
+    knownDefault?.hasStreak ??
+    false;
+
   const resolvedCasino: Casino = {
     id: userMatchedCasino?.id || adminMatchedCasino?.id || slugify(canonicalName),
     name: canonicalName,
@@ -272,6 +284,7 @@ async function resolveCasino(idOrSlug: string, userEmail?: string | null): Promi
     payoutSpeed,
     resetRule,
     restrictedStates,
+    hasStreak,
     siteUrl,
     affiliateUrl,
     claimUrl,

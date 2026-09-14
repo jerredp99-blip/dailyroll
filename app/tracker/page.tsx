@@ -20,6 +20,7 @@ import {
   Loader2,
   Zap,
   RotateCcw,
+  Flame,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -30,6 +31,8 @@ import { getCasinoDeepLink } from "@/lib/casinoLinks";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { SpeedRunModal } from "@/app/components/SpeedRunModal";
 import { SpeedRunErrorBoundary } from "@/components/SpeedRunErrorBoundary";
+import { AddCasinosModal } from "@/components/AddCasinosModal";
+import { getCasinoDefaultMetadata, MASTER_CASINOS_DATA } from "@/lib/casinosData";
 // import { BankrollSummary } from "@/app/components/BankrollSummary";
 import {
   apiGetCasinos,
@@ -38,6 +41,7 @@ import {
   apiSaveCasinos,
   apiSaveDirectory,
   apiUpdateAdminCasino,
+  type DirectoryData,
 } from "@/lib/api-client";
 import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 import { casinoDirectory, casinoDirectoryUrls } from "@/lib/casino-directory";
@@ -253,6 +257,13 @@ export default function TrackerPage() {
   const [directoryBonusTitles, setDirectoryBonusTitles] = useState<Record<string, string>>({});
   const [directoryRatings, setDirectoryRatings] = useState<Record<string, number>>({});
   const [directoryProviders, setDirectoryProviders] = useState<Record<string, string>>({});
+  const [directoryDailyBonuses, setDirectoryDailyBonuses] = useState<Record<string, string>>({});
+  const [directoryDailyBonusSc, setDirectoryDailyBonusSc] = useState<Record<string, string>>({});
+  const [directoryMinRedemption, setDirectoryMinRedemption] = useState<Record<string, string>>({});
+  const [directoryResetRules, setDirectoryResetRules] = useState<Record<string, string>>({});
+  const [directoryHasStreak, setDirectoryHasStreak] = useState<Record<string, boolean>>({});
+  const [isAddCasinosModalOpen, setIsAddCasinosModalOpen] = useState(false);
+  const [directorySnapshot, setDirectorySnapshot] = useState<DirectoryData | null>(null);
   const [editingCasino, setEditingCasino] = useState<Casino | null>(null);
   const [editUrl, setEditUrl] = useState("");
   const [editProvider, setEditProvider] = useState("");
@@ -485,6 +496,18 @@ export default function TrackerPage() {
         // User Claim & Display State (Personal to this user, decoupled from static metadata):
         const lastClaimedAt = casino.lastClaimedAt || localClaimedTimes[casino.id] || null;
 
+        const seed = getCasinoDefaultMetadata(casino.name);
+        const dailyBonusSc =
+          directoryData.dailyBonusSc?.[casino.name] ?? casino.dailyBonusSc ?? seed?.dailyBonusSc;
+        const dailyBonusGc =
+          directoryData.dailyBonusGc?.[casino.name] ?? casino.dailyBonusGc ?? seed?.dailyBonusGc;
+        const minRedemption =
+          directoryData.minRedemption?.[casino.name] ?? casino.minRedemption ?? seed?.minRedemption;
+        const resetRule =
+          directoryData.resetRules?.[casino.name] ?? casino.resetRule ?? seed?.resetRule;
+        const hasStreak =
+          directoryData.hasStreak?.[casino.name] ?? casino.hasStreak ?? seed?.hasStreak ?? false;
+
         return {
           ...casino,
           siteUrl,
@@ -498,6 +521,11 @@ export default function TrackerPage() {
           resetAtTime,
           details,
           provider,
+          dailyBonusSc,
+          dailyBonusGc,
+          minRedemption,
+          resetRule,
+          hasStreak,
           lastClaimedAt,
         };
       });
@@ -520,6 +548,7 @@ export default function TrackerPage() {
           // Ignore malformed saved preferences.
         }
       }
+      setDirectorySnapshot(directoryData);
       if (directoryData.list) setDirectory(directoryData.list);
       setDirectoryUrls({
         ...casinoDirectoryUrls,
@@ -539,6 +568,11 @@ export default function TrackerPage() {
       });
       setDirectoryProviders(sharedProviders);
       setDirectoryRatings(currentRatings);
+      setDirectoryDailyBonuses(directoryData.dailyBonuses || {});
+      setDirectoryDailyBonusSc(directoryData.dailyBonusSc || {});
+      setDirectoryMinRedemption(directoryData.minRedemption || {});
+      setDirectoryResetRules(directoryData.resetRules || {});
+      setDirectoryHasStreak(directoryData.hasStreak || {});
 
       if (typeof window !== "undefined") {
         const urlParams = new URLSearchParams(window.location.search);
@@ -868,20 +902,27 @@ export default function TrackerPage() {
       if (!stayOnList) showAddCasinosPage(false);
       return;
     }
+    const seed = getCasinoDefaultMetadata(casinoName);
     const siteUrl =
       directoryUrls[casinoName] ||
+      seed?.siteUrl ||
       `https://www.google.com/search?q=${encodeURIComponent(`${casinoName} casino`)}`;
     const entry: Casino = {
       id: Date.now().toString(),
       name: casinoName,
-      dailyBonus: "Free daily",
+      dailyBonus: directoryDailyBonuses[casinoName] || seed?.dailyBonus || "Free daily",
+      dailyBonusSc: directoryDailyBonusSc[casinoName] || seed?.dailyBonusSc,
+      dailyBonusGc: seed?.dailyBonusGc,
+      minRedemption: directoryMinRedemption[casinoName] || seed?.minRedemption,
+      resetRule: directoryResetRules[casinoName] || seed?.resetRule || "24h cooldown",
+      hasStreak: directoryHasStreak[casinoName] ?? seed?.hasStreak ?? false,
       siteUrl,
       affiliateUrl: directoryAffiliateUrls[casinoName],
       claimUrl: directoryClaimUrls[casinoName],
       bonusUrl: directoryBonusUrls[casinoName],
       lastClaimedAt: null,
-      intervalHours: 24,
-      trustpilotRating: directoryRatings[casinoName],
+      intervalHours: seed?.intervalHours || 24,
+      trustpilotRating: directoryRatings[casinoName] ?? seed?.trustpilotRating,
     };
     saveCasinos([...casinos, entry]);
     if (!stayOnList) showAddCasinosPage(false);
@@ -1420,102 +1461,151 @@ export default function TrackerPage() {
                 </button>
               </div>
               <div className="mt-5 grid grid-cols-1 gap-3">
-                {visibleDirectory.map((casinoName) => (
-                  <article
-                    key={casinoName}
-                    className="rounded-xl border border-[#293a30] bg-[#17211c] px-4 py-4 text-sm font-semibold text-[#d4e4d2] hover:border-[#4c6d50]"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#294631] text-xs font-bold text-[#9bcf9c]">
-                          <CasinoLogo
-                            name={casinoName}
-                            siteUrl={directoryUrls[casinoName] || undefined}
-                          />
-                        </div>
-                        <a
-                          href={`https://www.google.com/search?q=${encodeURIComponent(`${casinoName} casino`)}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            openInExternalBrowser(`https://www.google.com/search?q=${encodeURIComponent(`${casinoName} casino`)}`);
-                          }}
-                          className="truncate hover:text-[#9bcf9c]"
-                        >
-                          {casinoName}
-                        </a>
-                      </div>
-                      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                        {isAdmin && (
-                          <button
-                            type="button"
-                            onClick={() => openDirectoryEditor(casinoName)}
-                            className="inline-flex h-8 items-center rounded-lg border border-[#4c6d50] px-3 text-xs font-semibold text-[#b7d5b5] transition hover:bg-[#2a4230]"
-                          >
-                            Edit
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => signUpForCasino(casinoName)}
-                          aria-label={`Sign up for ${casinoName}`}
-                          className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg bg-[#79b77f] px-3 text-xs font-bold text-[#122519] shadow-[0_6px_16px_rgba(121,183,127,0.22)] transition hover:bg-[#91c991] hover:shadow-[0_8px_20px_rgba(145,201,145,0.32)]"
-                        >
-                          Sign up <ExternalLink size={12} strokeWidth={2.5} />
-                        </button>
-                        {isAdmin && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!window.confirm(`Are you sure you want to remove ${casinoName} from the casino list?`)) return;
-                              const updated = directory.filter(
-                                (item) => item !== casinoName,
-                              );
-                              setDirectory(updated);
-                              apiSaveDirectory({ list: updated });
-                            }}
-                            aria-label={`Remove ${casinoName}`}
-                            className="text-[#718275] hover:text-[#e69b91]"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <p className="mt-2 text-xs font-normal text-[#718275]">
-                      {casinos.some(
-                        (casino) =>
-                          casino.name.toLowerCase() ===
-                          casinoName.toLowerCase(),
-                      )
-                        ? "Already on dashboard"
-                        : "Add to dashboard"}
-                    </p>
-                    <a
-                      href={`https://www.trustpilot.com/search?query=${encodeURIComponent(casinoName)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        openInExternalBrowser(`https://www.trustpilot.com/search?query=${encodeURIComponent(casinoName)}`);
-                      }}
-                      className="mt-2 inline-flex text-xs font-normal text-[#91bf9b] hover:text-[#c2e4bd]"
+                {visibleDirectory.map((casinoName) => {
+                  const seed = getCasinoDefaultMetadata(casinoName);
+                  const trackedCasino = casinos.find(
+                    (c) => c.name.toLowerCase() === casinoName.toLowerCase()
+                  );
+                  const isAdded = Boolean(trackedCasino);
+                  const hasStreak = directoryHasStreak[casinoName] ?? seed?.hasStreak ?? false;
+                  const minRedemption = directoryMinRedemption[casinoName] || seed?.minRedemption || (seed ? "$100 Min Cash" : undefined);
+                  const dailyBonus = directoryDailyBonuses[casinoName] || seed?.dailyBonus || "Free daily";
+                  const siteUrl =
+                    directoryUrls[casinoName] ||
+                    casinoDirectoryUrls[casinoName] ||
+                    seed?.siteUrl ||
+                    `https://www.google.com/search?q=${encodeURIComponent(`${casinoName} casino`)}`;
+
+                  return (
+                    <article
+                      key={casinoName}
+                      className="rounded-xl border border-[#293a30] bg-[#17211c] px-4 py-3.5 text-sm font-semibold text-[#d4e4d2] hover:border-[#4c6d50] transition"
                     >
-                      {(() => {
-                        const trackedCasino = casinos.find(
-                          (casino) =>
-                            casino.name.toLowerCase() === casinoName.toLowerCase(),
-                        );
-                        return (
-                          <TrustpilotStars
-                            rating={ratingForCasino(casinoName, trackedCasino?.trustpilotRating)}
-                          />
-                        );
-                      })()}
-                    </a>
-                  </article>
-                ))}
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#294631] text-xs font-bold text-[#9bcf9c]">
+                            <CasinoLogo
+                              name={casinoName}
+                              siteUrl={siteUrl}
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Link
+                                href={`/casinos/${encodeURIComponent(casinoName)}`}
+                                className="truncate hover:text-[#9bcf9c] text-white font-bold"
+                              >
+                                {casinoName}
+                              </Link>
+                            </div>
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              {hasStreak && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-950/40 px-2 py-0.5 text-[10px] font-bold text-orange-400">
+                                  <Flame size={10} className="fill-orange-400" />
+                                  Streak
+                                </span>
+                              )}
+                              {minRedemption && (
+                                <span className="rounded-full border border-[#38503f] bg-[#122218] px-2 py-0.5 text-[10px] font-medium text-[#86a88d]">
+                                  {minRedemption}
+                                </span>
+                              )}
+                              <a
+                                href={`https://www.trustpilot.com/search?query=${encodeURIComponent(casinoName)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  openInExternalBrowser(`https://www.trustpilot.com/search?query=${encodeURIComponent(casinoName)}`);
+                                }}
+                                className="inline-flex text-xs font-normal text-[#91bf9b] hover:text-[#c2e4bd]"
+                              >
+                                <TrustpilotStars
+                                  rating={ratingForCasino(casinoName, trackedCasino?.trustpilotRating ?? seed?.trustpilotRating)}
+                                />
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                          {isAdded ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="inline-flex h-8 items-center gap-1 rounded-lg border border-emerald-700/50 bg-[#14281c] px-2.5 text-xs font-bold text-emerald-400">
+                                <CheckCircle2 size={13} strokeWidth={2.5} />
+                                In Rollcall
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (trackedCasino) markClaimed(trackedCasino);
+                                  openInExternalBrowser(siteUrl);
+                                }}
+                                className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg bg-[#39ff6a] px-3 text-xs font-extrabold text-[#0d1712] shadow-[0_4px_12px_rgba(57,255,106,0.25)] transition hover:bg-[#5aff84]"
+                              >
+                                <CheckCircle2 size={13} strokeWidth={2.5} />
+                                Claim {dailyBonus}!
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => addDirectoryCasino(casinoName, true)}
+                                className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#38503f] bg-[#122218] px-2.5 text-xs font-semibold text-[#9bcf9c] hover:bg-[#1a2f21] transition"
+                              >
+                                <Plus size={13} />
+                                Add
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addDirectoryCasino(casinoName, true);
+                                  openInExternalBrowser(siteUrl);
+                                }}
+                                className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg bg-[#39ff6a] px-3 text-xs font-extrabold text-[#0d1712] shadow-[0_4px_12px_rgba(57,255,106,0.25)] transition hover:bg-[#5aff84]"
+                              >
+                                <CheckCircle2 size={13} strokeWidth={2.5} />
+                                Claim {dailyBonus}!
+                              </button>
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => signUpForCasino(casinoName)}
+                            aria-label={`Sign up for ${casinoName}`}
+                            className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg border border-[#3b5240] bg-[#111e16] px-2.5 text-xs font-semibold text-[#86a88d] transition hover:text-white hover:border-emerald-500"
+                          >
+                            Sign up <ExternalLink size={12} strokeWidth={2.5} />
+                          </button>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => openDirectoryEditor(casinoName)}
+                              className="inline-flex h-8 items-center rounded-lg border border-[#4c6d50] px-3 text-xs font-semibold text-[#b7d5b5] transition hover:bg-[#2a4230]"
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!window.confirm(`Are you sure you want to remove ${casinoName} from the casino list?`)) return;
+                                const updated = directory.filter((item) => item !== casinoName);
+                                setDirectory(updated);
+                                apiSaveDirectory({ list: updated });
+                              }}
+                              aria-label={`Remove ${casinoName}`}
+                              className="text-[#718275] hover:text-[#e69b91]"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
                 {visibleDirectory.length === 0 && (
                   <p className="col-span-full rounded-xl border border-dashed border-[#38503d] px-4 py-6 text-center text-sm text-[#819487]">
                     All listed casinos are already on your dashboard.
@@ -1579,7 +1669,7 @@ export default function TrackerPage() {
                     {/* Add Casinos button */}
                     <button
                       type="button"
-                      onClick={() => showAddCasinosPage(true)}
+                      onClick={() => setIsAddCasinosModalOpen(true)}
                       title="Add casinos to your rollcall"
                       className="flex items-center gap-1.5 rounded-lg border border-[#385640] bg-[#14231b]/90 px-2.5 py-1.5 text-xs font-semibold text-[#b7d5b5] transition hover:bg-[#1f3629] hover:border-[#5ca06c] hover:text-white cursor-pointer active:scale-95"
                     >
@@ -2154,6 +2244,16 @@ export default function TrackerPage() {
           }
         />
       </SpeedRunErrorBoundary>
+
+      <AddCasinosModal
+        isOpen={isAddCasinosModalOpen}
+        onClose={() => setIsAddCasinosModalOpen(false)}
+        casinos={casinos}
+        onAddCasino={(name) => addDirectoryCasino(name, true)}
+        onClaimCasino={(c) => markClaimed(c)}
+        directoryData={directorySnapshot}
+        isAdmin={isAdmin}
+      />
     </main>
   );
 }

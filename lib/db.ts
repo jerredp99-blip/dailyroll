@@ -53,6 +53,7 @@ export async function updateCasinoMetadata(data: {
   resetAtTime?: string | null;
   intervalHours?: number | string | null;
   provider?: string | null;
+  hasStreak?: boolean | string | null;
 }) {
   const trimmedName = data.name.trim();
   const lowerName = trimmedName.toLowerCase();
@@ -219,6 +220,16 @@ export async function updateCasinoMetadata(data: {
         };
       }
     }
+    if ("hasStreak" in data) {
+      if (data.hasStreak === "" || data.hasStreak === null || data.hasStreak === undefined) {
+        delete store.directoryHasStreak?.[trimmedName];
+      } else {
+        store.directoryHasStreak = {
+          ...(store.directoryHasStreak || {}),
+          [trimmedName]: Boolean(data.hasStreak),
+        };
+      }
+    }
 
     // 3. Atomically update all user records in store.casinos
     const targetKeys = new Set<string>([
@@ -266,6 +277,7 @@ export async function updateCasinoMetadata(data: {
         if ("payoutSpeed" in data) updated.payoutSpeed = data.payoutSpeed || null;
         if ("resetRule" in data) updated.resetRule = data.resetRule || null;
         if ("restrictedStates" in data) updated.restrictedStates = data.restrictedStates || null;
+        if ("hasStreak" in data) updated.hasStreak = data.hasStreak === null ? undefined : Boolean(data.hasStreak);
         return updated;
       });
     }
@@ -290,6 +302,7 @@ export async function updateCasinoMetadata(data: {
       resetTimes: store.directoryResetTimes || {},
       details: store.directoryDetails || {},
       providers: store.directoryProviders || {},
+      hasStreak: store.directoryHasStreak || {},
     };
   });
 }

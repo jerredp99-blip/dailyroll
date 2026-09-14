@@ -36,6 +36,11 @@ export const casinoOfficialLogoUrls: Record<string, string> = {
   "Hello Millions": "https://www.google.com/s2/favicons?domain=hellomillions.com&sz=128",
   PlayFame: "https://www.google.com/s2/favicons?domain=playfame.com&sz=128",
   Jackpota: "https://www.google.com/s2/favicons?domain=jackpota.com&sz=128",
+  ThrillCoins: "https://www.google.com/s2/favicons?domain=thrillcoins.com&sz=128",
+  "SweepstakesCasino.com": "https://www.google.com/s2/favicons?domain=sweepstakescasino.com&sz=128",
+  BangCoins: "https://www.google.com/s2/favicons?domain=bangcoins.com&sz=128",
+  DimeSweeps: "https://www.google.com/s2/favicons?domain=dimesweeps.com&sz=128",
+  SweepsRoyal: "https://www.google.com/s2/favicons?domain=sweepsroyal.com&sz=128",
 };
 
 export function getCasinoLogoUrl(name: string, siteUrl?: string | null): string {

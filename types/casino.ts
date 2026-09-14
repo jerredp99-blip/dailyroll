@@ -44,6 +44,7 @@ export interface Casino {
   payoutSpeed?: string | null;
   resetRule?: string | null;
   restrictedStates?: string | null;
+  hasStreak?: boolean | null;
 }
 
 export interface SpeedRunSessionState {
