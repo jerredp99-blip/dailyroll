@@ -1953,96 +1953,25 @@ export default function TrackerPage() {
           </div>
         ) : (
           <div className="mx-auto max-w-4xl space-y-3 px-1 sm:px-2 pb-24">
-            {/* Tracker Counter Banner with Batch Claim (Compact Single Row on Mobile & Desktop) */}
-            <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 shadow-sm">
-              <div className="flex items-center justify-between gap-2 overflow-x-auto scrollbar-none">
-                {/* Metric Balance Pill */}
-                <div className="flex items-center shrink-0">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-emerald-400 font-bold text-xs sm:text-sm whitespace-nowrap">
-                      {dailyTotals.available.toFixed(2)} SC
-                    </span>
-                    <span className="text-[9px] sm:text-[10px] uppercase font-semibold text-zinc-400 tracking-wider">
-                      Available
-                    </span>
-                  </div>
-                  <div className="h-3.5 w-px bg-zinc-800 mx-2 sm:mx-3 shrink-0" />
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-zinc-200 font-bold text-xs sm:text-sm whitespace-nowrap">
-                      {dailyTotals.claimedToday.toFixed(2)} SC
-                    </span>
-                    <span className="text-[9px] sm:text-[10px] uppercase font-semibold text-zinc-400 tracking-wider">
-                      Claimed
-                    </span>
-                  </div>
+            {/* Tracker Counter Banner (Expanded Centered Stats Header) */}
+            <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-xl px-4 py-2.5 sm:py-3 shadow-sm">
+              <div className="flex items-center justify-center gap-4 sm:gap-8">
+                <div className="flex items-baseline gap-1.5 sm:gap-2">
+                  <span className="text-emerald-400 font-extrabold text-sm sm:text-base tracking-tight whitespace-nowrap">
+                    {dailyTotals.available.toFixed(2)} SC
+                  </span>
+                  <span className="text-[10px] sm:text-xs uppercase font-semibold text-zinc-400 tracking-wider">
+                    Available
+                  </span>
                 </div>
-
-                {/* Compact Action Buttons Tool Row */}
-                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                  {/* Add Casinos button */}
-                  <button
-                    type="button"
-                    onClick={() => setIsAddCasinosModalOpen(true)}
-                    title="Add casinos to your rollcall"
-                    className="flex h-8 sm:h-9 items-center gap-1 sm:gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/80 px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-white hover:border-zinc-700 active:scale-[0.98] transition-all cursor-pointer shadow-sm whitespace-nowrap"
-                  >
-                    <Plus size={13} className="text-emerald-400 shrink-0" />
-                    <span>Add Casinos</span>
-                  </button>
-
-                  {/* Primary Action: Speed Run */}
-                  <button
-                    type="button"
-                    onClick={handleOpenSpeedRun}
-                    disabled={readyCount === 0}
-                    title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
-                    className={`flex h-8 sm:h-9 items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3.5 text-[11px] sm:text-xs font-bold transition-all active:scale-[0.98] shadow-sm whitespace-nowrap ${
-                      readyCount > 0
-                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/50 cursor-pointer shadow-[0_0_12px_rgba(16,185,129,0.15)]"
-                        : "border border-zinc-800 bg-zinc-900/40 text-zinc-600 cursor-not-allowed opacity-50 pointer-events-none"
-                    }`}
-                  >
-                    <Zap size={13} fill={readyCount > 0 ? "currentColor" : "none"} className="shrink-0" />
-                    <span>Speed Run ({readyCount})</span>
-                  </button>
-
-                  {/* Secondary Action: Staggered Open All / Cancel */}
-                  {isStaggering ? (
-                    <div className="flex h-8 sm:h-9 items-center gap-1.5 whitespace-nowrap">
-                      <div className="flex h-8 sm:h-9 items-center gap-1.5 rounded-lg bg-zinc-900/90 border border-amber-500/50 px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold text-amber-300 animate-pulse">
-                        <Loader2 size={13} className="animate-spin text-amber-400" />
-                        <span>{staggerStatus || "Launching..."}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleCancelStagger}
-                        title="Cancel launching remaining casinos"
-                        className="flex h-8 sm:h-9 items-center gap-1 rounded-lg border border-red-800/60 bg-red-950/40 px-2 text-[11px] sm:text-xs font-bold text-red-300 hover:bg-red-900/50 hover:text-white transition-all active:scale-[0.98] cursor-pointer"
-                      >
-                        <X size={13} />
-                        <span>Cancel</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleLaunchAllStaggered}
-                      disabled={readyCount === 0}
-                      title={
-                        readyCount > 0
-                          ? `Open all ${readyCount} ready casinos (staggered to prevent popup blocking)`
-                          : "No casinos currently ready to claim"
-                      }
-                      className={`flex h-8 sm:h-9 items-center gap-1 sm:gap-1.5 rounded-lg border px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold transition-all active:scale-[0.98] shadow-sm whitespace-nowrap ${
-                        readyCount > 0
-                          ? "border-zinc-800 bg-zinc-900/80 text-zinc-200 hover:text-white hover:border-zinc-700 cursor-pointer"
-                          : "border border-zinc-800 bg-zinc-900/40 text-zinc-600 cursor-not-allowed opacity-50"
-                      }`}
-                    >
-                      <ExternalLink size={13} className="shrink-0" />
-                      <span>Open All ({readyCount})</span>
-                    </button>
-                  )}
+                <div className="h-4 w-px bg-zinc-800 shrink-0" />
+                <div className="flex items-baseline gap-1.5 sm:gap-2">
+                  <span className="text-zinc-200 font-extrabold text-sm sm:text-base tracking-tight whitespace-nowrap">
+                    {dailyTotals.claimedToday.toFixed(2)} SC
+                  </span>
+                  <span className="text-[10px] sm:text-xs uppercase font-semibold text-zinc-400 tracking-wider">
+                    Claimed
+                  </span>
                 </div>
               </div>
             </div>
@@ -2174,6 +2103,73 @@ export default function TrackerPage() {
                 />
                 <span>Show hidden</span>
               </label>
+            </div>
+
+            {/* Primary Action Buttons Row (Directly Beneath Filter & Sort Controls) */}
+            <div className="grid grid-cols-3 gap-2 w-full mt-3 mb-4">
+              {/* + Add Casinos */}
+              <button
+                type="button"
+                onClick={() => setIsAddCasinosModalOpen(true)}
+                title="Add casinos to your rollcall"
+                className="h-9 px-2 sm:px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
+              >
+                <Plus size={14} strokeWidth={2.5} className="shrink-0" />
+                <span>Add Casinos</span>
+              </button>
+
+              {/* Speed Run (X) */}
+              <button
+                type="button"
+                onClick={handleOpenSpeedRun}
+                disabled={readyCount === 0}
+                title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
+                className={`h-9 px-2 sm:px-3 rounded-xl bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 text-zinc-200 font-semibold text-xs flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all whitespace-nowrap ${
+                  readyCount > 0
+                    ? "cursor-pointer hover:border-zinc-700 hover:text-white shadow-sm"
+                    : "opacity-60 cursor-not-allowed"
+                }`}
+              >
+                <Zap size={14} className={readyCount > 0 ? "text-amber-400 fill-amber-400 shrink-0" : "text-zinc-500 shrink-0"} />
+                <span>Speed Run ({readyCount})</span>
+              </button>
+
+              {/* Open All (X) */}
+              {isStaggering ? (
+                <div className="h-9 px-2 sm:px-3 rounded-xl bg-zinc-900/90 border border-amber-500/50 text-amber-300 font-semibold text-xs flex items-center justify-between gap-1 whitespace-nowrap animate-pulse">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <Loader2 size={13} className="animate-spin text-amber-400 shrink-0" />
+                    <span className="truncate text-[11px]">{staggerStatus || "Launching..."}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCancelStagger}
+                    title="Cancel launching remaining casinos"
+                    className="p-1 text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded transition shrink-0 cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleLaunchAllStaggered}
+                  disabled={readyCount === 0}
+                  title={
+                    readyCount > 0
+                      ? `Open all ${readyCount} ready casinos (staggered to prevent popup blocking)`
+                      : "No casinos currently ready to claim"
+                  }
+                  className={`h-9 px-2 sm:px-3 rounded-xl bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 text-zinc-200 font-semibold text-xs flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all whitespace-nowrap ${
+                    readyCount > 0
+                      ? "cursor-pointer hover:border-zinc-700 hover:text-white shadow-sm"
+                      : "opacity-60 cursor-not-allowed"
+                  }`}
+                >
+                  <ExternalLink size={14} className="shrink-0" />
+                  <span>Open All ({readyCount})</span>
+                </button>
+              )}
             </div>
 
             {/* Casinos List using RollcallCard */}
