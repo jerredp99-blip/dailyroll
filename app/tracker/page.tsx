@@ -324,14 +324,7 @@ export default function TrackerPage() {
   const [casinoFilter, setCasinoFilter] = useState<"all" | "ready" | "claimed">("all");
   const [casinoSort, setCasinoSort] = useState<
     "status" | "next-available" | "provider" | "f2p" | "trustpilot" | "name-asc" | "name-desc"
-  >(() => {
-    if (typeof window === "undefined") return "next-available";
-    try {
-      return (localStorage.getItem("dailyroll_casino_sort") as any) || "next-available";
-    } catch {
-      return "next-available";
-    }
-  });
+  >("status");
   const [customLists, setCustomLists] = useState<CustomCasinoList[]>(() => {
     if (typeof window === "undefined") return DEFAULT_CUSTOM_LISTS;
     try {
@@ -409,7 +402,6 @@ export default function TrackerPage() {
   };
 
   const [viewMode, setViewMode] = useState<"social" | "rollcall">("social");
-  const [mobileTab, setMobileTab] = useState<"rollcall" | "feed">("feed");
   const [isSpeedRunOpen, setIsSpeedRunOpen] = useState(false);
   const [isStaggering, setIsStaggering] = useState(false);
   const [staggerStatus, setStaggerStatus] = useState<string | null>(null);
@@ -1535,22 +1527,21 @@ export default function TrackerPage() {
             <button
               type="button"
               onClick={() => {
-                setMobileTab("feed");
+                setActiveDrawer("feed");
                 showAddCasinosPage(false);
                 setIsSidebarOpen(false);
               }}
-              className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors ${mobileTab === "feed" && !isAddCasinosPage ? "border border-emerald-800/50 bg-emerald-900/40 text-emerald-300" : "text-gray-400 hover:bg-emerald-950/30 hover:text-white"}`}
+              className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors text-gray-400 hover:bg-emerald-950/30 hover:text-white"
             >
               <MessageSquare size={16} /> Community Feed
             </button>
             <button
               type="button"
               onClick={() => {
-                setMobileTab("rollcall");
                 showAddCasinosPage(false);
                 setIsSidebarOpen(false);
               }}
-              className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors ${mobileTab === "rollcall" && !isAddCasinosPage ? "border border-emerald-800/50 bg-emerald-900/40 text-emerald-300" : "text-gray-400 hover:bg-emerald-950/30 hover:text-white"}`}
+              className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors ${!isAddCasinosPage ? "border border-emerald-800/50 bg-emerald-900/40 text-emerald-300" : "text-gray-400 hover:bg-emerald-950/30 hover:text-white"}`}
             >
               <LayoutDashboard size={16} /> My Rollcall
             </button>
@@ -1645,43 +1636,6 @@ export default function TrackerPage() {
               </h1>
             </div>
           </header>
-        )}
-
-        {/* Mobile Sticky Segmented Tab Control (< 768px) */}
-        {!isAddCasinosPage && (
-          <div className="sticky top-0 z-30 mb-4 bg-zinc-950/90 py-2 backdrop-blur md:hidden">
-            <div className="flex rounded-xl bg-zinc-900/90 p-1 border border-zinc-800">
-              <button
-                type="button"
-                onClick={() => setMobileTab("feed")}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition ${
-                  mobileTab === "feed"
-                    ? "bg-zinc-800 text-white shadow-sm ring-1 ring-zinc-700"
-                    : "text-zinc-400 hover:text-white"
-                }`}
-              >
-                <MessageSquare size={14} />
-                Feed
-              </button>
-              <button
-                type="button"
-                onClick={() => setMobileTab("rollcall")}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition ${
-                  mobileTab === "rollcall"
-                    ? "bg-zinc-800 text-white shadow-sm ring-1 ring-zinc-700"
-                    : "text-zinc-400 hover:text-white"
-                }`}
-              >
-                <LayoutDashboard size={14} />
-                Rollcall
-                {readyCount > 0 && (
-                  <span className="rounded-full bg-emerald-500 px-1.5 py-0.2 text-[10px] font-bold text-zinc-950">
-                    {readyCount}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
         )}
 
         {isAddCasinosPage ? (
@@ -2075,18 +2029,12 @@ export default function TrackerPage() {
                   <span className="text-[11px] font-medium text-zinc-500">Sort:</span>
                   <select
                     value={casinoSort}
-                    onChange={(event) => {
-                      const next = event.target.value as typeof casinoSort;
-                      setCasinoSort(next);
-                      try {
-                        localStorage.setItem("dailyroll_casino_sort", next);
-                      } catch {}
-                    }}
+                    onChange={(event) => setCasinoSort(event.target.value as typeof casinoSort)}
                     aria-label="Sort casinos"
                     className="h-8 rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 text-xs text-zinc-200 outline-none focus:border-zinc-700 transition cursor-pointer"
                   >
-                    <option value="next-available">Next Available</option>
                     <option value="status">Status</option>
+                    <option value="next-available">Next Available</option>
                     <option value="provider">Provider</option>
                     <option value="f2p">Best F2P</option>
                     <option value="trustpilot">Trustpilot</option>
