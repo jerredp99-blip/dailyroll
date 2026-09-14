@@ -393,14 +393,10 @@ function PostCardComponent({
     <article
       onClick={handleArticleClick}
       style={{ contentVisibility: "auto", containIntrinsicSize: "0 120px" }}
-      className={`rounded-2xl border ${
-        isBonusDrop ? "py-2.5 px-3" : "p-3.5 sm:p-5"
-      } backdrop-blur transition ${
-        isBonusDrop
-          ? "border-emerald-500/30 bg-[#0e1c14]/95 hover:border-emerald-500/50 shadow-sm"
-          : "border-[#22392b] bg-[#121f17]/90 hover:border-[#32543d]"
-      } ${
-        destinationUrl ? "cursor-pointer hover:bg-[#14261c]" : ""
+      className={`rounded-xl border border-zinc-800/70 bg-zinc-900/70 hover:border-zinc-700/80 transition-all duration-150 shadow-sm ${
+        isBonusDrop ? "py-2.5 px-3" : "p-3.5 sm:p-4"
+      } backdrop-blur ${
+        destinationUrl ? "cursor-pointer hover:bg-zinc-900/90" : ""
       }`}
     >
       {/* Header: Author + Timestamp + Menu Button */}
@@ -431,18 +427,18 @@ function PostCardComponent({
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0 min-w-0">
-              <span className={`font-semibold text-[#edf5ec] truncate ${isBonusDrop ? "text-xs" : "text-xs sm:text-sm"}`}>
+              <span className={`font-semibold text-zinc-100 truncate ${isBonusDrop ? "text-xs" : "text-xs sm:text-sm"}`}>
                 {currentPost.authorName}
               </span>
-              <span className="text-[10px] sm:text-[11px] text-[#718776] shrink-0">
+              <span className="text-[10px] sm:text-[11px] text-zinc-400 shrink-0">
                 • {timeAgo(currentPost.createdAt)}
                 {currentPost.updatedAt && (
                   <span className="ml-1 text-[10px] text-emerald-400/80">(edited)</span>
                 )}
               </span>
               {isBonusDrop && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                  🎁 Bonus Drop
+                <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5">
+                  🎁 BONUS DROP
                 </span>
               )}
             </div>
@@ -779,7 +775,7 @@ function PostCardComponent({
           {/* 2. Post Body Text: User description/instructions rendered ABOVE the code banner (raw URLs hidden if destinationUrl is present) */}
           {isBonusDrop ? (
             <div className="my-1.5 space-y-0.5">
-              <h3 className="w-full text-center uppercase tracking-wider font-extrabold text-sm sm:text-base text-white mt-2 mb-3 leading-snug">
+              <h3 className="w-full text-center uppercase tracking-wider text-sm font-bold text-zinc-100 tracking-tight my-2 leading-snug">
                 {formatDropTitle(
                   currentPost.casinoName ||
                     (currentPost.casinoTag ? currentPost.casinoTag.replace(/^[$#]+/, "") : null) ||
@@ -889,7 +885,7 @@ function PostCardComponent({
         onClick={(e) => e.stopPropagation()}
         className={`${
           isBonusDrop ? "mt-2 pt-1.5" : "mt-3.5 pt-2.5 sm:pt-3"
-        } flex items-center justify-between border-t border-[#1d3224] gap-2 text-xs`}
+        } flex items-center justify-between border-t border-zinc-800/80 gap-2 text-xs`}
       >
         {isBonusDrop ? (
           /* Bonus Drop Social Footer: Single "Works 👍 [count]" confirmation counter and comment count icon */
@@ -900,7 +896,7 @@ function PostCardComponent({
               className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition active:scale-95 cursor-pointer ${
                 currentUserEmail && currentPost.reactions?.["👍"]?.includes(currentUserEmail.toLowerCase())
                   ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold shadow-sm"
-                  : "bg-[#14231a] text-[#869f8c] border border-[#22392c] hover:bg-[#1a2e22] hover:text-white"
+                  : "border border-zinc-800 bg-zinc-900/80 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 hover:bg-zinc-800/60"
               }`}
               title="Confirm this bonus drop works"
             >
@@ -914,7 +910,7 @@ function PostCardComponent({
             <button
               type="button"
               onClick={handleToggleComments}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs text-[#869f8c] border border-transparent hover:border-[#22392c] hover:bg-[#14231a] hover:text-[#d3e5d5] transition cursor-pointer"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition cursor-pointer"
               title="View comments"
               aria-label="View comments"
             >
@@ -930,7 +926,7 @@ function PostCardComponent({
               <button
                 type="button"
                 onClick={handleToggleLike}
-                className="flex items-center gap-1 rounded-lg px-2 sm:px-2.5 py-1.5 transition text-xs shrink-0 text-[#869f8c] hover:bg-[#182a1f] hover:text-white"
+                className="flex items-center gap-1 rounded-lg px-2 sm:px-2.5 py-1.5 transition text-xs shrink-0 text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
               >
                 <Heart size={14} className={hasLiked ? "fill-red-400 text-red-400" : ""} />
                 <span className="font-semibold text-[11px] sm:text-xs">{currentPost.likes?.length || 0}</span>
@@ -951,10 +947,10 @@ function PostCardComponent({
                       onClick={() => handleAddReaction(emoji)}
                       className={`flex items-center gap-0.5 sm:gap-1 rounded-lg px-1.5 sm:px-2 py-1 transition text-xs shrink-0 ${
                         userReacted
-                          ? "bg-emerald-900/60 border border-emerald-500 font-bold scale-105"
+                          ? "bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold scale-105"
                           : count > 0
-                          ? "bg-[#18291f] text-[#c0d4c3] hover:bg-[#1f3629]"
-                          : "opacity-60 hover:opacity-100 hover:bg-[#18291f]"
+                          ? "border border-zinc-800 bg-zinc-900/80 text-zinc-300 hover:bg-zinc-800/80"
+                          : "opacity-60 hover:opacity-100 hover:bg-zinc-800/60 text-zinc-400"
                       }`}
                       title={userReacted ? `Remove ${emoji}` : `React with ${emoji} (single reaction)`}
                     >
@@ -970,7 +966,7 @@ function PostCardComponent({
             <button
               type="button"
               onClick={handleToggleComments}
-              className="flex items-center gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-xs text-[#869f8c] transition hover:bg-[#182a1f] hover:text-[#d3e5d5] shrink-0 ml-auto"
+              className="flex items-center gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-xs text-zinc-400 transition hover:bg-zinc-800/60 hover:text-zinc-200 shrink-0 ml-auto"
             >
               <MessageSquare size={14} />
               <span className="font-semibold text-[11px] sm:text-xs">{currentPost.commentCount || 0}</span>

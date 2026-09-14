@@ -1563,15 +1563,15 @@ export default function TrackerPage() {
 
         {/* Mobile Sticky Segmented Tab Control (< 768px) */}
         {!isAddCasinosPage && (
-          <div className="sticky top-0 z-30 mb-4 bg-[#101815]/95 py-2 backdrop-blur md:hidden">
-            <div className="flex rounded-xl bg-[#0f1913] p-1 border border-[#263e2f]">
+          <div className="sticky top-0 z-30 mb-4 bg-zinc-950/90 py-2 backdrop-blur md:hidden">
+            <div className="flex rounded-xl bg-zinc-900/90 p-1 border border-zinc-800">
               <button
                 type="button"
                 onClick={() => setMobileTab("feed")}
                 className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition ${
                   mobileTab === "feed"
-                    ? "bg-[#254231] text-white shadow-sm ring-1 ring-emerald-500/40"
-                    : "text-[#85a08b] hover:text-white"
+                    ? "bg-zinc-800 text-white shadow-sm ring-1 ring-zinc-700"
+                    : "text-zinc-400 hover:text-white"
                 }`}
               >
                 <MessageSquare size={14} />
@@ -1582,14 +1582,14 @@ export default function TrackerPage() {
                 onClick={() => setMobileTab("rollcall")}
                 className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition ${
                   mobileTab === "rollcall"
-                    ? "bg-[#254231] text-white shadow-sm ring-1 ring-emerald-500/40"
-                    : "text-[#85a08b] hover:text-white"
+                    ? "bg-zinc-800 text-white shadow-sm ring-1 ring-zinc-700"
+                    : "text-zinc-400 hover:text-white"
                 }`}
               >
                 <LayoutDashboard size={14} />
                 Rollcall
                 {readyCount > 0 && (
-                  <span className="rounded-full bg-[#39ff6a] px-1.5 py-0.2 text-[10px] font-bold text-[#101815]">
+                  <span className="rounded-full bg-emerald-500 px-1.5 py-0.2 text-[10px] font-bold text-zinc-950">
                     {readyCount}
                   </span>
                 )}
@@ -1806,7 +1806,7 @@ export default function TrackerPage() {
         ) : (
           <div className="mx-auto max-w-7xl grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
             {/* Feed Column: Left on desktop, visible on mobile when mobileTab === 'feed' */}
-            <div className={`space-y-4 md:col-span-5 lg:col-span-5 ${mobileTab !== "feed" ? "hidden md:block" : ""}`}>
+            <div className={`space-y-2.5 md:col-span-5 lg:col-span-5 ${mobileTab !== "feed" ? "hidden md:block" : ""}`}>
               <div className="sticky top-4">
                 <SocialFeed
                   compact={true}
@@ -1823,23 +1823,25 @@ export default function TrackerPage() {
             {/* Rollcall Column: Right on desktop, visible on mobile when mobileTab === 'rollcall' */}
             <div className={`space-y-2.5 md:col-span-7 lg:col-span-7 ${mobileTab !== "rollcall" ? "hidden md:block" : ""}`}>
               {/* Tracker Counter Banner with Batch Claim */}
-              <div className="sticky top-14 md:top-4 z-20 rounded-xl border border-[#2b4434] bg-[#13201a]/95 px-3.5 py-2.5 sm:px-4 sm:py-3 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur">
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5">
-                  <div className="flex flex-wrap items-baseline gap-3.5 sm:gap-6">
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.14em] text-[#819487]">
-                        Available
-                      </span>
-                      <span className="text-sm sm:text-lg font-bold text-[#39ff6a]">
+              <div className="sticky top-14 md:top-4 z-20 bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-xl px-4 py-2 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                  {/* Metric Balance Pill */}
+                  <div className="flex items-center">
+                    <div className="flex items-baseline">
+                      <span className="text-emerald-400 font-bold text-sm sm:text-base">
                         {dailyTotals.available.toFixed(2)} SC
                       </span>
-                    </div>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.14em] text-[#819487]">
-                        Claimed
+                      <span className="text-[10px] uppercase font-semibold text-zinc-400 tracking-wider ml-1">
+                        Available
                       </span>
-                      <span className="text-sm sm:text-lg font-bold text-[#9bcf9c]">
+                    </div>
+                    <div className="h-4 w-px bg-zinc-800 mx-3" />
+                    <div className="flex items-baseline">
+                      <span className="text-zinc-200 font-bold text-sm sm:text-base">
                         {dailyTotals.claimedToday.toFixed(2)} SC
+                      </span>
+                      <span className="text-[10px] uppercase font-semibold text-zinc-400 tracking-wider ml-1">
+                        Claimed
                       </span>
                     </div>
                   </div>
@@ -1851,12 +1853,10 @@ export default function TrackerPage() {
                       type="button"
                       onClick={() => setIsAddCasinosModalOpen(true)}
                       title="Add casinos to your rollcall"
-                      className="flex items-center gap-1.5 rounded-lg border border-[#385640] bg-[#14231b]/90 px-2.5 py-1.5 text-xs font-semibold text-[#b7d5b5] transition hover:bg-[#1f3629] hover:border-[#5ca06c] hover:text-white cursor-pointer active:scale-95"
+                      className="flex h-9 items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 text-xs font-semibold text-zinc-300 hover:text-white hover:border-zinc-700 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
                     >
-                      <Plus size={13} className="text-[#39ff6a]" />
-                      <span>
-                        Add<span className="hidden sm:inline"> Casinos</span>
-                      </span>
+                      <Plus size={14} className="text-emerald-400" />
+                      <span>+ Add Casinos</span>
                     </button>
 
                     {/* Primary Action: Speed Run */}
@@ -1865,30 +1865,30 @@ export default function TrackerPage() {
                       onClick={handleOpenSpeedRun}
                       disabled={readyCount === 0}
                       title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
-                      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-extrabold transition shadow-sm ${
+                      className={`flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-xs font-bold transition-all active:scale-[0.98] shadow-sm ${
                         readyCount > 0
-                          ? "bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 text-[#0d1712] shadow-[0_4px_14px_rgba(245,158,11,0.35)] hover:from-amber-400 hover:to-yellow-300 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ring-1 ring-yellow-400"
-                          : "border border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
+                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/50 cursor-pointer shadow-[0_0_12px_rgba(16,185,129,0.15)]"
+                          : "border border-zinc-800 bg-zinc-900/40 text-zinc-600 cursor-not-allowed opacity-50"
                       }`}
                     >
-                      <Zap size={13} fill={readyCount > 0 ? "currentColor" : "none"} />
+                      <Zap size={14} fill={readyCount > 0 ? "currentColor" : "none"} />
                       <span>Speed Run ({readyCount})</span>
                     </button>
 
                     {/* Secondary Action: Staggered Open All / Cancel */}
                     {isStaggering ? (
-                      <div className="flex items-center gap-1.5">
-                        <div className="flex items-center gap-1.5 rounded-lg bg-[#14231b] border border-amber-500/60 px-2.5 py-1.5 text-xs font-bold text-amber-300 animate-pulse">
-                          <Loader2 size={13} className="animate-spin text-amber-400" />
+                      <div className="flex h-9 items-center gap-1.5">
+                        <div className="flex h-9 items-center gap-1.5 rounded-lg bg-zinc-900/90 border border-amber-500/50 px-3 text-xs font-semibold text-amber-300 animate-pulse">
+                          <Loader2 size={14} className="animate-spin text-amber-400" />
                           <span>{staggerStatus || "Launching..."}</span>
                         </div>
                         <button
                           type="button"
                           onClick={handleCancelStagger}
                           title="Cancel launching remaining casinos"
-                          className="flex items-center gap-1 rounded-lg border border-red-800/60 bg-red-950/50 px-2 py-1.5 text-xs font-bold text-red-300 hover:bg-red-900/60 hover:text-white transition cursor-pointer"
+                          className="flex h-9 items-center gap-1 rounded-lg border border-red-800/60 bg-red-950/40 px-2.5 text-xs font-bold text-red-300 hover:bg-red-900/50 hover:text-white transition-all active:scale-[0.98] cursor-pointer"
                         >
-                          <X size={13} />
+                          <X size={14} />
                           <span>Cancel</span>
                         </button>
                       </div>
@@ -1902,13 +1902,13 @@ export default function TrackerPage() {
                             ? `Open all ${readyCount} ready casinos (staggered to prevent popup blocking)`
                             : "No casinos currently ready to claim"
                         }
-                        className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
+                        className={`flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-all active:scale-[0.98] shadow-sm ${
                           readyCount > 0
-                            ? "border-emerald-700/60 bg-[#14261c] text-[#9bcf9c] hover:bg-[#1a3325] hover:border-emerald-500 hover:text-white cursor-pointer active:scale-95"
-                            : "border-[#263e2f] bg-[#14231b] text-[#5e7865] cursor-not-allowed opacity-60"
+                            ? "border-zinc-800 bg-zinc-900/80 text-zinc-200 hover:text-white hover:border-zinc-700 cursor-pointer"
+                            : "border border-zinc-800 bg-zinc-900/40 text-zinc-600 cursor-not-allowed opacity-50"
                         }`}
                       >
-                        <ExternalLink size={13} />
+                        <ExternalLink size={14} />
                         <span>Open All ({readyCount})</span>
                       </button>
                     )}
@@ -1917,15 +1917,15 @@ export default function TrackerPage() {
               </div>
 
               {/* Compact Filter & Sort Toolbar Row */}
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#243a2b] bg-[#111e17] px-3 py-1.5 text-xs text-[#a9bbaa] shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-3.5 py-2 text-xs text-zinc-400 shadow-sm backdrop-blur-sm">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-medium text-[#7d9783]">Filter:</span>
+                    <span className="text-[11px] font-medium text-zinc-500">Filter:</span>
                     <select
                       value={casinoFilter}
                       onChange={(event) => setCasinoFilter(event.target.value as typeof casinoFilter)}
                       aria-label="Filter casinos"
-                      className="h-8 rounded-lg border border-[#344d3b] bg-[#0c1611] px-2 text-xs text-[#d4e4d2] outline-none focus:border-[#78ae7e] cursor-pointer"
+                      className="h-8 rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 text-xs text-zinc-200 outline-none focus:border-zinc-700 transition cursor-pointer"
                     >
                       <option value="all">All casinos</option>
                       <option value="ready">Ready to claim</option>
@@ -1934,12 +1934,12 @@ export default function TrackerPage() {
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-medium text-[#7d9783]">Sort:</span>
+                    <span className="text-[11px] font-medium text-zinc-500">Sort:</span>
                     <select
                       value={casinoSort}
                       onChange={(event) => setCasinoSort(event.target.value as typeof casinoSort)}
                       aria-label="Sort casinos"
-                      className="h-8 rounded-lg border border-[#344d3b] bg-[#0c1611] px-2 text-xs text-[#d4e4d2] outline-none focus:border-[#78ae7e] cursor-pointer"
+                      className="h-8 rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 text-xs text-zinc-200 outline-none focus:border-zinc-700 transition cursor-pointer"
                     >
                       <option value="status">Status</option>
                       <option value="f2p">Best F2P</option>
@@ -1950,13 +1950,13 @@ export default function TrackerPage() {
                   </div>
                 </div>
 
-                <label className="flex items-center gap-1.5 text-xs text-[#a9bbaa] cursor-pointer select-none hover:text-white transition">
+                <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer select-none hover:text-zinc-200 transition">
                   <input
                     type="checkbox"
                     checked={showHidden}
                     onChange={(event) => setShowHidden(event.target.checked)}
                     aria-label="Show hidden casinos"
-                    className="h-3.5 w-3.5 rounded accent-[#79b77f] cursor-pointer"
+                    className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-900 accent-emerald-500 cursor-pointer"
                   />
                   <span>Show hidden</span>
                 </label>

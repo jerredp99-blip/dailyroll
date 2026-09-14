@@ -112,27 +112,25 @@ export function BonusDropBanner({
 
       {/* Promo Code Row (Compact) */}
       {dropCode && (
-        <div className="flex h-9 items-center justify-between gap-2 rounded-lg border border-emerald-500/25 bg-black/40 px-2.5">
+        <div className="bg-zinc-950/60 border border-dashed border-zinc-700 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400/80 shrink-0">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 shrink-0">
               CODE:
             </span>
-            <code className="font-mono text-xs sm:text-sm font-black tracking-wider text-[#39ff6a] select-all truncate">
+            <code className="font-mono text-xs sm:text-sm font-bold tracking-wider text-emerald-400 select-all truncate">
               {dropCode}
             </code>
           </div>
           <button
             type="button"
             onClick={handleCopyCode}
-            className={`flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold transition-all active:scale-95 shrink-0 ${
-              copied
-                ? "border-emerald-400 bg-emerald-500/20 text-emerald-300"
-                : "border-emerald-600/50 bg-[#14281e] text-emerald-200 hover:border-emerald-400 hover:bg-[#1a3327] hover:text-white"
+            className={`border border-zinc-700 hover:border-zinc-600 bg-zinc-900 text-zinc-300 hover:text-white px-2.5 py-1 text-[11px] font-semibold rounded-md transition active:scale-95 flex items-center gap-1 shrink-0 ${
+              copied ? "border-emerald-500 text-emerald-400" : ""
             }`}
           >
             {copied ? (
               <>
-                <Check size={11} className="text-[#39ff6a]" strokeWidth={2.5} />
+                <Check size={11} className="text-emerald-400" strokeWidth={2.5} />
                 <span>Copied</span>
               </>
             ) : (
@@ -151,10 +149,10 @@ export function BonusDropBanner({
           <button
             type="button"
             onClick={handleClaim}
-            className={`w-full max-w-xs mx-auto h-10 px-4 rounded-lg flex items-center justify-center text-sm font-bold tracking-wide cursor-pointer select-none ${
+            className={`w-full max-w-xs mx-auto h-10 px-4 rounded-lg flex items-center justify-center text-sm font-bold tracking-wide cursor-pointer select-none transition-all active:scale-[0.98] ${
               isClaimed
-                ? "bg-zinc-800 hover:bg-zinc-700/80 text-zinc-400 border border-zinc-700 font-medium transition-all active:scale-[0.98]"
-                : "bg-emerald-500 hover:bg-emerald-400 text-black shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all"
+                ? "bg-zinc-800/80 text-zinc-400 border border-zinc-700 font-medium"
+                : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold shadow-md shadow-emerald-500/20"
             }`}
           >
             {isClaimed ? "Claimed ✓" : "Claim Bonus ↗"}

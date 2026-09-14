@@ -229,7 +229,7 @@ export function PostComposer({
   // Minimized state: sleek, compact bar that expands upon clicking the typebox
   if (!isExpanded) {
     return (
-      <div className="rounded-2xl border border-[#243d2e] bg-[#122018]/95 p-3 sm:p-4 shadow-sm backdrop-blur transition hover:border-[#335640]">
+      <div className="rounded-xl border border-zinc-800 focus-within:border-zinc-700 bg-zinc-900/50 p-3 sm:p-3.5 shadow-sm backdrop-blur transition hover:border-zinc-700/80">
         <div className="flex items-center gap-2.5 sm:gap-3">
           {currentUserAvatar ? (
             <img
@@ -250,17 +250,17 @@ export function PostComposer({
               setIsExpanded(true);
               setTimeout(() => textareaRef.current?.focus(), 50);
             }}
-            className="flex-1 rounded-xl border border-[#243d2e] bg-[#0d1611] px-3.5 py-2 sm:py-2.5 text-left text-xs sm:text-sm text-[#66806c] transition hover:border-emerald-500/50 hover:bg-[#111e17] hover:text-[#90ad98] flex items-center justify-between cursor-pointer"
+            className="flex-1 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3.5 py-2 text-left text-xs sm:text-sm text-zinc-400 transition hover:border-zinc-700 hover:bg-zinc-950/80 hover:text-zinc-300 flex items-center justify-between cursor-pointer"
           >
             <span className="truncate">Share a win, bonus code, or discuss...</span>
-            <span className="hidden sm:inline text-[11px] font-semibold text-emerald-400/80 bg-[#16271e] px-2 py-0.5 rounded-md border border-emerald-500/20 shrink-0 ml-2">
+            <span className="hidden sm:inline text-[11px] font-semibold text-emerald-400/80 bg-zinc-900 px-2 py-0.5 rounded-md border border-zinc-700 shrink-0 ml-2">
               Post
             </span>
           </button>
         </div>
 
         {/* Quick action buttons row */}
-        <div className="flex items-center justify-between border-t border-[#1a2e22] mt-2.5 pt-2 px-0.5">
+        <div className="flex items-center justify-between border-t border-zinc-800/80 mt-2.5 pt-2 px-0.5">
           <div className="flex items-center gap-1 sm:gap-2">
             <button
               type="button"
@@ -296,7 +296,7 @@ export function PostComposer({
                 setIsExpanded(true);
                 setTimeout(() => fileInputRef.current?.click(), 100);
               }}
-              className="flex items-center gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 text-xs font-medium text-[#8ca892] hover:bg-[#182a1f] hover:text-emerald-300 transition"
+              className="flex items-center gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 text-xs font-medium text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200 transition"
             >
               <ImageIcon size={13} />
               <span className="text-[11px] sm:text-xs">Media</span>
@@ -320,9 +320,9 @@ export function PostComposer({
 
   // Expanded state: full composer with focus
   return (
-    <div className="rounded-2xl border border-emerald-600/40 bg-[#122018] p-3.5 sm:p-5 shadow-lg backdrop-blur animate-in fade-in zoom-in-95 duration-150">
+    <div className="rounded-xl border border-zinc-800 focus-within:border-zinc-700 bg-zinc-900/50 p-3.5 sm:p-4 shadow-lg backdrop-blur animate-in fade-in zoom-in-95 duration-150">
       {/* Post Type Selector & Minimize Button */}
-      <div className="flex items-center justify-between border-b border-[#1f3527] pb-2.5 sm:pb-3 mb-3">
+      <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5 sm:pb-3 mb-3">
         <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
           <button
             type="button"
@@ -501,7 +501,7 @@ export function PostComposer({
                 ? "Where did you find this drop? How many SC/GC is it worth?"
                 : "Share bonus strategies, ask a question, or talk slots..."
             }
-            className="w-full rounded-xl border border-[#274230] bg-[#0d1611] p-3 text-xs sm:text-sm text-white placeholder-[#5c7261] outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+            className="w-full rounded-xl border border-zinc-800 bg-zinc-950/70 p-3 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700"
           />
         </div>
 

@@ -413,7 +413,7 @@ export function SocialFeed({
   ]);
 
   const feedContent = (
-    <main className="space-y-3.5">
+    <main className="space-y-2.5">
       {/* Unified Feed Toolbar: Filter Dropdown (LEFT) + Refresh Icon & Bonus Drops Quick Pill (RIGHT) */}
       <div className="flex items-center justify-between w-full gap-2 pb-1">
         {/* Sort & Filter Dropdown Menu (LEFT) */}
@@ -426,7 +426,7 @@ export function SocialFeed({
               id="feed-sort-filter"
               value={dropdownValue}
               onChange={(e) => handleDropdownChange(e.target.value)}
-              className="h-9 rounded-lg border border-white/10 bg-[#121815] pl-3 pr-8 text-sm text-zinc-300 outline-none transition hover:border-white/20 focus:border-emerald-500/50 cursor-pointer appearance-none"
+              className="h-9 rounded-lg border border-zinc-800 bg-zinc-900/60 pl-3 pr-8 text-sm text-zinc-300 outline-none transition hover:border-zinc-700 focus:border-zinc-700 cursor-pointer appearance-none"
             >
               <optgroup label="Feed" className="bg-[#121815] text-emerald-400 font-bold">
                 <option value="all" className="bg-[#121815] text-white">All Posts</option>
@@ -463,7 +463,7 @@ export function SocialFeed({
             type="button"
             onClick={handleManualRefresh}
             disabled={refreshing}
-            className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-[#121815] text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/40 transition cursor-pointer"
+            className="grid h-9 w-9 place-items-center rounded-lg border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition cursor-pointer"
             title="Refresh feed"
             aria-label="Refresh feed"
           >
@@ -551,12 +551,12 @@ export function SocialFeed({
               <p className="text-xs text-[#7d9985]">Loading social feed...</p>
             </div>
           ) : sortedPosts.length === 0 ? (
-            <div className="rounded-2xl border border-[#203728] bg-[#122017] p-8 text-center text-xs text-[#7d9985]">
-              <p className="text-sm font-semibold text-white mb-1">No posts found</p>
+            <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-8 text-center text-xs text-zinc-400">
+              <p className="text-sm font-semibold text-zinc-200 mb-1">No posts found</p>
               <p>Be the first to post a bonus drop, win flex, or discussion!</p>
             </div>
           ) : (
-            <div className="space-y-3.5">
+            <div className="space-y-2.5">
               {sortedPosts.map((post) => (
                 <PostCard
                   key={post.id}
