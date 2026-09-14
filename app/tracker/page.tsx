@@ -2677,10 +2677,10 @@ export default function TrackerPage() {
         isAdmin={isAdmin}
       />
 
-      {/* Floating Feed & Drops Circular Icon Badges (Docked Top-Left under Header) */}
+      {/* Floating Feed & Drops Circular Icon Badges (Docked Top-Right under Header) */}
       <aside
         aria-label="Quick Access Feeds"
-        className="fixed top-16 left-4 z-40 flex items-center gap-2.5"
+        className="fixed top-16 right-3.5 z-40 flex items-center gap-2.5 sm:right-6 lg:right-8"
       >
         {/* Bonus Drops Circular Button */}
         <button
@@ -2719,7 +2719,7 @@ export default function TrackerPage() {
 
       {/* Slide-Over Drawer Overlay for Community Feed & Drops */}
       {activeDrawer && (
-        <div className="fixed inset-0 z-50 flex justify-start">
+        <div className="fixed inset-0 z-50 flex justify-end">
           {/* Backdrop Blur */}
           <div
             className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity cursor-pointer"
@@ -2728,7 +2728,7 @@ export default function TrackerPage() {
           />
 
           {/* Drawer Container */}
-          <div className="relative z-50 flex flex-col w-full sm:w-[500px] lg:w-[560px] h-full bg-[#0c1a13] border-r border-emerald-900/60 shadow-2xl animate-in slide-in-from-left duration-200 overflow-hidden">
+          <div className="relative z-50 flex flex-col w-full sm:w-[500px] lg:w-[560px] h-full bg-[#0c1a13] border-l border-emerald-900/60 shadow-2xl animate-in slide-in-from-right duration-200 overflow-hidden">
             {/* Drawer Header */}
             <div className="flex items-center justify-between border-b border-emerald-950/80 bg-[#0a150f] px-4 py-3 shrink-0">
               <div className="flex items-center gap-2">
