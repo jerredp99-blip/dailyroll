@@ -2605,10 +2605,10 @@ export default function TrackerPage() {
         isAdmin={isAdmin}
       />
 
-      {/* Floating Feed & Drops Bubbles (Anchored to Bottom-Right) */}
+      {/* Floating Feed & Drops Bubbles (Anchored to Top-Left) */}
       <aside
         aria-label="Quick Access Feeds"
-        className="fixed bottom-6 right-4 z-40 flex flex-col items-end gap-2.5 sm:bottom-8 sm:right-6"
+        className="fixed top-16 left-4 z-40 flex flex-col items-start gap-2 sm:left-6"
       >
         {/* Bonus Drops Button with Dynamic Counter */}
         <button
@@ -2640,7 +2640,7 @@ export default function TrackerPage() {
 
       {/* Slide-Over Drawer Overlay for Community Feed & Drops */}
       {activeDrawer && (
-        <div className="fixed inset-0 z-50 flex justify-end">
+        <div className="fixed inset-0 z-50 flex justify-start">
           {/* Backdrop Blur */}
           <div
             className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity cursor-pointer"
@@ -2649,7 +2649,7 @@ export default function TrackerPage() {
           />
 
           {/* Drawer Container */}
-          <div className="relative z-50 flex flex-col w-full sm:w-[500px] lg:w-[560px] h-full bg-[#0c1a13] border-l border-emerald-900/60 shadow-2xl animate-in slide-in-from-right duration-200 overflow-hidden">
+          <div className="relative z-50 flex flex-col w-full sm:w-[500px] lg:w-[560px] h-full bg-[#0c1a13] border-r border-emerald-900/60 shadow-2xl animate-in slide-in-from-left duration-200 overflow-hidden">
             {/* Drawer Header */}
             <div className="flex items-center justify-between border-b border-emerald-950/80 bg-[#0a150f] px-4 py-3 shrink-0">
               <div className="flex items-center gap-2">

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import Link from "next/link";
-import { CheckCircle2, Clock, ExternalLink, MoreHorizontal, Sparkles } from "lucide-react";
+import { CheckCircle2, Clock, ExternalLink, MoreHorizontal } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import {
@@ -152,11 +152,6 @@ function RollcallCardComponent({
               {casino.name}
             </h2>
             <div className="flex items-center gap-1.5 mt-0.5">
-              {casino.provider && (
-                <span className="rounded border border-[#1b3d2f] bg-[#07130e] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
-                  {casino.provider}
-                </span>
-              )}
               {casino.hidden && (
                 <span className="rounded border border-zinc-800 bg-zinc-900/60 px-1.5 py-0.5 text-[10px] text-zinc-500">
                   Hidden
@@ -314,62 +309,86 @@ function RollcallCardComponent({
           )}
 
           {currentStatus.ready ? (
-            <button
-              type="button"
-              onClick={handleClaimClick}
-              aria-label={`Claim ${casino.dailyBonus} for ${casino.name}`}
-              className="h-9 px-4 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-zinc-950 font-black text-xs sm:text-sm tracking-tight shadow-lg shadow-emerald-500/25 border border-emerald-300/40 ring-1 ring-emerald-400/50 hover:ring-2 hover:ring-emerald-300 hover:shadow-emerald-400/40 active:scale-[0.97] flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer whitespace-nowrap"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-zinc-950 fill-zinc-950 shrink-0" />
-              <span>Claim {casino.dailyBonus}!</span>
-            </button>
-          ) : (
-            <div
-              aria-label={
-                currentStatus.isSnoozed
-                  ? `Snoozed · ${formattedCountdown}`
-                  : `Resets in ${formattedCountdown}`
-              }
-              className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 font-mono text-xs font-semibold shadow-inner shrink-0 ${
-                currentStatus.isSnoozed
-                  ? "border-amber-700/60 bg-amber-950/30 text-amber-300"
-                  : currentStatus.remainingMs < 3600000
-                  ? "border-amber-700/60 bg-amber-950/60 text-amber-300"
-                  : "border-rose-800/60 bg-rose-950/60 text-rose-300"
-              }`}
-            >
-              <span className="relative flex h-2 w-2 mr-1 shrink-0">
-                {currentStatus.isSnoozed || currentStatus.remainingMs < 3600000 ? (
-                  <>
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
-                  </>
-                ) : (
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500/80" />
-                )}
-              </span>
-              <span>
-                {currentStatus.isSnoozed
-                  ? `Snoozed · ${formattedCountdown}`
-                  : `Resets in ${formattedCountdown}`}
-              </span>
-            </div>
-          )}
+            <>
+              {/* Inline Kebab Button (placed to the LEFT of the Claim button when ready) */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onToggleActionMenu?.(casino.id);
+                }}
+                aria-label={`Settings for ${casino.name}`}
+                title={`Settings for ${casino.name}`}
+                className="h-9 w-9 rounded-xl bg-zinc-950/60 border border-emerald-900/60 hover:border-emerald-500/50 flex items-center justify-center text-emerald-400 transition-all active:scale-95 cursor-pointer shrink-0"
+              >
+                <MoreHorizontal size={16} />
+              </button>
 
-          {/* Inline Kebab Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onToggleActionMenu?.(casino.id);
-            }}
-            aria-label={`Settings for ${casino.name}`}
-            title={`Settings for ${casino.name}`}
-            className="h-9 w-9 rounded-xl bg-zinc-950/60 border border-emerald-900/60 hover:border-emerald-500/50 flex items-center justify-center text-emerald-400 transition-all active:scale-95 cursor-pointer shrink-0"
-          >
-            <MoreHorizontal size={16} />
-          </button>
+              {/* Ready Claim Button with live pulsing dot */}
+              <button
+                type="button"
+                onClick={handleClaimClick}
+                aria-label={`Claim ${casino.dailyBonus} for ${casino.name}`}
+                className="h-9 px-4 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-zinc-950 font-black text-xs sm:text-sm tracking-tight shadow-lg shadow-emerald-500/25 border border-emerald-300/40 ring-1 ring-emerald-400/50 hover:ring-2 hover:ring-emerald-300 hover:shadow-emerald-400/40 active:scale-[0.97] flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer whitespace-nowrap"
+              >
+                <span className="relative flex h-2 w-2 shrink-0 mr-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-950 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-950"></span>
+                </span>
+                <span>Claim {casino.dailyBonus}!</span>
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Scaled-down Countdown Timer Badge */}
+              <div
+                aria-label={
+                  currentStatus.isSnoozed
+                    ? `Snoozed · ${formattedCountdown}`
+                    : `Resets in ${formattedCountdown}`
+                }
+                className={`h-7 py-1 px-2.5 rounded-md border flex items-center justify-center gap-1.5 font-mono text-[11px] font-medium tracking-tight shadow-inner shrink-0 ${
+                  currentStatus.isSnoozed
+                    ? "border-amber-700/60 bg-amber-950/30 text-amber-300"
+                    : currentStatus.remainingMs < 3600000
+                    ? "border-amber-700/60 bg-amber-950/60 text-amber-300"
+                    : "border-rose-800/60 bg-rose-950/60 text-rose-300"
+                }`}
+              >
+                <span className="relative flex h-1.5 w-1.5 mr-1.5 shrink-0">
+                  {currentStatus.isSnoozed || currentStatus.remainingMs < 3600000 ? (
+                    <>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500" />
+                    </>
+                  ) : (
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500/80" />
+                  )}
+                </span>
+                <span>
+                  {currentStatus.isSnoozed
+                    ? `Snoozed · ${formattedCountdown}`
+                    : `Resets in ${formattedCountdown}`}
+                </span>
+              </div>
+
+              {/* Inline Kebab Button (kept to the right when on cooldown/timer) */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onToggleActionMenu?.(casino.id);
+                }}
+                aria-label={`Settings for ${casino.name}`}
+                title={`Settings for ${casino.name}`}
+                className="h-9 w-9 rounded-xl bg-zinc-950/60 border border-emerald-900/60 hover:border-emerald-500/50 flex items-center justify-center text-emerald-400 transition-all active:scale-95 cursor-pointer shrink-0"
+              >
+                <MoreHorizontal size={16} />
+              </button>
+            </>
+          )}
         </div>
       )}
 
