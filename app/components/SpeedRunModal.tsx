@@ -30,6 +30,7 @@ import {
   parseScReward,
   parseGcReward,
 } from "@/lib/speedRunStorage";
+import { CustomTimerModal } from "@/components/CustomTimerModal";
 
 interface SpeedRunModalProps {
   isOpen: boolean;
@@ -57,9 +58,11 @@ export function SpeedRunModal({
   // Session state from storage or fresh queue
   const [session, setSession] = useState<SpeedRunSessionState | null>(null);
 
-  // Form inputs for State 3 (Log Balance)
+  // Form inputs for State 3 (Log Balance) and State 2 (Value tracking)
   const [balanceInput, setBalanceInput] = useState<string>("");
   const [noteInput, setNoteInput] = useState<string>("");
+  const [claimScInput, setClaimScInput] = useState<string>("");
+  const [isSpeedRunCustomTimerOpen, setIsSpeedRunCustomTimerOpen] = useState(false);
 
   // Animation state for gamified Session Loot counter
   const [animatingLoot, setAnimatingLoot] = useState(false);
@@ -285,6 +288,10 @@ export function SpeedRunModal({
           : ""
       );
       setNoteInput(currentCasino.notes || "");
+      const defaultSc =
+        currentCasino.dailyBonusSc ||
+        (parseScReward(currentCasino.dailyBonus ?? "") || 1.0);
+      setClaimScInput(String(defaultSc));
     }
   }, [currentCasinoId, currentCasino]);
 
@@ -441,18 +448,25 @@ export function SpeedRunModal({
     });
   }
 
-  // User answered [Snooze 1h] -> Sets 1h hold, advances queue
-  function handleSnooze() {
+  // User answered [Snooze] with standard duration
+  function handleSnoozeDuration(durationMs: number) {
     if (!currentCasino || !session) return;
 
-    const snoozedUntil = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const snoozedUntil = new Date(Date.now() + durationMs).toISOString();
+    const parsedSc = claimScInput.trim() !== "" ? parseFloat(claimScInput) : undefined;
+    const updates: Partial<Casino> = {
+      snoozedUntil,
+      targetResetTimestamp: null,
+      ...(typeof parsedSc === "number" && !isNaN(parsedSc)
+        ? { dailyBonusSc: String(parsedSc), dailyBonus: `${parsedSc} SC` }
+        : {}),
+    };
 
-    // Call onSnooze or onUpdateCasino safely wrapped in try/catch
     try {
       if (onSnooze) {
         onSnooze(currentCasino, snoozedUntil);
       } else if (onUpdateCasino) {
-        onUpdateCasino(currentCasino, { snoozedUntil, targetResetTimestamp: null });
+        onUpdateCasino(currentCasino, updates);
       }
     } catch (err) {
       console.error("Failed to snooze casino in onSnooze:", err);
@@ -461,6 +475,36 @@ export function SpeedRunModal({
     advanceQueue({
       snooze: { id: currentCasino.id, until: snoozedUntil },
     });
+  }
+
+  // User set Custom Timer
+  function handleCustomTimerSave(targetResetTimestamp: number, customSc?: number) {
+    if (!currentCasino || !session) return;
+
+    const updates: Partial<Casino> = {
+      targetResetTimestamp,
+      snoozedUntil: null,
+      ...(customSc !== undefined
+        ? { dailyBonusSc: String(customSc), dailyBonus: `${customSc} SC` }
+        : {}),
+    };
+
+    try {
+      if (onUpdateCasino) {
+        onUpdateCasino(currentCasino, updates);
+      }
+    } catch (err) {
+      console.error("Failed to set custom timer in SpeedRun:", err);
+    }
+
+    advanceQueue({
+      snooze: { id: currentCasino.id, until: new Date(targetResetTimestamp).toISOString() },
+    });
+  }
+
+  // Fallback 1h snooze
+  function handleSnooze() {
+    handleSnoozeDuration(60 * 60 * 1000);
   }
 
   // User answered [Failed / Skip] -> Leaves as 'ready', advances queue
@@ -480,6 +524,9 @@ export function SpeedRunModal({
 
     const parsedBalance = balanceInput.trim() !== "" ? parseFloat(balanceInput) : undefined;
     const cleanNote = noteInput.trim() || undefined;
+    const parsedSc = claimScInput.trim() !== "" ? parseFloat(claimScInput) : undefined;
+    const fallbackSc = parseScReward(currentCasino?.dailyBonus ?? "");
+    const rewardSc = typeof parsedSc === "number" && !isNaN(parsedSc) ? parsedSc : fallbackSc;
 
     const updates: Partial<Casino> = {
       currentBalance:
@@ -489,6 +536,8 @@ export function SpeedRunModal({
       notes: cleanNote ?? currentCasino.notes,
       snoozedUntil: null,
       targetResetTimestamp: null,
+      dailyBonusSc: String(rewardSc),
+      dailyBonus: `${rewardSc} SC`,
     };
 
     // 1. Mark claimed & persist balance/notes atomically
@@ -515,7 +564,6 @@ export function SpeedRunModal({
     }
 
     // 2. Add daily bonus reward to session tally
-    const rewardSc = parseScReward(currentCasino?.dailyBonus ?? "");
     const rewardGc = parseGcReward(currentCasino?.dailyBonus ?? "");
     triggerLootAnimation(rewardSc);
 
@@ -531,10 +579,17 @@ export function SpeedRunModal({
   function handleSkipBalanceAndNext() {
     if (!currentCasino || !session) return;
 
+    const parsedSc = claimScInput.trim() !== "" ? parseFloat(claimScInput) : undefined;
+    const fallbackSc = parseScReward(currentCasino?.dailyBonus ?? "");
+    const rewardSc = typeof parsedSc === "number" && !isNaN(parsedSc) ? parsedSc : fallbackSc;
+
     // 1. Mark claimed with try/catch
     if (onClaimSuccess) {
       try {
-        onClaimSuccess(currentCasino.id);
+        onClaimSuccess(currentCasino.id, {
+          dailyBonusSc: String(rewardSc),
+          dailyBonus: `${rewardSc} SC`,
+        });
       } catch (err) {
         console.error("Failed to mark casino claimed in onClaimSuccess:", err);
       }
@@ -547,7 +602,6 @@ export function SpeedRunModal({
     }
 
     // 2. Add daily bonus reward to session tally
-    const rewardSc = parseScReward(currentCasino?.dailyBonus ?? "");
     const rewardGc = parseGcReward(currentCasino?.dailyBonus ?? "");
     triggerLootAnimation(rewardSc);
 
@@ -879,7 +933,7 @@ export function SpeedRunModal({
                 {/* STATE 2: "Verification" View ("Did you claim it?") */}
                 {/* ------------------------------------------------------------- */}
                 {currentStep === 2 && (
-                  <div className="mt-5 space-y-4 animate-fadeIn">
+                  <div className="mt-5 space-y-3.5 animate-fadeIn">
                     <div className="rounded-xl border border-teal-700/50 bg-[#12281e] p-3 text-center">
                       <p className="text-sm sm:text-base font-bold text-white">
                         Did you claim it?
@@ -889,22 +943,63 @@ export function SpeedRunModal({
                       </p>
                     </div>
 
+                    {/* Dedicated Value Tracking Input for Sweeps Coins (SC) */}
+                    <div className="flex items-center justify-between rounded-xl border border-emerald-700/40 bg-[#12281e] px-3.5 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <Coins size={16} className="text-emerald-400" />
+                        <div className="text-left">
+                          <p className="text-xs font-bold text-white">Claim Reward (SC)</p>
+                          <p className="text-[10px] text-[#8ca892]">Logged to session loot & bankroll</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 bg-[#091510] border border-emerald-900/80 rounded-lg px-2.5 py-1">
+                        <span className="text-xs font-bold text-emerald-400">$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={claimScInput}
+                          onChange={(e) => setClaimScInput(e.target.value)}
+                          className="w-16 bg-transparent text-right text-xs font-bold text-white outline-none font-mono"
+                          placeholder="1.00"
+                        />
+                        <span className="text-[10px] font-semibold text-emerald-400">SC</span>
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-                      {/* Snooze 1h */}
-                      <button
-                        type="button"
-                        onClick={handleSnooze}
-                        className="flex flex-col items-center justify-center gap-1 rounded-xl border border-amber-600/40 bg-[#1a281e] py-2.5 px-2 text-xs font-semibold text-amber-300 transition hover:bg-[#25392a] hover:border-amber-500 active:scale-95"
-                      >
-                        <Clock size={16} />
-                        <span>Snooze 1h</span>
-                      </button>
+                      {/* Touch-Friendly Snooze Select */}
+                      <div className="relative flex flex-col items-center justify-center rounded-xl border border-amber-600/40 bg-[#1a281e] p-2 hover:bg-[#25392a] hover:border-amber-500 transition">
+                        <Clock size={16} className="text-amber-300 mb-0.5" />
+                        <span className="text-[10px] font-semibold text-amber-300 mb-1">Snooze</span>
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "custom") {
+                              setIsSpeedRunCustomTimerOpen(true);
+                            } else if (val) {
+                              handleSnoozeDuration(Number(val));
+                            }
+                          }}
+                          className="w-full text-center text-xs font-bold bg-[#0f1d15] border border-amber-700/60 rounded-lg py-1 px-1 text-amber-300 outline-none cursor-pointer"
+                        >
+                          <option value="">Choose ⌵</option>
+                          <option value={15 * 60 * 1000}>15m</option>
+                          <option value={30 * 60 * 1000}>30m</option>
+                          <option value={60 * 60 * 1000}>1h</option>
+                          <option value={2 * 60 * 60 * 1000}>2h</option>
+                          <option value={4 * 60 * 60 * 1000}>4h</option>
+                          <option value={8 * 60 * 60 * 1000}>8h</option>
+                          <option value="custom">Custom...</option>
+                        </select>
+                      </div>
 
                       {/* Failed / Skip */}
                       <button
                         type="button"
                         onClick={handleFailedSkip}
-                        className="flex flex-col items-center justify-center gap-1 rounded-xl border border-[#314f3c] bg-[#142219] py-2.5 px-2 text-xs font-semibold text-[#a3bfa8] transition hover:border-[#528263] hover:bg-[#1a2e22] hover:text-white active:scale-95"
+                        className="flex flex-col items-center justify-center gap-1 rounded-xl border border-[#314f3c] bg-[#142219] py-2.5 px-2 text-xs font-semibold text-[#a3bfa8] transition hover:border-[#528263] hover:bg-[#1a2e22] hover:text-white active:scale-95 cursor-pointer"
                       >
                         <X size={16} />
                         <span>Failed / Skip</span>
@@ -914,7 +1009,7 @@ export function SpeedRunModal({
                       <button
                         type="button"
                         onClick={handleConfirmClaimed}
-                        className="flex flex-col items-center justify-center gap-1 rounded-xl bg-gradient-to-br from-emerald-500 to-[#39ff6a] py-2.5 px-2 text-xs font-bold text-[#0d1712] shadow-[0_4px_14px_rgba(57,255,106,0.35)] transition hover:scale-102 active:scale-95"
+                        className="flex flex-col items-center justify-center gap-1 rounded-xl bg-gradient-to-br from-emerald-500 to-[#39ff6a] py-2.5 px-2 text-xs font-bold text-[#0d1712] shadow-[0_4px_14px_rgba(57,255,106,0.35)] transition hover:scale-102 active:scale-95 cursor-pointer"
                       >
                         <CheckCircle2 size={16} />
                         <span>Yes, Claimed</span>
@@ -1016,6 +1111,19 @@ export function SpeedRunModal({
           </div>
         )}
       </div>
+
+      {isSpeedRunCustomTimerOpen && currentCasino && (
+        <CustomTimerModal
+          isOpen={isSpeedRunCustomTimerOpen}
+          casino={currentCasino}
+          initialSc={claimScInput}
+          onClose={() => setIsSpeedRunCustomTimerOpen(false)}
+          onSave={(target, targetResetTimestamp, customSc) => {
+            setIsSpeedRunCustomTimerOpen(false);
+            handleCustomTimerSave(targetResetTimestamp, customSc);
+          }}
+        />
+      )}
     </div>
   );
 }

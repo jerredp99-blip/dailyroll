@@ -247,69 +247,32 @@ export default function TrackerPage() {
     signedInUserRef.current = signedInUser;
   }, [signedInUser]);
   const now = useCurrentTime();
-  const [pendingClaims, setPendingClaims] = useState<Record<string, { expiresAt: number; isDefocused: boolean }>>({});
+  const [pendingClaims, setPendingClaims] = useState<Record<string, { expiresAt: number; isDefocused?: boolean }>>({});
+  const [activeDropsCount, setActiveDropsCount] = useState<number>(0);
 
-  // Global Defocus Detection for 90-Second Pending Claims
+  // Poll / fetch active bonus drop count for dynamic navigation indicator
   useEffect(() => {
-    const handleDefocusAll = () => {
-      setPendingClaims((prev) => {
-        let changed = false;
-        const next: Record<string, { expiresAt: number; isDefocused: boolean }> = {};
-        for (const [id, claim] of Object.entries(prev)) {
-          if (!claim.isDefocused) {
-            next[id] = { ...claim, isDefocused: true };
-            changed = true;
-          } else {
-            next[id] = claim;
+    let mounted = true;
+    async function fetchDropsCount() {
+      try {
+        const res = await fetch("/api/posts?type=drop_code", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          const posts = Array.isArray(data) ? data : data.posts || [];
+          if (mounted) {
+            const active = posts.filter((p: any) => !p.expired && !p.isExpired);
+            setActiveDropsCount(active.length);
           }
         }
-        return changed ? next : prev;
-      });
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        handleDefocusAll();
+      } catch (err) {
+        // silent
       }
-    };
-
-    const handleDocumentMouseDown = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      const pendingCard = target.closest("[data-pending-card='true']");
-      if (pendingCard) {
-        const clickedId = pendingCard.getAttribute("data-pending-id");
-        if (clickedId) {
-          setPendingClaims((prev) => {
-            let changed = false;
-            const next: Record<string, { expiresAt: number; isDefocused: boolean }> = {};
-            for (const [id, claim] of Object.entries(prev)) {
-              const shouldBeDefocused = id !== clickedId;
-              if (claim.isDefocused !== shouldBeDefocused) {
-                next[id] = { ...claim, isDefocused: shouldBeDefocused };
-                changed = true;
-              } else {
-                next[id] = claim;
-              }
-            }
-            return changed ? next : prev;
-          });
-          return;
-        }
-      }
-
-      // Clicked outside any pending card
-      handleDefocusAll();
-    };
-
-    window.addEventListener("blur", handleDefocusAll);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    document.addEventListener("mousedown", handleDocumentMouseDown);
-
+    }
+    fetchDropsCount();
+    const interval = setInterval(fetchDropsCount, 60000);
     return () => {
-      window.removeEventListener("blur", handleDefocusAll);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      document.removeEventListener("mousedown", handleDocumentMouseDown);
+      mounted = false;
+      clearInterval(interval);
     };
   }, []);
   const [name, setName] = useState("");
@@ -822,17 +785,13 @@ export default function TrackerPage() {
     if (target) {
       openInExternalBrowser(target);
     }
-    setPendingClaims((prev) => {
-      const next: Record<string, { expiresAt: number; isDefocused: boolean }> = {};
-      for (const id of Object.keys(prev)) {
-        next[id] = { ...prev[id], isDefocused: true };
-      }
-      next[casino.id] = {
+    setPendingClaims((prev) => ({
+      ...prev,
+      [casino.id]: {
         expiresAt: Date.now() + 90000,
         isDefocused: false,
-      };
-      return next;
-    });
+      },
+    }));
   }, [siteUrlFor]);
 
   const handleConfirmClaim = useCallback((casino: Casino) => {
@@ -887,7 +846,7 @@ export default function TrackerPage() {
     handleSnoozeCasino(targetCasino, snoozedUntil);
   }, [handleSnoozeCasino]);
 
-  const handleSetCustomTimer = useCallback((targetCasino: Casino, targetResetTimestamp: number) => {
+  const handleSetCustomTimer = useCallback((targetCasino: Casino, targetResetTimestamp: number, customSc?: number) => {
     setPendingClaims((prev) => {
       if (!prev[targetCasino.id]) return prev;
       const next = { ...prev };
@@ -903,6 +862,9 @@ export default function TrackerPage() {
               targetResetTimestamp,
               lastClaimedAt: nowIso,
               snoozedUntil: null,
+              ...(customSc !== undefined
+                ? { dailyBonusSc: String(customSc), dailyBonus: `${customSc} SC` }
+                : {}),
             }
           : item,
       );
@@ -1360,16 +1322,15 @@ export default function TrackerPage() {
       const firstPending = pendingClaims[firstCasino.id];
       const secondPending = pendingClaims[secondCasino.id];
 
-      // 4-tier ranking:
-      // Rank 0: Focused pending claim (active at top)
+      // 3-tier ranking:
+      // Rank 0: Pending claim (always pinned at top until timer runs out)
       // Rank 1: Ready cards
-      // Rank 2: Defocused pending claim (below all ready cards, above completed/cooldown cards)
-      // Rank 3: Cooldown/Claimed cards
-      const getRank = (casino: Casino, pending?: { expiresAt: number; isDefocused: boolean }) => {
+      // Rank 2: Cooldown/Claimed cards
+      const getRank = (casino: Casino, pending?: { expiresAt: number; isDefocused?: boolean }) => {
         if (pending) {
-          return pending.isDefocused ? 2 : 0;
+          return 0; // Permanently pinned at top until timer runs out
         }
-        return statusFor(casino).ready ? 1 : 3;
+        return statusFor(casino).ready ? 1 : 2;
       };
 
       const rank1 = getRank(firstCasino, firstPending);
@@ -1379,8 +1340,8 @@ export default function TrackerPage() {
         return rank1 - rank2;
       }
 
-      // If both are in pending tier (0 or 2), sort by expiresAt (soonest to expire first)
-      if (rank1 === 0 || rank1 === 2) {
+      // If both are in pending tier (0), sort by expiresAt (soonest to expire first)
+      if (rank1 === 0) {
         return (firstPending?.expiresAt ?? 0) - (secondPending?.expiresAt ?? 0);
       }
 
@@ -1657,7 +1618,7 @@ export default function TrackerPage() {
           <Menu size={18} />
         )}
       </button>
-      <div className="w-full px-2.5 py-4 sm:px-8 sm:py-6">
+      <div className="w-full px-2.5 pt-14 pb-4 sm:px-8 sm:py-6">
         {/* Header (only on Add Casinos sub-page) */}
         {isAddCasinosPage && (
           <header className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3 border-b border-[#263a2c] pb-3 mb-4 sm:mb-6">
@@ -2281,9 +2242,9 @@ export default function TrackerPage() {
           casino={customTimerCasino}
           currentRemainingMs={statusFor(customTimerCasino).remainingMs}
           onClose={() => setCustomTimerCasino(null)}
-          onSave={(target, targetResetTimestamp) => {
+          onSave={(target, targetResetTimestamp, customSc) => {
             const casinoObj = typeof target === "string" ? customTimerCasino : target;
-            handleSetCustomTimer(casinoObj, targetResetTimestamp);
+            handleSetCustomTimer(casinoObj, targetResetTimestamp, customSc);
             setCustomTimerCasino(null);
           }}
         />
@@ -2642,28 +2603,33 @@ export default function TrackerPage() {
         isAdmin={isAdmin}
       />
 
-      {/* Floating Bubbles Dock (Bottom-Left) */}
-      <aside aria-label="Quick Access Feeds" className="fixed bottom-6 left-6 z-40 flex flex-col gap-2.5">
-        {/* Feed Bubble */}
+      {/* Persistent Quick Access Feeds (Top-Left Ergonomic Thumb Zone) */}
+      <aside aria-label="Quick Access Feeds" className="fixed top-2.5 left-3.5 sm:left-6 z-40 flex items-center gap-2">
+        {/* Feed Button */}
         <button
           type="button"
           onClick={() => setActiveDrawer((prev) => (prev === "feed" ? null : "feed"))}
           aria-label="Open Community Feed"
-          className="group flex items-center gap-2 rounded-full border border-emerald-500/50 bg-[#0c1f17]/95 px-4 py-2.5 shadow-2xl shadow-black/80 backdrop-blur-md text-xs font-bold text-zinc-200 hover:text-white hover:border-emerald-400 hover:bg-emerald-950/80 active:scale-95 transition-all cursor-pointer"
+          className="group flex h-9 items-center gap-1.5 rounded-full border border-emerald-500/40 bg-[#0c1f17]/95 px-3 py-1.5 shadow-lg shadow-black/60 backdrop-blur-md text-xs font-bold text-zinc-200 hover:text-white hover:border-emerald-400 hover:bg-emerald-950/80 active:scale-95 transition-all cursor-pointer"
         >
-          <MessageSquare size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+          <MessageSquare size={14} className="text-emerald-400 group-hover:scale-110 transition-transform" />
           <span>Feed</span>
         </button>
 
-        {/* Bonus Drops Bubble */}
+        {/* Bonus Drops Button with Dynamic Counter */}
         <button
           type="button"
           onClick={() => setActiveDrawer((prev) => (prev === "drops" ? null : "drops"))}
           aria-label="Open Bonus Drops"
-          className="group flex items-center gap-2 rounded-full border border-amber-500/50 bg-[#19150c]/95 px-4 py-2.5 shadow-2xl shadow-black/80 backdrop-blur-md text-xs font-bold text-amber-200 hover:text-white hover:border-amber-400 hover:bg-amber-950/80 active:scale-95 transition-all cursor-pointer"
+          className="group flex h-9 items-center gap-1.5 rounded-full border border-amber-500/40 bg-[#19150c]/95 px-3 py-1.5 shadow-lg shadow-black/60 backdrop-blur-md text-xs font-bold text-amber-200 hover:text-white hover:border-amber-400 hover:bg-amber-950/80 active:scale-95 transition-all cursor-pointer"
         >
-          <Gift size={16} className="text-amber-400 group-hover:scale-110 transition-transform" />
+          <Gift size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
           <span>Drops</span>
+          {activeDropsCount > 0 && (
+            <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-extrabold text-zinc-950 leading-none shadow-sm">
+              {activeDropsCount}
+            </span>
+          )}
         </button>
       </aside>
 

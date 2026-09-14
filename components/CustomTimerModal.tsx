@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Clock, X, CheckCircle2 } from "lucide-react";
+import { Clock, X, CheckCircle2, Coins } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { calculateCustomResetTimestamp } from "@/lib/timerUtils";
+import { parseScReward } from "@/lib/speedRunStorage";
 
 export interface CustomTimerModalProps {
   isOpen: boolean;
@@ -12,8 +13,9 @@ export interface CustomTimerModalProps {
   casinoId?: string;
   casinoName?: string;
   currentRemainingMs?: number;
+  initialSc?: string | number;
   onClose: () => void;
-  onSave: (target: Casino | string, targetResetTimestamp: number) => void;
+  onSave: (target: Casino | string, targetResetTimestamp: number, customSc?: number) => void;
 }
 
 const PRESET_HOURS = [
@@ -30,12 +32,14 @@ export function CustomTimerModal({
   casinoId,
   casinoName,
   currentRemainingMs,
+  initialSc,
   onClose,
   onSave,
 }: CustomTimerModalProps) {
   const [mounted, setMounted] = useState(false);
   const [hours, setHours] = useState("");
   const [minutes, setMinutes] = useState("");
+  const [scAmount, setScAmount] = useState<string>("");
   const modalRef = useRef<HTMLDivElement>(null);
   const hoursInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,7 +50,7 @@ export function CustomTimerModal({
     setMounted(true);
   }, []);
 
-  // Initialize or prefill hours and minutes when modal opens
+  // Initialize or prefill hours, minutes, and SC amount when modal opens
   useEffect(() => {
     if (!isOpen) return;
 
@@ -61,13 +65,24 @@ export function CustomTimerModal({
       setMinutes("");
     }
 
+    if (initialSc !== undefined) {
+      setScAmount(String(initialSc));
+    } else if (casino?.dailyBonusSc) {
+      setScAmount(String(casino.dailyBonusSc));
+    } else if (casino?.dailyBonus) {
+      const parsed = parseScReward(casino.dailyBonus);
+      setScAmount(parsed > 0 ? String(parsed) : "");
+    } else {
+      setScAmount("");
+    }
+
     // Auto-focus the hours input after modal opens
     const timer = setTimeout(() => {
       hoursInputRef.current?.focus();
     }, 50);
 
     return () => clearTimeout(timer);
-  }, [isOpen, currentRemainingMs]);
+  }, [isOpen, currentRemainingMs, initialSc, casino]);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -96,7 +111,9 @@ export function CustomTimerModal({
     const finalMinutes = Math.max(0, isNaN(m) ? 0 : m);
 
     const targetResetTimestamp = calculateCustomResetTimestamp(finalHours, finalMinutes);
-    onSave(targetIdentifier, targetResetTimestamp);
+    const parsedSc = scAmount.trim() !== "" ? parseFloat(scAmount) : undefined;
+    const finalSc = typeof parsedSc === "number" && !isNaN(parsedSc) ? parsedSc : undefined;
+    onSave(targetIdentifier, targetResetTimestamp, finalSc);
     onClose();
   };
 
@@ -185,6 +202,30 @@ export function CustomTimerModal({
                 />
                 <span className="text-xs font-semibold text-gray-400">mins</span>
               </div>
+            </div>
+          </div>
+
+          {/* Sweeps Coins (SC) Claim Value Input */}
+          <div>
+            <label className="block text-xs font-semibold text-[#8ea794] mb-1.5 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Coins size={13} className="text-emerald-400" />
+                Claim / Reward Value (SC):
+              </span>
+              <span className="text-[10px] text-[#6d8a74] font-normal">Optional cycle reward</span>
+            </label>
+            <div className="flex items-center gap-2 bg-[#09130e] border border-emerald-900/80 rounded-xl px-3 py-2">
+              <span className="text-emerald-400 font-bold text-sm">$</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="1.00"
+                value={scAmount}
+                onChange={(e) => setScAmount(e.target.value)}
+                className="w-full bg-transparent text-sm font-mono font-bold text-white outline-none placeholder-zinc-600 focus:text-emerald-300"
+              />
+              <span className="text-xs font-semibold text-emerald-400/90 uppercase">SC</span>
             </div>
           </div>
 

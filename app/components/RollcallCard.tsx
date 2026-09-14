@@ -56,12 +56,12 @@ export interface RollcallCardProps {
   onResetToReady?: (casino: Casino) => void;
   onCancelSnooze?: (casino: Casino) => void;
   onSnoozeDuration?: (casino: Casino, durationMs: number) => void;
-  onSetCustomTimer?: (casino: Casino, targetResetTimestamp: number) => void;
+  onSetCustomTimer?: (casino: Casino, targetResetTimestamp: number, customSc?: number) => void;
   onOpenCasino: (casino: Casino) => void;
   onOpenBonus?: (casino: Casino) => void;
   renderLogo?: () => React.ReactNode;
   renderTrustpilot?: () => React.ReactNode;
-  pendingInfo?: { expiresAt: number; isDefocused: boolean };
+  pendingInfo?: { expiresAt: number; isDefocused?: boolean };
 }
 
 function RollcallCardComponent({
@@ -130,15 +130,15 @@ function RollcallCardComponent({
       role="article"
       tabIndex={0}
       style={{ contentVisibility: "auto", containIntrinsicSize: "0 64px" }}
-      className={`group flex cursor-pointer items-center justify-between gap-3 rounded-2xl p-3.5 border transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(0,0,0,0.3)] focus:outline-none focus:ring-2 focus:ring-emerald-500/40 ${
+      className={`group flex cursor-pointer ${
         isPending
-          ? isDefocused
-            ? "border-[#1b3d2f] bg-[#0c1f17] shadow-sm"
-            : "border-l-4 border-l-emerald-400 border-emerald-500/80 bg-gradient-to-r from-[#14281e] via-[#102219] to-[#14281e] shadow-[0_4px_20px_rgba(16,185,129,0.18)] ring-1 ring-emerald-500/60"
-          : styles.card
-      } ${casino.hidden ? "border-dashed opacity-60 grayscale hover:opacity-90" : ""}`}
+          ? "flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-3.5 border-l-4 border-l-emerald-400 border-emerald-500/80 bg-gradient-to-r from-[#14281e] via-[#102219] to-[#14281e] shadow-[0_4px_20px_rgba(16,185,129,0.18)] ring-1 ring-emerald-500/60"
+          : `items-center justify-between gap-3 p-3.5 ${styles.card}`
+      } rounded-2xl border transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(0,0,0,0.3)] focus:outline-none focus:ring-2 focus:ring-emerald-500/40 ${
+        casino.hidden ? "border-dashed opacity-60 grayscale hover:opacity-90" : ""
+      }`}
     >
-      <div className="flex items-center gap-3 min-w-0">
+      <div className={`flex items-center ${isPending ? "justify-between w-full sm:w-auto" : ""} gap-3 min-w-0`}>
         <Link
           href={`/casinos/${encodeURIComponent(casino.id)}`}
           onClick={(e) => e.stopPropagation()}
@@ -182,13 +182,26 @@ function RollcallCardComponent({
             </div>
           </div>
         </Link>
+
+        {/* Live Countdown Status Chip on Mobile (Pinned to top-right of identity row) */}
+        {isPending && (
+          <div className="flex sm:hidden items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-[#0c1a13] px-2 py-1 font-mono text-[11px] font-semibold text-emerald-300 shadow-inner shrink-0 whitespace-nowrap">
+            <span className="relative flex h-2 w-2 mr-0.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span>
+              {Math.max(0, Math.ceil((pendingInfo!.expiresAt - currentNow) / 1000))}s
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Action / Countdown / Pending Controls + Inline Kebab */}
       {isPending ? (
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-2 shrink-0">
-          {/* Pulsing Dot + Live 90s Countdown */}
-          <div className="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-[#0c1a13] px-2.5 py-1.5 font-mono text-xs font-semibold text-emerald-300 shadow-inner shrink-0">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto sm:ml-auto shrink-0">
+          {/* Live Countdown Status Chip on Desktop */}
+          <div className="hidden sm:flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-[#0c1a13] px-2.5 py-1.5 font-mono text-xs font-semibold text-emerald-300 shadow-inner shrink-0 whitespace-nowrap">
             <span className="relative flex h-2 w-2 mr-0.5 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
@@ -198,84 +211,90 @@ function RollcallCardComponent({
             </span>
           </div>
 
-          {/* [Claimed ✓] Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (onConfirmClaim) onConfirmClaim(casino);
-              else onClaim(casino);
-            }}
-            className="flex items-center gap-1.5 rounded-lg bg-emerald-400 hover:bg-emerald-300 px-3 py-1.5 text-xs font-bold text-zinc-950 shadow-sm transition active:scale-95 cursor-pointer shrink-0"
-          >
-            <CheckCircle2 size={14} strokeWidth={2.5} />
-            <span>Claimed ✓</span>
-          </button>
+          {/* Primary Claim & Undo Action Buttons */}
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+            {/* [Claimed ✓] Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onConfirmClaim) onConfirmClaim(casino);
+                else onClaim(casino);
+              }}
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-400 hover:bg-emerald-300 px-3 py-2 text-xs font-bold text-zinc-950 shadow-sm transition active:scale-95 cursor-pointer whitespace-nowrap"
+            >
+              <CheckCircle2 size={14} strokeWidth={2.5} />
+              <span>Claimed ✓</span>
+            </button>
 
-          {/* [Didn't Claim / Undo] Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onUndoClaim?.(casino);
-            }}
-            className="rounded-lg border border-zinc-700 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white px-2.5 py-1.5 text-xs font-semibold transition active:scale-95 cursor-pointer shrink-0"
-          >
-            Didn't Claim / Undo
-          </button>
+            {/* [Didn't Claim / Undo] Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onUndoClaim?.(casino);
+              }}
+              className="flex items-center justify-center rounded-lg border border-zinc-700 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white px-2.5 py-2 text-xs font-semibold transition active:scale-95 cursor-pointer whitespace-nowrap"
+            >
+              Didn't Claim / Undo
+            </button>
+          </div>
 
-          {/* [Snooze ⌵] Select */}
-          <select
-            value=""
-            onChange={(e) => {
-              e.stopPropagation();
-              const durationMs = Number(e.target.value);
-              if (durationMs && onSnoozeDuration) {
-                onSnoozeDuration(casino, durationMs);
-              }
-            }}
-            aria-label="Snooze casino"
-            className="h-8 rounded-lg border border-amber-600/50 bg-[#1e1b13] px-2 text-xs font-semibold text-amber-300 outline-none hover:border-amber-500 focus:border-amber-400 cursor-pointer shrink-0"
-          >
-            <option value="">Snooze ⌵</option>
-            {SNOOZE_PRESETS.map((preset) => (
-              <option key={preset.ms} value={preset.ms} className="bg-[#101b15] text-white">
-                {preset.label}
-              </option>
-            ))}
-          </select>
+          {/* Secondary Snooze & Custom Timer & Kebab */}
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            {/* [Snooze ⌵] Select */}
+            <select
+              value=""
+              onChange={(e) => {
+                e.stopPropagation();
+                const durationMs = Number(e.target.value);
+                if (durationMs && onSnoozeDuration) {
+                  onSnoozeDuration(casino, durationMs);
+                }
+              }}
+              aria-label="Snooze casino"
+              className="h-8 flex-1 sm:flex-initial rounded-lg border border-amber-600/50 bg-[#1e1b13] px-2 text-xs font-semibold text-amber-300 outline-none hover:border-amber-500 focus:border-amber-400 cursor-pointer shrink-0"
+            >
+              <option value="">Snooze ⌵</option>
+              {SNOOZE_PRESETS.map((preset) => (
+                <option key={preset.ms} value={preset.ms} className="bg-[#101b15] text-white">
+                  {preset.label}
+                </option>
+              ))}
+            </select>
 
-          {/* [Custom Timer] Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setIsCustomTimerOpen(true);
-            }}
-            title="Set custom cooldown timer"
-            className="flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-2.5 py-1.5 text-xs font-medium transition cursor-pointer shrink-0"
-          >
-            <Clock size={13} />
-            <span>Custom Timer</span>
-          </button>
+            {/* [Custom Timer] Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsCustomTimerOpen(true);
+              }}
+              title="Set custom cooldown timer"
+              className="h-8 flex-1 sm:flex-initial flex items-center justify-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-2.5 text-xs font-medium transition cursor-pointer whitespace-nowrap"
+            >
+              <Clock size={13} />
+              <span>Custom Timer</span>
+            </button>
 
-          {/* Inline Kebab Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onToggleActionMenu?.(casino.id);
-            }}
-            aria-label={`Settings for ${casino.name}`}
-            title={`Settings for ${casino.name}`}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[#1b3d2f] bg-[#07130e] text-zinc-400 hover:border-emerald-500/50 hover:text-zinc-200 transition cursor-pointer"
-          >
-            <MoreHorizontal size={16} />
-          </button>
+            {/* Inline Kebab Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggleActionMenu?.(casino.id);
+              }}
+              aria-label={`Settings for ${casino.name}`}
+              title={`Settings for ${casino.name}`}
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[#1b3d2f] bg-[#07130e] text-zinc-400 hover:border-emerald-500/50 hover:text-zinc-200 transition cursor-pointer"
+            >
+              <MoreHorizontal size={16} />
+            </button>
+          </div>
         </div>
       ) : (
         <div className="ml-auto flex items-center gap-2 shrink-0">
@@ -360,9 +379,9 @@ function RollcallCardComponent({
         casino={casino}
         currentRemainingMs={currentStatus.remainingMs}
         onClose={() => setIsCustomTimerOpen(false)}
-        onSave={(target, targetResetTimestamp) => {
+        onSave={(target, targetResetTimestamp, customSc) => {
           const casinoObj = typeof target === "string" ? casino : target;
-          onSetCustomTimer?.(casinoObj, targetResetTimestamp);
+          onSetCustomTimer?.(casinoObj, targetResetTimestamp, customSc);
         }}
       />
     </article>
