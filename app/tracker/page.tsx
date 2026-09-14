@@ -249,27 +249,46 @@ export default function TrackerPage() {
   const now = useCurrentTime();
   const [pendingClaims, setPendingClaims] = useState<Record<string, { expiresAt: number; isDefocused?: boolean }>>({});
   const [activeDropsCount, setActiveDropsCount] = useState<number>(0);
+  const [feedUnreadCount, setFeedUnreadCount] = useState<number>(0);
 
-  // Poll / fetch active bonus drop count for dynamic navigation indicator
+  // Poll / fetch active bonus drop count and feed unread count for dynamic navigation indicator
   useEffect(() => {
     let mounted = true;
-    async function fetchDropsCount() {
+    async function fetchCounts() {
       try {
-        const res = await fetch("/api/posts?type=drop_code", { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
+        const [dropsRes, feedRes] = await Promise.all([
+          fetch("/api/posts?type=drop_code", { cache: "no-store" }),
+          fetch("/api/posts", { cache: "no-store" }),
+        ]);
+
+        if (dropsRes.ok) {
+          const data = await dropsRes.json();
           const posts = Array.isArray(data) ? data : data.posts || [];
           if (mounted) {
             const active = posts.filter((p: any) => !p.expired && !p.isExpired);
             setActiveDropsCount(active.length);
           }
         }
+
+        if (feedRes.ok) {
+          const data = await feedRes.json();
+          const posts = Array.isArray(data) ? data : data.posts || [];
+          if (mounted) {
+            const lastSeenStr = localStorage.getItem("dailyroll_feed_last_seen");
+            const lastSeenTime = lastSeenStr ? new Date(lastSeenStr).getTime() : 0;
+            const unreadPosts = posts.filter((p: any) => {
+              const postTime = new Date(p.createdAt || 0).getTime();
+              return postTime > lastSeenTime;
+            });
+            setFeedUnreadCount(unreadPosts.length);
+          }
+        }
       } catch (err) {
         // silent
       }
     }
-    fetchDropsCount();
-    const interval = setInterval(fetchDropsCount, 60000);
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 60000);
     return () => {
       mounted = false;
       clearInterval(interval);
@@ -323,15 +342,8 @@ export default function TrackerPage() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [casinoFilter, setCasinoFilter] = useState<"all" | "ready" | "claimed">("all");
   const [casinoSort, setCasinoSort] = useState<
-    "status" | "next-available" | "provider" | "f2p" | "trustpilot" | "name-asc" | "name-desc"
-  >(() => {
-    if (typeof window === "undefined") return "next-available";
-    try {
-      return (localStorage.getItem("dailyroll_casino_sort") as any) || "next-available";
-    } catch {
-      return "next-available";
-    }
-  });
+    "next-available" | "provider" | "f2p" | "trustpilot" | "name-asc" | "name-desc"
+  >("next-available");
   const [customLists, setCustomLists] = useState<CustomCasinoList[]>(() => {
     if (typeof window === "undefined") return DEFAULT_CUSTOM_LISTS;
     try {
@@ -353,6 +365,16 @@ export default function TrackerPage() {
   const [isNewListModalOpen, setIsNewListModalOpen] = useState(false);
   const [newListName, setNewListName] = useState("");
   const [activeDrawer, setActiveDrawer] = useState<"feed" | "drops" | null>(null);
+
+  // When feed drawer is opened, mark feed as read
+  useEffect(() => {
+    if (activeDrawer === "feed") {
+      setFeedUnreadCount(0);
+      try {
+        localStorage.setItem("dailyroll_feed_last_seen", new Date().toISOString());
+      } catch {}
+    }
+  }, [activeDrawer]);
 
   const saveCustomLists = (lists: CustomCasinoList[]) => {
     setCustomLists(lists);
@@ -1425,7 +1447,16 @@ export default function TrackerPage() {
         const secondRating = secondCasino.trustpilotRating ?? -1;
         return secondRating - firstRating;
       }
-      return Number(statusFor(secondCasino).ready) - Number(statusFor(firstCasino).ready);
+      // Fallback: Next Available (Ready first, then shortest remaining cooldown)
+      const status1 = statusFor(firstCasino);
+      const status2 = statusFor(secondCasino);
+      if (status1.ready !== status2.ready) {
+        return Number(status2.ready) - Number(status1.ready);
+      }
+      if (!status1.ready && !status2.ready) {
+        return status1.remainingMs - status2.remainingMs;
+      }
+      return firstCasino.name.localeCompare(secondCasino.name);
     });
 
   const visibleDirectory = [...directory]
@@ -2675,36 +2706,41 @@ export default function TrackerPage() {
         isAdmin={isAdmin}
       />
 
-      {/* Floating Feed & Drops Bubbles (Anchored to Top-Left) */}
+      {/* Floating Feed & Drops Circular Icon Badges (Docked Top-Left under Header) */}
       <aside
         aria-label="Quick Access Feeds"
-        className="fixed top-16 left-4 z-40 flex flex-col items-start gap-2 sm:left-6"
+        className="fixed top-14 left-4 z-40 flex items-center gap-2.5 sm:left-6"
       >
-        {/* Bonus Drops Button with Dynamic Counter */}
+        {/* Bonus Drops Circular Button */}
         <button
           type="button"
           onClick={() => setActiveDrawer((prev) => (prev === "drops" ? null : "drops"))}
           aria-label="Open Bonus Drops"
-          className="group flex h-10 items-center gap-2 rounded-full border border-amber-500/40 bg-[#19150c]/95 px-3.5 py-2 shadow-xl shadow-black/70 backdrop-blur-md text-xs font-bold text-amber-200 hover:text-white hover:border-amber-400 hover:bg-amber-950/90 active:scale-95 transition-all cursor-pointer shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+          title="Open Bonus Drops"
+          className="group h-10 w-10 rounded-full bg-zinc-900/90 border border-zinc-800 hover:border-amber-500/50 shadow-md backdrop-blur-md flex items-center justify-center relative transition-all active:scale-95 cursor-pointer"
         >
-          <Gift size={15} className="text-amber-400 group-hover:scale-110 transition-transform" />
-          <span>Drops</span>
+          <Gift className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
           {activeDropsCount > 0 && (
-            <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-extrabold text-zinc-950 leading-none shadow-sm">
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-amber-500 text-zinc-950 text-[10px] font-black rounded-full flex items-center justify-center shadow">
               {activeDropsCount}
             </span>
           )}
         </button>
 
-        {/* Community Feed Button */}
+        {/* Community Feed Circular Button */}
         <button
           type="button"
           onClick={() => setActiveDrawer((prev) => (prev === "feed" ? null : "feed"))}
           aria-label="Open Community Feed"
-          className="group flex h-10 items-center gap-2 rounded-full border border-emerald-500/40 bg-[#0c1f17]/95 px-3.5 py-2 shadow-xl shadow-black/70 backdrop-blur-md text-xs font-bold text-zinc-200 hover:text-white hover:border-emerald-400 hover:bg-emerald-950/90 active:scale-95 transition-all cursor-pointer shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+          title="Open Community Feed"
+          className="group h-10 w-10 rounded-full bg-zinc-900/90 border border-zinc-800 hover:border-emerald-500/50 shadow-md backdrop-blur-md flex items-center justify-center relative transition-all active:scale-95 cursor-pointer"
         >
-          <MessageSquare size={15} className="text-emerald-400 group-hover:scale-110 transition-transform" />
-          <span>Feed</span>
+          <MessageSquare className="w-5 h-5 text-zinc-300 group-hover:scale-110 transition-transform" />
+          {feedUnreadCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-amber-500 text-zinc-950 text-[10px] font-black rounded-full flex items-center justify-center shadow">
+              {feedUnreadCount}
+            </span>
+          )}
         </button>
       </aside>
 
