@@ -97,6 +97,7 @@ export type Comment = {
   authorId: string;
   authorName: string;
   authorEmail: string;
+  authorAvatar?: string;
   content: string;
   createdAt: string;
 };
@@ -112,6 +113,13 @@ type Store = {
   bonusUrls: Record<string, string>;
   bonusTitles: Record<string, string>;
   directoryDailyBonuses?: Record<string, string>;
+  directoryDailyBonusSc?: Record<string, string>;
+  directoryDailyBonusGc?: Record<string, string>;
+  directoryMinRedemption?: Record<string, string>;
+  directoryPayoutMethods?: Record<string, string>;
+  directoryPayoutSpeed?: Record<string, string>;
+  directoryResetRules?: Record<string, string>;
+  directoryRestrictedStates?: Record<string, string>;
   directoryResetTimes?: Record<string, string | null>;
   directoryDetails?: Record<string, string>;
   directoryProviders?: Record<string, string>;
@@ -236,8 +244,16 @@ const EMPTY_STORE: Store = {
   bonusUrls: {},
   bonusTitles: {},
   directoryDailyBonuses: {},
+  directoryDailyBonusSc: {},
+  directoryDailyBonusGc: {},
+  directoryMinRedemption: {},
+  directoryPayoutMethods: {},
+  directoryPayoutSpeed: {},
+  directoryResetRules: {},
+  directoryRestrictedStates: {},
   directoryResetTimes: {},
   directoryDetails: {},
+  directoryProviders: {},
   sessions: {},
   magicLinks: {},
   posts: INITIAL_POSTS,
@@ -465,6 +481,13 @@ export async function getDirectory() {
     bonusTitles: store.bonusTitles || {},
     ratings: store.directoryRatings || {},
     dailyBonuses: store.directoryDailyBonuses || {},
+    dailyBonusSc: store.directoryDailyBonusSc || {},
+    dailyBonusGc: store.directoryDailyBonusGc || {},
+    minRedemption: store.directoryMinRedemption || {},
+    payoutMethods: store.directoryPayoutMethods || {},
+    payoutSpeed: store.directoryPayoutSpeed || {},
+    resetRules: store.directoryResetRules || {},
+    restrictedStates: store.directoryRestrictedStates || {},
     resetTimes: store.directoryResetTimes || {},
     details: store.directoryDetails || {},
     providers: store.directoryProviders || {},
@@ -480,6 +503,13 @@ export async function saveDirectory(update: {
   bonusTitles?: Record<string, string>;
   ratings?: Record<string, number>;
   dailyBonuses?: Record<string, string>;
+  dailyBonusSc?: Record<string, string>;
+  dailyBonusGc?: Record<string, string>;
+  minRedemption?: Record<string, string>;
+  payoutMethods?: Record<string, string>;
+  payoutSpeed?: Record<string, string>;
+  resetRules?: Record<string, string>;
+  restrictedStates?: Record<string, string>;
   resetTimes?: Record<string, string | null>;
   details?: Record<string, string>;
   providers?: Record<string, string>;
@@ -495,6 +525,20 @@ export async function saveDirectory(update: {
     if (update.ratings) store.directoryRatings = { ...(store.directoryRatings || {}), ...update.ratings };
     if (update.dailyBonuses)
       store.directoryDailyBonuses = { ...(store.directoryDailyBonuses || {}), ...update.dailyBonuses };
+    if (update.dailyBonusSc)
+      store.directoryDailyBonusSc = { ...(store.directoryDailyBonusSc || {}), ...update.dailyBonusSc };
+    if (update.dailyBonusGc)
+      store.directoryDailyBonusGc = { ...(store.directoryDailyBonusGc || {}), ...update.dailyBonusGc };
+    if (update.minRedemption)
+      store.directoryMinRedemption = { ...(store.directoryMinRedemption || {}), ...update.minRedemption };
+    if (update.payoutMethods)
+      store.directoryPayoutMethods = { ...(store.directoryPayoutMethods || {}), ...update.payoutMethods };
+    if (update.payoutSpeed)
+      store.directoryPayoutSpeed = { ...(store.directoryPayoutSpeed || {}), ...update.payoutSpeed };
+    if (update.resetRules)
+      store.directoryResetRules = { ...(store.directoryResetRules || {}), ...update.resetRules };
+    if (update.restrictedStates)
+      store.directoryRestrictedStates = { ...(store.directoryRestrictedStates || {}), ...update.restrictedStates };
     if (update.resetTimes)
       store.directoryResetTimes = { ...(store.directoryResetTimes || {}), ...update.resetTimes };
     if (update.details)
@@ -510,6 +554,13 @@ export async function saveDirectory(update: {
       bonusTitles: store.bonusTitles || {},
       ratings: store.directoryRatings || {},
       dailyBonuses: store.directoryDailyBonuses || {},
+      dailyBonusSc: store.directoryDailyBonusSc || {},
+      dailyBonusGc: store.directoryDailyBonusGc || {},
+      minRedemption: store.directoryMinRedemption || {},
+      payoutMethods: store.directoryPayoutMethods || {},
+      payoutSpeed: store.directoryPayoutSpeed || {},
+      resetRules: store.directoryResetRules || {},
+      restrictedStates: store.directoryRestrictedStates || {},
       resetTimes: store.directoryResetTimes || {},
       details: store.directoryDetails || {},
       providers: store.directoryProviders || {},

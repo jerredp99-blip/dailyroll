@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { CheckCircle2, Clock, ExternalLink, MoreHorizontal, X, RotateCcw } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
@@ -365,24 +366,30 @@ export function RollcallCard({
       }`}
     >
       <div className="flex items-center gap-3">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#294631] text-sm font-bold text-[#9bcf9c]">
-          {renderLogo ? renderLogo() : casino.name.slice(0, 2).toUpperCase()}
-        </div>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-            <h2 className="font-semibold text-[#e5eee3] text-sm sm:text-base leading-tight truncate">{casino.name}</h2>
-            {casino.provider && (
-              <span className="rounded-full border border-[#38503f] bg-[#122218] px-2 py-0.5 text-[10px] sm:text-[11px] font-medium text-[#86a88d]">
-                {casino.provider}
-              </span>
-            )}
-            {casino.hidden && (
-              <span className="rounded-full border border-[#4a5d51] bg-[#1f2218] px-2 py-0.5 text-[10px] text-[#a3b1a5]">
-                Hidden
-              </span>
-            )}
-            {renderTrustpilot && renderTrustpilot()}
+        <Link
+          href={`/casinos/${encodeURIComponent(casino.id)}`}
+          onClick={(e) => e.stopPropagation()}
+          className="group/link flex items-center gap-2.5 sm:gap-3 hover:opacity-85 transition cursor-pointer"
+        >
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#294631] text-sm font-bold text-[#9bcf9c] transition group-hover/link:ring-1 group-hover/link:ring-emerald-400">
+            {renderLogo ? renderLogo() : casino.name.slice(0, 2).toUpperCase()}
           </div>
+          <h2 className="font-semibold text-[#e5eee3] text-sm sm:text-base leading-tight truncate group-hover/link:text-emerald-300 transition">
+            {casino.name}
+          </h2>
+        </Link>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+          {casino.provider && (
+            <span className="rounded-full border border-[#38503f] bg-[#122218] px-2 py-0.5 text-[10px] sm:text-[11px] font-medium text-[#86a88d]">
+              {casino.provider}
+            </span>
+          )}
+          {casino.hidden && (
+            <span className="rounded-full border border-[#4a5d51] bg-[#1f2218] px-2 py-0.5 text-[10px] text-[#a3b1a5]">
+              Hidden
+            </span>
+          )}
+          {renderTrustpilot && renderTrustpilot()}
         </div>
       </div>
 

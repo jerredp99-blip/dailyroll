@@ -35,6 +35,15 @@ export interface Casino {
   snoozedUntil?: string | null;
   /** Exact custom target reset timestamp (milliseconds or ISO string) */
   targetResetTimestamp?: number | string | null;
+
+  /** Operational cheat sheet specifications */
+  dailyBonusSc?: string | null;
+  dailyBonusGc?: string | null;
+  minRedemption?: string | null;
+  payoutMethods?: string | null;
+  payoutSpeed?: string | null;
+  resetRule?: string | null;
+  restrictedStates?: string | null;
 }
 
 export interface SpeedRunSessionState {

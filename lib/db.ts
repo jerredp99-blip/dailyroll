@@ -42,6 +42,13 @@ export async function updateCasinoMetadata(data: {
   bonusTitle?: string | null;
   trustpilotRating?: number | string | null;
   dailyBonus?: string | null;
+  dailyBonusSc?: string | null;
+  dailyBonusGc?: string | null;
+  minRedemption?: string | null;
+  payoutMethods?: string | null;
+  payoutSpeed?: string | null;
+  resetRule?: string | null;
+  restrictedStates?: string | null;
   details?: string | null;
   resetAtTime?: string | null;
   intervalHours?: number | string | null;
@@ -142,6 +149,76 @@ export async function updateCasinoMetadata(data: {
         };
       }
     }
+    if ("dailyBonusSc" in data) {
+      if (data.dailyBonusSc === "" || data.dailyBonusSc === null || data.dailyBonusSc === undefined) {
+        delete store.directoryDailyBonusSc?.[trimmedName];
+      } else {
+        store.directoryDailyBonusSc = {
+          ...(store.directoryDailyBonusSc || {}),
+          [trimmedName]: data.dailyBonusSc,
+        };
+      }
+    }
+    if ("dailyBonusGc" in data) {
+      if (data.dailyBonusGc === "" || data.dailyBonusGc === null || data.dailyBonusGc === undefined) {
+        delete store.directoryDailyBonusGc?.[trimmedName];
+      } else {
+        store.directoryDailyBonusGc = {
+          ...(store.directoryDailyBonusGc || {}),
+          [trimmedName]: data.dailyBonusGc,
+        };
+      }
+    }
+    if ("minRedemption" in data) {
+      if (data.minRedemption === "" || data.minRedemption === null || data.minRedemption === undefined) {
+        delete store.directoryMinRedemption?.[trimmedName];
+      } else {
+        store.directoryMinRedemption = {
+          ...(store.directoryMinRedemption || {}),
+          [trimmedName]: data.minRedemption,
+        };
+      }
+    }
+    if ("payoutMethods" in data) {
+      if (data.payoutMethods === "" || data.payoutMethods === null || data.payoutMethods === undefined) {
+        delete store.directoryPayoutMethods?.[trimmedName];
+      } else {
+        store.directoryPayoutMethods = {
+          ...(store.directoryPayoutMethods || {}),
+          [trimmedName]: data.payoutMethods,
+        };
+      }
+    }
+    if ("payoutSpeed" in data) {
+      if (data.payoutSpeed === "" || data.payoutSpeed === null || data.payoutSpeed === undefined) {
+        delete store.directoryPayoutSpeed?.[trimmedName];
+      } else {
+        store.directoryPayoutSpeed = {
+          ...(store.directoryPayoutSpeed || {}),
+          [trimmedName]: data.payoutSpeed,
+        };
+      }
+    }
+    if ("resetRule" in data) {
+      if (data.resetRule === "" || data.resetRule === null || data.resetRule === undefined) {
+        delete store.directoryResetRules?.[trimmedName];
+      } else {
+        store.directoryResetRules = {
+          ...(store.directoryResetRules || {}),
+          [trimmedName]: data.resetRule,
+        };
+      }
+    }
+    if ("restrictedStates" in data) {
+      if (data.restrictedStates === "" || data.restrictedStates === null || data.restrictedStates === undefined) {
+        delete store.directoryRestrictedStates?.[trimmedName];
+      } else {
+        store.directoryRestrictedStates = {
+          ...(store.directoryRestrictedStates || {}),
+          [trimmedName]: data.restrictedStates,
+        };
+      }
+    }
 
     // 3. Atomically update all user records in store.casinos
     const targetKeys = new Set<string>([
@@ -182,6 +259,13 @@ export async function updateCasinoMetadata(data: {
             : Number(data.intervalHours);
         }
         if ("provider" in data) updated.provider = data.provider || undefined;
+        if ("dailyBonusSc" in data) updated.dailyBonusSc = data.dailyBonusSc || null;
+        if ("dailyBonusGc" in data) updated.dailyBonusGc = data.dailyBonusGc || null;
+        if ("minRedemption" in data) updated.minRedemption = data.minRedemption || null;
+        if ("payoutMethods" in data) updated.payoutMethods = data.payoutMethods || null;
+        if ("payoutSpeed" in data) updated.payoutSpeed = data.payoutSpeed || null;
+        if ("resetRule" in data) updated.resetRule = data.resetRule || null;
+        if ("restrictedStates" in data) updated.restrictedStates = data.restrictedStates || null;
         return updated;
       });
     }
@@ -196,6 +280,13 @@ export async function updateCasinoMetadata(data: {
       bonusTitles: store.bonusTitles || {},
       ratings: store.directoryRatings || {},
       dailyBonuses: store.directoryDailyBonuses || {},
+      dailyBonusSc: store.directoryDailyBonusSc || {},
+      dailyBonusGc: store.directoryDailyBonusGc || {},
+      minRedemption: store.directoryMinRedemption || {},
+      payoutMethods: store.directoryPayoutMethods || {},
+      payoutSpeed: store.directoryPayoutSpeed || {},
+      resetRules: store.directoryResetRules || {},
+      restrictedStates: store.directoryRestrictedStates || {},
       resetTimes: store.directoryResetTimes || {},
       details: store.directoryDetails || {},
       providers: store.directoryProviders || {},
