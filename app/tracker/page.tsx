@@ -2093,73 +2093,73 @@ export default function TrackerPage() {
                   )}
                 </div>
               )}
-            </div>
 
-            {/* Primary Action Buttons Row (Directly Beneath Filter & Sort Controls) */}
-            <div className="grid grid-cols-3 gap-2 w-full mt-3 mb-4">
-              {/* 1. Open All (X) */}
-              {isStaggering ? (
-                <div className="h-9 px-2 sm:px-3 rounded-xl bg-zinc-900/90 border border-amber-500/50 text-amber-300 font-semibold text-xs flex items-center justify-between gap-1 whitespace-nowrap animate-pulse">
-                  <div className="flex items-center gap-1 min-w-0">
-                    <Loader2 size={13} className="animate-spin text-amber-400 shrink-0" />
-                    <span className="truncate text-[11px]">{staggerStatus || "Launching..."}</span>
+              {/* Primary Action Buttons Row (Embedded Inside Controls Card) */}
+              <div className="grid grid-cols-3 gap-2 w-full pt-2 border-t border-zinc-800/50">
+                {/* 1. Open All (X) */}
+                {isStaggering ? (
+                  <div className="h-9 px-2 sm:px-3 rounded-xl bg-zinc-900 border border-amber-500/50 text-amber-300 font-semibold text-xs flex items-center justify-between gap-1 whitespace-nowrap animate-pulse shadow-sm">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <Loader2 size={13} className="animate-spin text-amber-400 shrink-0" />
+                      <span className="truncate text-[11px]">{staggerStatus || "Launching..."}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCancelStagger}
+                      title="Cancel launching remaining casinos"
+                      className="p-1 text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded transition shrink-0 cursor-pointer"
+                    >
+                      <X size={12} />
+                    </button>
                   </div>
+                ) : (
                   <button
                     type="button"
-                    onClick={handleCancelStagger}
-                    title="Cancel launching remaining casinos"
-                    className="p-1 text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded transition shrink-0 cursor-pointer"
+                    onClick={handleLaunchAllStaggered}
+                    disabled={readyCount === 0}
+                    title={
+                      readyCount > 0
+                        ? `Open all ${readyCount} ready casinos (staggered to prevent popup blocking)`
+                        : "No casinos currently ready to claim"
+                    }
+                    className={`h-9 px-2 sm:px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${
+                      readyCount > 0
+                        ? "bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-zinc-950 font-extrabold shadow-md shadow-emerald-950/60 border border-emerald-300/60 active:translate-y-[1px] active:scale-[0.98] cursor-pointer"
+                        : "bg-zinc-950/60 border border-zinc-800/80 text-zinc-600 font-medium opacity-50 cursor-not-allowed shadow-none"
+                    }`}
                   >
-                    <X size={12} />
+                    <ExternalLink size={13} strokeWidth={readyCount > 0 ? 2.5 : 2} className="shrink-0" />
+                    <span>Open All ({readyCount})</span>
                   </button>
-                </div>
-              ) : (
+                )}
+
+                {/* 2. Add Casinos */}
                 <button
                   type="button"
-                  onClick={handleLaunchAllStaggered}
+                  onClick={() => setIsAddCasinosModalOpen(true)}
+                  title="Add casinos to your rollcall"
+                  className="h-9 px-2 sm:px-3 rounded-xl bg-gradient-to-b from-zinc-800 to-zinc-900 hover:from-zinc-750 hover:to-zinc-850 text-zinc-100 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-black/40 border border-zinc-700 hover:border-emerald-500/60 active:translate-y-[1px] active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
+                >
+                  <Plus size={14} strokeWidth={2.5} className="text-emerald-400 shrink-0" />
+                  <span>Add Casinos</span>
+                </button>
+
+                {/* 3. Speed Run (X) */}
+                <button
+                  type="button"
+                  onClick={handleOpenSpeedRun}
                   disabled={readyCount === 0}
-                  title={
+                  title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
+                  className={`h-9 px-2 sm:px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${
                     readyCount > 0
-                      ? `Open all ${readyCount} ready casinos (staggered to prevent popup blocking)`
-                      : "No casinos currently ready to claim"
-                  }
-                  className={`h-9 px-2 sm:px-3 rounded-xl bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 text-zinc-200 font-semibold text-xs flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all whitespace-nowrap ${
-                    readyCount > 0
-                      ? "cursor-pointer hover:border-zinc-700 hover:text-white shadow-sm"
-                      : "opacity-60 cursor-not-allowed"
+                      ? "bg-gradient-to-b from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-zinc-950 font-extrabold shadow-md shadow-amber-950/60 border border-amber-300/60 active:translate-y-[1px] active:scale-[0.98] cursor-pointer"
+                      : "bg-zinc-950/60 border border-zinc-800/80 text-zinc-600 font-medium opacity-50 cursor-not-allowed shadow-none"
                   }`}
                 >
-                  <ExternalLink size={14} className="shrink-0" />
-                  <span>Open All ({readyCount})</span>
+                  <Zap size={13} fill={readyCount > 0 ? "currentColor" : "none"} strokeWidth={readyCount > 0 ? 2.5 : 2} className="shrink-0" />
+                  <span>Speed Run ({readyCount})</span>
                 </button>
-              )}
-
-              {/* 2. Add Casinos */}
-              <button
-                type="button"
-                onClick={() => setIsAddCasinosModalOpen(true)}
-                title="Add casinos to your rollcall"
-                className="h-9 px-2 sm:px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
-              >
-                <Plus size={14} strokeWidth={2.5} className="shrink-0" />
-                <span>Add Casinos</span>
-              </button>
-
-              {/* 3. Speed Run (X) */}
-              <button
-                type="button"
-                onClick={handleOpenSpeedRun}
-                disabled={readyCount === 0}
-                title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
-                className={`h-9 px-2 sm:px-3 rounded-xl bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 text-zinc-200 font-semibold text-xs flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all whitespace-nowrap ${
-                  readyCount > 0
-                    ? "cursor-pointer hover:border-zinc-700 hover:text-white shadow-sm"
-                    : "opacity-60 cursor-not-allowed"
-                }`}
-              >
-                <Zap size={14} className={readyCount > 0 ? "text-amber-400 fill-amber-400 shrink-0" : "text-zinc-500 shrink-0"} />
-                <span>Speed Run ({readyCount})</span>
-              </button>
+              </div>
             </div>
 
             {/* Casinos List using RollcallCard */}
