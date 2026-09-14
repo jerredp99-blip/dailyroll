@@ -2706,10 +2706,10 @@ export default function TrackerPage() {
         isAdmin={isAdmin}
       />
 
-      {/* Floating Feed & Drops Circular Icon Badges (Docked Top-Left under Header) */}
+      {/* Floating Feed & Drops Circular Icon Badges (Docked Top-Right under Profile Avatar) */}
       <aside
         aria-label="Quick Access Feeds"
-        className="fixed top-14 left-4 z-40 flex items-center gap-2.5 sm:left-6"
+        className="fixed right-3.5 top-16 z-40 flex flex-col items-center gap-3 sm:right-6 sm:top-16 lg:right-8"
       >
         {/* Bonus Drops Circular Button */}
         <button
@@ -2717,11 +2717,12 @@ export default function TrackerPage() {
           onClick={() => setActiveDrawer((prev) => (prev === "drops" ? null : "drops"))}
           aria-label="Open Bonus Drops"
           title="Open Bonus Drops"
-          className="group h-10 w-10 rounded-full bg-zinc-900/90 border border-zinc-800 hover:border-amber-500/50 shadow-md backdrop-blur-md flex items-center justify-center relative transition-all active:scale-95 cursor-pointer"
+          className="group h-10 w-10 rounded-full bg-gradient-to-b from-[#1f1a0e]/95 via-[#161208]/95 to-[#0e0c05]/95 border border-amber-500/50 hover:border-amber-400 active:scale-95 shadow-lg shadow-black/80 backdrop-blur-md flex items-center justify-center relative transition-all duration-300 cursor-pointer hover:shadow-[0_0_20px_rgba(245,158,11,0.4)]"
         >
-          <Gift className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
+          <span className="absolute inset-0 rounded-full bg-amber-400/10 animate-pulse pointer-events-none" />
+          <Gift className="w-5 h-5 text-amber-400 group-hover:text-amber-300 group-hover:scale-125 group-hover:rotate-12 transition-all duration-300 drop-shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
           {activeDropsCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-amber-500 text-zinc-950 text-[10px] font-black rounded-full flex items-center justify-center shadow">
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-gradient-to-r from-amber-400 to-amber-500 text-zinc-950 text-[10px] font-black rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(245,158,11,0.7)] ring-2 ring-[#070d0a]">
               {activeDropsCount}
             </span>
           )}
@@ -2733,11 +2734,12 @@ export default function TrackerPage() {
           onClick={() => setActiveDrawer((prev) => (prev === "feed" ? null : "feed"))}
           aria-label="Open Community Feed"
           title="Open Community Feed"
-          className="group h-10 w-10 rounded-full bg-zinc-900/90 border border-zinc-800 hover:border-emerald-500/50 shadow-md backdrop-blur-md flex items-center justify-center relative transition-all active:scale-95 cursor-pointer"
+          className="group h-10 w-10 rounded-full bg-gradient-to-b from-[#0e241b]/95 via-[#0a1b13]/95 to-[#06110c]/95 border border-emerald-500/50 hover:border-emerald-400 active:scale-95 shadow-lg shadow-black/80 backdrop-blur-md flex items-center justify-center relative transition-all duration-300 cursor-pointer hover:shadow-[0_0_20px_rgba(16,185,129,0.4)]"
         >
-          <MessageSquare className="w-5 h-5 text-zinc-300 group-hover:scale-110 transition-transform" />
+          <span className="absolute inset-0 rounded-full bg-emerald-400/10 animate-pulse pointer-events-none" />
+          <MessageSquare className="w-5 h-5 text-emerald-400 group-hover:text-emerald-300 group-hover:scale-125 group-hover:-rotate-12 transition-all duration-300 drop-shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
           {feedUnreadCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-amber-500 text-zinc-950 text-[10px] font-black rounded-full flex items-center justify-center shadow">
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-gradient-to-r from-emerald-400 to-teal-400 text-zinc-950 text-[10px] font-black rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(16,185,129,0.7)] ring-2 ring-[#070d0a]">
               {feedUnreadCount}
             </span>
           )}
@@ -2746,7 +2748,7 @@ export default function TrackerPage() {
 
       {/* Slide-Over Drawer Overlay for Community Feed & Drops */}
       {activeDrawer && (
-        <div className="fixed inset-0 z-50 flex justify-start">
+        <div className="fixed inset-0 z-50 flex justify-end">
           {/* Backdrop Blur */}
           <div
             className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity cursor-pointer"
@@ -2755,7 +2757,7 @@ export default function TrackerPage() {
           />
 
           {/* Drawer Container */}
-          <div className="relative z-50 flex flex-col w-full sm:w-[500px] lg:w-[560px] h-full bg-[#0c1a13] border-r border-emerald-900/60 shadow-2xl animate-in slide-in-from-left duration-200 overflow-hidden">
+          <div className="relative z-50 flex flex-col w-full sm:w-[500px] lg:w-[560px] h-full bg-[#0c1a13] border-l border-emerald-900/60 shadow-2xl animate-in slide-in-from-right duration-200 overflow-hidden">
             {/* Drawer Header */}
             <div className="flex items-center justify-between border-b border-emerald-950/80 bg-[#0a150f] px-4 py-3 shrink-0">
               <div className="flex items-center gap-2">
