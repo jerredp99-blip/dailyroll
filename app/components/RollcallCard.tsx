@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import Link from "next/link";
-import { CheckCircle2, Clock, ExternalLink, MoreHorizontal } from "lucide-react";
+import { CheckCircle2, Clock, ExternalLink, MoreHorizontal, Sparkles } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import {
@@ -290,7 +290,7 @@ function RollcallCardComponent({
               }}
               aria-label={`Settings for ${casino.name}`}
               title={`Settings for ${casino.name}`}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[#1b3d2f] bg-[#07130e] text-zinc-400 hover:border-emerald-500/50 hover:text-zinc-200 transition cursor-pointer"
+              className="h-9 w-9 rounded-xl bg-zinc-950/60 border border-emerald-900/60 hover:border-emerald-500/50 flex items-center justify-center text-emerald-400 transition-all active:scale-95 cursor-pointer shrink-0"
             >
               <MoreHorizontal size={16} />
             </button>
@@ -318,9 +318,9 @@ function RollcallCardComponent({
               type="button"
               onClick={handleClaimClick}
               aria-label={`Claim ${casino.dailyBonus} for ${casino.name}`}
-              className="flex min-w-28 h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs px-4 py-2 shadow-md shadow-emerald-950/40 active:scale-[0.97] transition-all"
+              className="h-9 px-4 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-zinc-950 font-black text-xs sm:text-sm tracking-tight shadow-lg shadow-emerald-500/25 border border-emerald-300/40 ring-1 ring-emerald-400/50 hover:ring-2 hover:ring-emerald-300 hover:shadow-emerald-400/40 active:scale-[0.97] flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer whitespace-nowrap"
             >
-              <CheckCircle2 size={14} strokeWidth={2.5} />
+              <Sparkles className="w-3.5 h-3.5 text-zinc-950 fill-zinc-950 shrink-0" />
               <span>Claim {casino.dailyBonus}!</span>
             </button>
           ) : (
@@ -366,7 +366,7 @@ function RollcallCardComponent({
             }}
             aria-label={`Settings for ${casino.name}`}
             title={`Settings for ${casino.name}`}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[#1b3d2f] bg-[#07130e] text-zinc-400 hover:border-emerald-500/50 hover:text-zinc-200 transition cursor-pointer"
+            className="h-9 w-9 rounded-xl bg-zinc-950/60 border border-emerald-900/60 hover:border-emerald-500/50 flex items-center justify-center text-emerald-400 transition-all active:scale-95 cursor-pointer shrink-0"
           >
             <MoreHorizontal size={16} />
           </button>
