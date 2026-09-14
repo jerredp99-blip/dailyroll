@@ -406,6 +406,7 @@ function RollcallCardComponent({
         currentRemainingMs={currentStatus.remainingMs}
         onClose={() => setIsCustomTimerOpen(false)}
         onSave={(target, targetResetTimestamp, customSc) => {
+          setIsCustomTimerOpen(false);
           const casinoObj = typeof target === "string" ? casino : target;
           onSetCustomTimer?.(casinoObj, targetResetTimestamp, customSc);
         }}

@@ -50,39 +50,51 @@ export function CustomTimerModal({
     setMounted(true);
   }, []);
 
-  // Initialize or prefill hours, minutes, and SC amount when modal opens
+  const lastOpenedKeyRef = useRef<string | null>(null);
+
+  // Initialize or prefill hours, minutes, and SC amount ONLY when modal first opens
   useEffect(() => {
-    if (!isOpen) return;
-
-    if (currentRemainingMs && currentRemainingMs > 0) {
-      const totalMinutes = Math.ceil(currentRemainingMs / 60000);
-      const h = Math.floor(totalMinutes / 60);
-      const m = totalMinutes % 60;
-      setHours(h > 0 ? String(h) : "");
-      setMinutes(m > 0 ? String(m) : "");
-    } else {
-      setHours("");
-      setMinutes("");
+    const currentKey = isOpen ? (casino?.id || casinoId || casinoName || "open") : null;
+    if (!isOpen || !currentKey) {
+      lastOpenedKeyRef.current = null;
+      return;
     }
 
-    if (initialSc !== undefined) {
-      setScAmount(String(initialSc));
-    } else if (casino?.dailyBonusSc) {
-      setScAmount(String(casino.dailyBonusSc));
-    } else if (casino?.dailyBonus) {
-      const parsed = parseScReward(casino.dailyBonus);
-      setScAmount(parsed > 0 ? String(parsed) : "");
-    } else {
-      setScAmount("");
+    // Only populate on fresh modal open, never on ticking background remainingMs
+    if (lastOpenedKeyRef.current !== currentKey) {
+      lastOpenedKeyRef.current = currentKey;
+
+      if (currentRemainingMs && currentRemainingMs > 0) {
+        const totalMinutes = Math.ceil(currentRemainingMs / 60000);
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        setHours(h > 0 ? String(h) : "");
+        setMinutes(m > 0 ? String(m) : "");
+      } else {
+        setHours("");
+        setMinutes("");
+      }
+
+      if (initialSc !== undefined) {
+        setScAmount(String(initialSc));
+      } else if (casino?.dailyBonusSc) {
+        setScAmount(String(casino.dailyBonusSc));
+      } else if (casino?.dailyBonus) {
+        const parsed = parseScReward(casino.dailyBonus);
+        setScAmount(parsed > 0 ? String(parsed) : "");
+      } else {
+        setScAmount("");
+      }
+
+      // Auto-focus and select the hours input after modal opens
+      const timer = setTimeout(() => {
+        hoursInputRef.current?.focus();
+        hoursInputRef.current?.select();
+      }, 50);
+
+      return () => clearTimeout(timer);
     }
-
-    // Auto-focus the hours input after modal opens
-    const timer = setTimeout(() => {
-      hoursInputRef.current?.focus();
-    }, 50);
-
-    return () => clearTimeout(timer);
-  }, [isOpen, currentRemainingMs, initialSc, casino]);
+  }, [isOpen, casino?.id, casinoId, casinoName]);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -110,7 +122,12 @@ export function CustomTimerModal({
     const finalHours = Math.max(0, isNaN(h) ? 0 : h);
     const finalMinutes = Math.max(0, isNaN(m) ? 0 : m);
 
-    const targetResetTimestamp = calculateCustomResetTimestamp(finalHours, finalMinutes);
+    // If both 0, set targetResetTimestamp to Date.now() - 1000 so it immediately becomes "Ready to claim"
+    const targetResetTimestamp =
+      finalHours === 0 && finalMinutes === 0
+        ? Date.now() - 1000
+        : calculateCustomResetTimestamp(finalHours, finalMinutes);
+
     const parsedSc = scAmount.trim() !== "" ? parseFloat(scAmount) : undefined;
     const finalSc = typeof parsedSc === "number" && !isNaN(parsedSc) ? parsedSc : undefined;
     onSave(targetIdentifier, targetResetTimestamp, finalSc);

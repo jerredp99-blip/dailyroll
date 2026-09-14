@@ -72,7 +72,11 @@ export default function ProfilePage() {
           if (typeof parsed.notifications === "boolean") setNotifications(parsed.notifications);
           if (typeof parsed.amoe === "boolean") setAmoeEnabled(parsed.amoe);
           if (parsed.sortOrder) {
-            setSortOrder(parsed.sortOrder === ("status" as any) ? "next-available" : parsed.sortOrder);
+            setSortOrder(
+              parsed.sortOrder === ("status" as any) || parsed.sortOrder === "f2p"
+                ? "next-available"
+                : parsed.sortOrder,
+            );
           }
         } catch {
           // Ignore malformed local preferences.
@@ -91,7 +95,11 @@ export default function ProfilePage() {
           setNotifications(data.preferences.notifications);
           setAmoeEnabled(data.preferences.amoe);
           const savedOrder = data.preferences.sortOrder;
-          setSortOrder(savedOrder === "f2p" || savedOrder === "trustpilot" ? savedOrder : "next-available");
+          setSortOrder(
+            savedOrder === "trustpilot" || savedOrder === "f2p"
+              ? savedOrder
+              : "next-available",
+          );
           if (data.preferences.contactEmail) setEmail(data.preferences.contactEmail);
           if (data.preferences.avatarUrl) setAvatarUrl(data.preferences.avatarUrl);
         }
@@ -187,6 +195,7 @@ export default function ProfilePage() {
         sortOrder,
       } satisfies StoredPreferences),
     );
+    window.localStorage.setItem("dailyroll_casino_sort", sortOrder);
 
     try {
       await apiSaveProfile({

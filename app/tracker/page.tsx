@@ -341,9 +341,17 @@ export default function TrackerPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [casinoFilter, setCasinoFilter] = useState<"all" | "ready" | "claimed">("all");
-  const [casinoSort, setCasinoSort] = useState<
-    "next-available" | "provider" | "f2p" | "trustpilot" | "name-asc" | "name-desc"
-  >("next-available");
+  type CasinoSortOption = "next-available" | "provider" | "f2p" | "trustpilot" | "name-asc" | "name-desc";
+  const [casinoSort, setCasinoSort] = useState<CasinoSortOption>((): CasinoSortOption => {
+    if (typeof window === "undefined") return "next-available";
+    try {
+      const saved = localStorage.getItem("dailyroll_casino_sort");
+      if (saved && saved !== "status" && saved !== "f2p") {
+        return saved as CasinoSortOption;
+      }
+    } catch {}
+    return "next-available";
+  });
   const [customLists, setCustomLists] = useState<CustomCasinoList[]>(() => {
     if (typeof window === "undefined") return DEFAULT_CUSTOM_LISTS;
     try {
@@ -691,12 +699,26 @@ export default function TrackerPage() {
           const parsedPreferences = JSON.parse(storedPreferences) as {
             sortOrder?: typeof casinoSort;
           };
-          if (parsedPreferences.sortOrder && (parsedPreferences.sortOrder as string) !== "status") {
-            setCasinoSort(parsedPreferences.sortOrder);
+          if (
+            parsedPreferences.sortOrder === ("status" as any) ||
+            parsedPreferences.sortOrder === "f2p"
+          ) {
+            parsedPreferences.sortOrder = "next-available";
+            localStorage.setItem("dailyroll_profile_prefs", JSON.stringify(parsedPreferences));
           }
         } catch {
           // Ignore malformed saved preferences.
         }
+      }
+
+      const savedTrackerSort = localStorage.getItem("dailyroll_casino_sort");
+      if (savedTrackerSort && savedTrackerSort !== "status" && savedTrackerSort !== "f2p") {
+        setCasinoSort(savedTrackerSort as typeof casinoSort);
+      } else {
+        setCasinoSort("next-available");
+        try {
+          localStorage.setItem("dailyroll_casino_sort", "next-available");
+        } catch {}
       }
       setDirectorySnapshot(directoryData);
       if (directoryData.list) setDirectory(directoryData.list);
@@ -921,14 +943,15 @@ export default function TrackerPage() {
       delete next[targetCasino.id];
       return next;
     });
+    const isReadyNow = targetResetTimestamp <= Date.now();
     const nowIso = new Date().toISOString();
     setCasinos((prev) => {
       const updated = prev.map((item) =>
         item.id === targetCasino.id
           ? {
               ...item,
-              targetResetTimestamp,
-              lastClaimedAt: nowIso,
+              targetResetTimestamp: isReadyNow ? null : targetResetTimestamp,
+              lastClaimedAt: isReadyNow ? null : nowIso,
               snoozedUntil: null,
               ...(customSc !== undefined
                 ? { dailyBonusSc: String(customSc), dailyBonus: `${customSc} SC` }
@@ -2148,6 +2171,12 @@ export default function TrackerPage() {
                       setCasinoSort(next);
                       try {
                         localStorage.setItem("dailyroll_casino_sort", next);
+                        const stored = localStorage.getItem("dailyroll_profile_prefs");
+                        if (stored) {
+                          const parsed = JSON.parse(stored);
+                          parsed.sortOrder = next;
+                          localStorage.setItem("dailyroll_profile_prefs", JSON.stringify(parsed));
+                        }
                       } catch {}
                     }}
                     aria-label="Sort casinos"
