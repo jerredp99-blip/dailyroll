@@ -2091,34 +2091,7 @@ export default function TrackerPage() {
 
             {/* Primary Action Buttons Row (Directly Beneath Filter & Sort Controls) */}
             <div className="grid grid-cols-3 gap-2 w-full mt-3 mb-4">
-              {/* + Add Casinos */}
-              <button
-                type="button"
-                onClick={() => setIsAddCasinosModalOpen(true)}
-                title="Add casinos to your rollcall"
-                className="h-9 px-2 sm:px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
-              >
-                <Plus size={14} strokeWidth={2.5} className="shrink-0" />
-                <span>Add Casinos</span>
-              </button>
-
-              {/* Speed Run (X) */}
-              <button
-                type="button"
-                onClick={handleOpenSpeedRun}
-                disabled={readyCount === 0}
-                title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
-                className={`h-9 px-2 sm:px-3 rounded-xl bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 text-zinc-200 font-semibold text-xs flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all whitespace-nowrap ${
-                  readyCount > 0
-                    ? "cursor-pointer hover:border-zinc-700 hover:text-white shadow-sm"
-                    : "opacity-60 cursor-not-allowed"
-                }`}
-              >
-                <Zap size={14} className={readyCount > 0 ? "text-amber-400 fill-amber-400 shrink-0" : "text-zinc-500 shrink-0"} />
-                <span>Speed Run ({readyCount})</span>
-              </button>
-
-              {/* Open All (X) */}
+              {/* 1. Open All (X) */}
               {isStaggering ? (
                 <div className="h-9 px-2 sm:px-3 rounded-xl bg-zinc-900/90 border border-amber-500/50 text-amber-300 font-semibold text-xs flex items-center justify-between gap-1 whitespace-nowrap animate-pulse">
                   <div className="flex items-center gap-1 min-w-0">
@@ -2154,6 +2127,33 @@ export default function TrackerPage() {
                   <span>Open All ({readyCount})</span>
                 </button>
               )}
+
+              {/* 2. Add Casinos */}
+              <button
+                type="button"
+                onClick={() => setIsAddCasinosModalOpen(true)}
+                title="Add casinos to your rollcall"
+                className="h-9 px-2 sm:px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
+              >
+                <Plus size={14} strokeWidth={2.5} className="shrink-0" />
+                <span>Add Casinos</span>
+              </button>
+
+              {/* 3. Speed Run (X) */}
+              <button
+                type="button"
+                onClick={handleOpenSpeedRun}
+                disabled={readyCount === 0}
+                title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
+                className={`h-9 px-2 sm:px-3 rounded-xl bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 text-zinc-200 font-semibold text-xs flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all whitespace-nowrap ${
+                  readyCount > 0
+                    ? "cursor-pointer hover:border-zinc-700 hover:text-white shadow-sm"
+                    : "opacity-60 cursor-not-allowed"
+                }`}
+              >
+                <Zap size={14} className={readyCount > 0 ? "text-amber-400 fill-amber-400 shrink-0" : "text-zinc-500 shrink-0"} />
+                <span>Speed Run ({readyCount})</span>
+              </button>
             </div>
 
             {/* Casinos List using RollcallCard */}
