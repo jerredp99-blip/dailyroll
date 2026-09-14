@@ -149,3 +149,15 @@ export function calculateCasinoStatus(casino: Casino, now: number = Date.now()):
   };
 }
 
+/**
+ * Returns partial object with all timer and claim states explicitly cleared to null.
+ */
+export function resetCasinoTimers(): Partial<Casino> {
+  return {
+    lastClaimedAt: null,
+    snoozedUntil: null,
+    targetResetTimestamp: null,
+  };
+}
+
+

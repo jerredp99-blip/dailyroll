@@ -19,12 +19,13 @@ import {
   Compass,
   Loader2,
   Zap,
+  RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
-import { calculateCasinoStatus, type CasinoStatus } from "@/lib/timerUtils";
+import { calculateCasinoStatus, resetCasinoTimers, type CasinoStatus } from "@/lib/timerUtils";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { SpeedRunModal } from "@/app/components/SpeedRunModal";
@@ -643,6 +644,44 @@ export default function TrackerPage() {
     });
   }
 
+  function handleResetToReady(targetCasino: Casino) {
+    setCasinos((prev) => {
+      const updated = prev.map((item) =>
+        item.id === targetCasino.id
+          ? {
+              ...item,
+              ...resetCasinoTimers(),
+            }
+          : item,
+      );
+      apiSaveCasinos(signedInUser?.email, updated);
+      return updated;
+    });
+
+    try {
+      const storedTimes = JSON.parse(localStorage.getItem("dailyroll_claimed_times") || "{}");
+      delete storedTimes[targetCasino.id];
+      localStorage.setItem("dailyroll_claimed_times", JSON.stringify(storedTimes));
+    } catch {
+      // ignore
+    }
+  }
+
+  function handleCancelSnooze(targetCasino: Casino) {
+    setCasinos((prev) => {
+      const updated = prev.map((item) =>
+        item.id === targetCasino.id
+          ? {
+              ...item,
+              snoozedUntil: null,
+            }
+          : item,
+      );
+      apiSaveCasinos(signedInUser?.email, updated);
+      return updated;
+    });
+  }
+
   function handleOpenAllReady() {
     const readyList = casinos.filter((c) => !c.hidden && statusFor(c).ready);
     if (readyList.length === 0) return;
@@ -746,18 +785,7 @@ export default function TrackerPage() {
   }
 
   function unclaim(casino: Casino) {
-    saveCasinos(
-      casinos.map((item) =>
-        item.id === casino.id ? { ...item, lastClaimedAt: null } : item,
-      ),
-    );
-    try {
-      const storedTimes = JSON.parse(localStorage.getItem("dailyroll_claimed_times") || "{}");
-      delete storedTimes[casino.id];
-      localStorage.setItem("dailyroll_claimed_times", JSON.stringify(storedTimes));
-    } catch {
-      // ignore
-    }
+    handleResetToReady(casino);
   }
 
   function toggleHiddenCasino(casino: Casino) {
@@ -1670,6 +1698,8 @@ export default function TrackerPage() {
                     }
                     onClaim={markClaimed}
                     onConfirmClaim={markClaimed}
+                    onResetToReady={handleResetToReady}
+                    onCancelSnooze={handleCancelSnooze}
                     onSnoozeDuration={handleSnoozeDuration}
                     onSetCustomTimer={handleSetCustomTimer}
                     onOpenCasino={openCasino}
@@ -1757,14 +1787,25 @@ export default function TrackerPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!window.confirm(`Are you sure you want to delete ${actionCasino.name} from the dashboard?`)) return;
                     setOpenActionMenu(null);
-                    unclaim(actionCasino);
+                    handleResetToReady(actionCasino);
                   }}
-                  className="w-full rounded-xl border border-[#6b4d3d] px-4 py-3 text-left text-sm font-semibold text-[#e6b39a] hover:bg-[#3a2b26]"
+                  className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-emerald-400 hover:bg-[#2a4230]"
                 >
-                  Unclaim bonus
+                  <RotateCcw size={16} /> Mark as Ready to Claim
                 </button>
+                {actionCasino.snoozedUntil && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenActionMenu(null);
+                      handleCancelSnooze(actionCasino);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-xl border border-amber-800/60 px-4 py-3 text-left text-sm font-semibold text-amber-300 hover:bg-amber-950/40"
+                  >
+                    <X size={16} /> Cancel Snooze
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
