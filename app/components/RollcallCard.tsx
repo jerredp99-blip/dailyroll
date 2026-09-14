@@ -294,7 +294,7 @@ function RollcallCardComponent({
               type="button"
               onClick={handleClaimClick}
               aria-label={`Claim ${casino.dailyBonus} for ${casino.name}`}
-              className="flex min-w-28 h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-bold text-xs px-4 shadow active:scale-[0.97] transition-all"
+              className="flex min-w-28 h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-bold text-xs px-4 py-2 shadow active:scale-[0.97] transition-all"
             >
               <CheckCircle2 size={14} strokeWidth={2.5} />
               <span>Claim {casino.dailyBonus}!</span>
