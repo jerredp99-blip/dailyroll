@@ -2,19 +2,19 @@
 
 export function TrustpilotStars({
   rating,
-  className = "tracking-[0.08em]",
+  className = "inline-flex items-center flex-nowrap whitespace-nowrap tracking-[0.08em] gap-0.5 text-amber-400 text-xs",
 }: {
   rating?: number | null;
   className?: string;
 }) {
   const numericRating = Number(rating);
   if (!Number.isFinite(numericRating)) {
-    return <span className={`text-[#718275] ${className}`}>☆☆☆☆☆</span>;
+    return <span className={`inline-flex items-center flex-nowrap whitespace-nowrap text-[#718275] text-xs ${className}`}>☆☆☆☆☆</span>;
   }
 
   const clampedRating = Math.max(0, Math.min(5, numericRating));
   return (
-    <span aria-label={`${clampedRating.toFixed(1)} out of 5 stars`} className={className}>
+    <span aria-label={`${clampedRating.toFixed(1)} out of 5 stars`} className={`inline-flex items-center flex-nowrap whitespace-nowrap ${className}`}>
       {Array.from({ length: 5 }, (_, index) => {
         const fillPercent = Math.max(0, Math.min(1, clampedRating - index)) * 100;
         return (

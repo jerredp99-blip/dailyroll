@@ -16,6 +16,7 @@ import {
   Trash2,
   X,
   MessageSquare,
+  Gift,
   Compass,
   Loader2,
   Zap,
@@ -47,6 +48,17 @@ import {
 import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 import { casinoDirectory, casinoDirectoryUrls } from "@/lib/casino-directory";
 import type { Casino } from "@/types/casino";
+
+export interface CustomCasinoList {
+  id: string;
+  name: string;
+  casinoIds: string[];
+}
+
+const DEFAULT_CUSTOM_LISTS: CustomCasinoList[] = [
+  { id: "all", name: "All Casinos", casinoIds: [] },
+  { id: "priority", name: "Daily Priority", casinoIds: [] },
+];
 
 type SignedInUser = {
   name: string;
@@ -236,22 +248,9 @@ export default function TrackerPage() {
   }, [signedInUser]);
   const now = useCurrentTime();
   const [pendingClaims, setPendingClaims] = useState<Record<string, { expiresAt: number; isDefocused: boolean }>>({});
-  const claimingIdsRef = useRef<Record<string, number>>({});
 
-  // Global Defocus Detection for 90-Second Pending Claims (defocuses only when clicked away)
+  // Global Defocus Detection for 90-Second Pending Claims
   useEffect(() => {
-    let lastWindowFocusTime = Date.now();
-
-    const handleWindowFocus = () => {
-      lastWindowFocusTime = Date.now();
-    };
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        lastWindowFocusTime = Date.now();
-      }
-    };
-
     const handleDefocusAll = () => {
       setPendingClaims((prev) => {
         let changed = false;
@@ -268,12 +267,13 @@ export default function TrackerPage() {
       });
     };
 
-    const handleDocumentMouseDown = (e: MouseEvent) => {
-      // If user just switched back to this tab / window, do not defocus on that activation click!
-      if (Date.now() - lastWindowFocusTime < 1000) {
-        return;
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        handleDefocusAll();
       }
+    };
 
+    const handleDocumentMouseDown = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
       const pendingCard = target.closest("[data-pending-card='true']");
@@ -302,12 +302,12 @@ export default function TrackerPage() {
       handleDefocusAll();
     };
 
-    window.addEventListener("focus", handleWindowFocus);
+    window.addEventListener("blur", handleDefocusAll);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     document.addEventListener("mousedown", handleDocumentMouseDown);
 
     return () => {
-      window.removeEventListener("focus", handleWindowFocus);
+      window.removeEventListener("blur", handleDefocusAll);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       document.removeEventListener("mousedown", handleDocumentMouseDown);
     };
@@ -359,7 +359,85 @@ export default function TrackerPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [casinoFilter, setCasinoFilter] = useState<"all" | "ready" | "claimed">("all");
-  const [casinoSort, setCasinoSort] = useState<"status" | "f2p" | "trustpilot" | "name-asc" | "name-desc">("status");
+  const [casinoSort, setCasinoSort] = useState<
+    "status" | "next-available" | "provider" | "f2p" | "trustpilot" | "name-asc" | "name-desc"
+  >("status");
+  const [customLists, setCustomLists] = useState<CustomCasinoList[]>(() => {
+    if (typeof window === "undefined") return DEFAULT_CUSTOM_LISTS;
+    try {
+      const stored = localStorage.getItem("dailyroll_custom_lists");
+      return stored ? JSON.parse(stored) : DEFAULT_CUSTOM_LISTS;
+    } catch {
+      return DEFAULT_CUSTOM_LISTS;
+    }
+  });
+  const [activeListId, setActiveListId] = useState<string>(() => {
+    if (typeof window === "undefined") return "all";
+    try {
+      return localStorage.getItem("dailyroll_active_list_id") || "all";
+    } catch {
+      return "all";
+    }
+  });
+  const [isManageListModalOpen, setIsManageListModalOpen] = useState(false);
+  const [isNewListModalOpen, setIsNewListModalOpen] = useState(false);
+  const [newListName, setNewListName] = useState("");
+  const [activeDrawer, setActiveDrawer] = useState<"feed" | "drops" | null>(null);
+
+  const saveCustomLists = (lists: CustomCasinoList[]) => {
+    setCustomLists(lists);
+    try {
+      localStorage.setItem("dailyroll_custom_lists", JSON.stringify(lists));
+    } catch {}
+  };
+
+  const handleSelectActiveList = (id: string) => {
+    setActiveListId(id);
+    try {
+      localStorage.setItem("dailyroll_active_list_id", id);
+    } catch {}
+  };
+
+  const handleCreateList = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const newList: CustomCasinoList = {
+      id: `list-${Date.now()}`,
+      name: trimmed,
+      casinoIds: [],
+    };
+    const updated = [...customLists, newList];
+    saveCustomLists(updated);
+    handleSelectActiveList(newList.id);
+    setNewListName("");
+    setIsNewListModalOpen(false);
+  };
+
+  const handleDeleteList = (id: string) => {
+    if (id === "all") return;
+    if (!window.confirm("Are you sure you want to delete this list?")) return;
+    const updated = customLists.filter((l) => l.id !== id);
+    saveCustomLists(updated);
+    if (activeListId === id) {
+      handleSelectActiveList("all");
+    }
+  };
+
+  const handleToggleCasinoInActiveList = (casinoId: string) => {
+    if (activeListId === "all") return;
+    const updated = customLists.map((list) => {
+      if (list.id !== activeListId) return list;
+      const exists = list.casinoIds.includes(casinoId);
+      return {
+        ...list,
+        casinoIds: exists
+          ? list.casinoIds.filter((id) => id !== casinoId)
+          : [...list.casinoIds, casinoId],
+      };
+    });
+    saveCustomLists(updated);
+  };
+
   const [viewMode, setViewMode] = useState<"social" | "rollcall">("social");
   const [mobileTab, setMobileTab] = useState<"rollcall" | "feed">("feed");
   const [isSpeedRunOpen, setIsSpeedRunOpen] = useState(false);
@@ -740,12 +818,6 @@ export default function TrackerPage() {
   }, [now, pendingClaims, casinos, markClaimed]);
 
   const handleInitiateClaim = useCallback((casino: Casino) => {
-    const nowTime = Date.now();
-    if (nowTime - (claimingIdsRef.current[casino.id] || 0) < 2000) {
-      return;
-    }
-    claimingIdsRef.current[casino.id] = nowTime;
-
     const target = casino.claimUrl ?? siteUrlFor(casino);
     if (target) {
       openInExternalBrowser(target);
@@ -1275,6 +1347,13 @@ export default function TrackerPage() {
       const isReady = statusFor(casino).ready;
       if (casinoFilter === "ready") return isReady || isPending;
       if (casinoFilter === "claimed") return !isReady && !isPending;
+
+      // Custom list filter
+      const currentList = customLists.find((l) => l.id === activeListId) || customLists[0];
+      if (currentList && currentList.id !== "all") {
+        if (!currentList.casinoIds.includes(casino.id)) return false;
+      }
+
       return true;
     })
     .sort((firstCasino, secondCasino) => {
@@ -1305,6 +1384,25 @@ export default function TrackerPage() {
         return (firstPending?.expiresAt ?? 0) - (secondPending?.expiresAt ?? 0);
       }
 
+      if (casinoSort === "next-available") {
+        const status1 = statusFor(firstCasino);
+        const status2 = statusFor(secondCasino);
+        if (status1.ready !== status2.ready) {
+          return Number(status2.ready) - Number(status1.ready);
+        }
+        if (!status1.ready && !status2.ready) {
+          return status1.remainingMs - status2.remainingMs;
+        }
+        return firstCasino.name.localeCompare(secondCasino.name);
+      }
+      if (casinoSort === "provider") {
+        const p1 = (firstCasino.provider || directoryProviders[firstCasino.name] || "").toLowerCase();
+        const p2 = (secondCasino.provider || directoryProviders[secondCasino.name] || "").toLowerCase();
+        if (!p1 && p2) return 1;
+        if (p1 && !p2) return -1;
+        const comp = p1.localeCompare(p2);
+        return comp !== 0 ? comp : firstCasino.name.localeCompare(secondCasino.name);
+      }
       if (casinoSort === "name-asc") {
         return firstCasino.name.localeCompare(secondCasino.name);
       }
@@ -1373,7 +1471,7 @@ export default function TrackerPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#070d0a] text-[#e6eee5]">
+    <main className="min-h-screen bg-[#090b0a] text-[#e6eee5]">
       {isSidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px] cursor-pointer transition-opacity"
@@ -1699,6 +1797,17 @@ export default function TrackerPage() {
                               </Link>
                             </div>
                             <div className="mt-1 flex flex-wrap items-center gap-2">
+                              {hasStreak && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-950/40 px-2 py-0.5 text-[10px] font-bold text-orange-400">
+                                  <Flame size={10} className="fill-orange-400" />
+                                  Streak
+                                </span>
+                              )}
+                              {minRedemption && (
+                                <span className="rounded-full border border-[#38503f] bg-[#122218] px-2 py-0.5 text-[10px] font-medium text-[#86a88d]">
+                                  {minRedemption}
+                                </span>
+                              )}
                               <a
                                 href={`https://www.trustpilot.com/search?query=${encodeURIComponent(casinoName)}`}
                                 target="_blank"
@@ -1813,243 +1922,322 @@ export default function TrackerPage() {
             </section>
           </div>
         ) : (
-          <div className="mx-auto max-w-7xl grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-            {/* Feed Column: Left on desktop, visible on mobile when mobileTab === 'feed' */}
-            <div className={`space-y-2.5 md:col-span-5 lg:col-span-5 ${mobileTab !== "feed" ? "hidden md:block" : ""}`}>
-              <div className="sticky top-4">
-                <SocialFeed
-                  compact={true}
-                  currentUserEmail={signedInUser?.email}
-                  currentUserName={signedInUser?.name}
-                  currentUserAvatar={signedInUser?.avatarUrl || undefined}
-                  isAdmin={isAdmin}
-                  casinos={casinos}
-                  onClaimCasino={handleClaimFromFeed}
-                />
-              </div>
-            </div>
-
-            {/* Rollcall Column: Right on desktop, visible on mobile when mobileTab === 'rollcall' */}
-            <div className={`space-y-2.5 md:col-span-7 lg:col-span-7 ${mobileTab !== "rollcall" ? "hidden md:block" : ""}`}>
-              {/* Tracker Counter Banner with Batch Claim */}
-              <div className="sticky top-14 md:top-4 z-20 bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-xl px-4 py-2 shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                  {/* Metric Balance Pill */}
-                  <div className="flex items-center">
-                    <div className="flex items-baseline">
-                      <span className="text-emerald-400 font-bold text-sm sm:text-base">
-                        {dailyTotals.available.toFixed(2)} SC
-                      </span>
-                      <span className="text-[10px] uppercase font-semibold text-zinc-400 tracking-wider ml-1">
-                        Available
-                      </span>
-                    </div>
-                    <div className="h-4 w-px bg-zinc-800 mx-3" />
-                    <div className="flex items-baseline">
-                      <span className="text-zinc-200 font-bold text-sm sm:text-base">
-                        {dailyTotals.claimedToday.toFixed(2)} SC
-                      </span>
-                      <span className="text-[10px] uppercase font-semibold text-zinc-400 tracking-wider ml-1">
-                        Claimed
-                      </span>
-                    </div>
+          <div className="mx-auto max-w-4xl space-y-3 px-1 sm:px-2">
+            {/* Tracker Counter Banner with Batch Claim */}
+            <div className="sticky top-14 md:top-4 z-20 bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-xl px-4 py-2 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                {/* Metric Balance Pill */}
+                <div className="flex items-center">
+                  <div className="flex items-baseline">
+                    <span className="text-emerald-400 font-bold text-sm sm:text-base">
+                      {dailyTotals.available.toFixed(2)} SC
+                    </span>
+                    <span className="text-[10px] uppercase font-semibold text-zinc-400 tracking-wider ml-1">
+                      Available
+                    </span>
                   </div>
+                  <div className="h-4 w-px bg-zinc-800 mx-3" />
+                  <div className="flex items-baseline">
+                    <span className="text-zinc-200 font-bold text-sm sm:text-base">
+                      {dailyTotals.claimedToday.toFixed(2)} SC
+                    </span>
+                    <span className="text-[10px] uppercase font-semibold text-zinc-400 tracking-wider ml-1">
+                      Claimed
+                    </span>
+                  </div>
+                </div>
 
-                  {/* Consolidate Action Buttons into a single compact row */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    {/* Add Casinos button */}
+                {/* Consolidate Action Buttons into a single compact row */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Add Casinos button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsAddCasinosModalOpen(true)}
+                    title="Add casinos to your rollcall"
+                    className="flex h-9 items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 text-xs font-semibold text-zinc-300 hover:text-white hover:border-zinc-700 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+                  >
+                    <Plus size={14} className="text-emerald-400" />
+                    <span>+ Add Casinos</span>
+                  </button>
+
+                  {/* Primary Action: Speed Run */}
+                  <button
+                    type="button"
+                    onClick={handleOpenSpeedRun}
+                    disabled={readyCount === 0}
+                    title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
+                    className={`flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-xs font-bold transition-all active:scale-[0.98] shadow-sm ${
+                      readyCount > 0
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/50 cursor-pointer shadow-[0_0_12px_rgba(16,185,129,0.15)]"
+                        : "border border-zinc-800 bg-zinc-900/40 text-zinc-600 cursor-not-allowed opacity-50"
+                    }`}
+                  >
+                    <Zap size={14} fill={readyCount > 0 ? "currentColor" : "none"} />
+                    <span>Speed Run ({readyCount})</span>
+                  </button>
+
+                  {/* Secondary Action: Staggered Open All / Cancel */}
+                  {isStaggering ? (
+                    <div className="flex h-9 items-center gap-1.5">
+                      <div className="flex h-9 items-center gap-1.5 rounded-lg bg-zinc-900/90 border border-amber-500/50 px-3 text-xs font-semibold text-amber-300 animate-pulse">
+                        <Loader2 size={14} className="animate-spin text-amber-400" />
+                        <span>{staggerStatus || "Launching..."}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCancelStagger}
+                        title="Cancel launching remaining casinos"
+                        className="flex h-9 items-center gap-1 rounded-lg border border-red-800/60 bg-red-950/40 px-2.5 text-xs font-bold text-red-300 hover:bg-red-900/50 hover:text-white transition-all active:scale-[0.98] cursor-pointer"
+                      >
+                        <X size={14} />
+                        <span>Cancel</span>
+                      </button>
+                    </div>
+                  ) : (
                     <button
                       type="button"
-                      onClick={() => setIsAddCasinosModalOpen(true)}
-                      title="Add casinos to your rollcall"
-                      className="flex h-9 items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 text-xs font-semibold text-zinc-300 hover:text-white hover:border-zinc-700 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
-                    >
-                      <Plus size={14} className="text-emerald-400" />
-                      <span>+ Add Casinos</span>
-                    </button>
-
-                    {/* Primary Action: Speed Run */}
-                    <button
-                      type="button"
-                      onClick={handleOpenSpeedRun}
+                      onClick={handleLaunchAllStaggered}
                       disabled={readyCount === 0}
-                      title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
-                      className={`flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-xs font-bold transition-all active:scale-[0.98] shadow-sm ${
+                      title={
                         readyCount > 0
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/50 cursor-pointer shadow-[0_0_12px_rgba(16,185,129,0.15)]"
+                          ? `Open all ${readyCount} ready casinos (staggered to prevent popup blocking)`
+                          : "No casinos currently ready to claim"
+                      }
+                      className={`flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-all active:scale-[0.98] shadow-sm ${
+                        readyCount > 0
+                          ? "border-zinc-800 bg-zinc-900/80 text-zinc-200 hover:text-white hover:border-zinc-700 cursor-pointer"
                           : "border border-zinc-800 bg-zinc-900/40 text-zinc-600 cursor-not-allowed opacity-50"
                       }`}
                     >
-                      <Zap size={14} fill={readyCount > 0 ? "currentColor" : "none"} />
-                      <span>Speed Run ({readyCount})</span>
+                      <ExternalLink size={14} />
+                      <span>Open All ({readyCount})</span>
                     </button>
+                  )}
+                </div>
+              </div>
+            </div>
 
-                    {/* Secondary Action: Staggered Open All / Cancel */}
-                    {isStaggering ? (
-                      <div className="flex h-9 items-center gap-1.5">
-                        <div className="flex h-9 items-center gap-1.5 rounded-lg bg-zinc-900/90 border border-amber-500/50 px-3 text-xs font-semibold text-amber-300 animate-pulse">
-                          <Loader2 size={14} className="animate-spin text-amber-400" />
-                          <span>{staggerStatus || "Launching..."}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleCancelStagger}
-                          title="Cancel launching remaining casinos"
-                          className="flex h-9 items-center gap-1 rounded-lg border border-red-800/60 bg-red-950/40 px-2.5 text-xs font-bold text-red-300 hover:bg-red-900/50 hover:text-white transition-all active:scale-[0.98] cursor-pointer"
-                        >
-                          <X size={14} />
-                          <span>Cancel</span>
-                        </button>
-                      </div>
-                    ) : (
+            {/* Custom Lists Tab Strip */}
+            <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-none">
+              <div className="flex items-center gap-1.5 min-w-0">
+                {customLists.map((list) => {
+                  const isActive = list.id === activeListId;
+                  const count =
+                    list.id === "all"
+                      ? casinos.filter((c) => !c.hidden).length
+                      : list.casinoIds.filter((id) => casinos.some((c) => c.id === id && !c.hidden)).length;
+
+                  return (
+                    <div key={list.id} className="relative flex items-center group shrink-0">
                       <button
                         type="button"
-                        onClick={handleLaunchAllStaggered}
-                        disabled={readyCount === 0}
-                        title={
-                          readyCount > 0
-                            ? `Open all ${readyCount} ready casinos (staggered to prevent popup blocking)`
-                            : "No casinos currently ready to claim"
-                        }
-                        className={`flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-all active:scale-[0.98] shadow-sm ${
-                          readyCount > 0
-                            ? "border-zinc-800 bg-zinc-900/80 text-zinc-200 hover:text-white hover:border-zinc-700 cursor-pointer"
-                            : "border border-zinc-800 bg-zinc-900/40 text-zinc-600 cursor-not-allowed opacity-50"
+                        onClick={() => handleSelectActiveList(list.id)}
+                        className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition active:scale-95 cursor-pointer ${
+                          isActive
+                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-sm"
+                            : "border border-zinc-800/80 bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
                         }`}
                       >
-                        <ExternalLink size={14} />
-                        <span>Open All ({readyCount})</span>
+                        <span>{list.name}</span>
+                        <span
+                          className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
+                            isActive ? "bg-emerald-500/30 text-emerald-200 font-bold" : "bg-zinc-800 text-zinc-400"
+                          }`}
+                        >
+                          {count}
+                        </span>
                       </button>
-                    )}
-                  </div>
+
+                      {/* If custom list and active, show inline edit / manage trigger */}
+                      {list.id !== "all" && isActive && (
+                        <div className="ml-1 flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setIsManageListModalOpen(true)}
+                            title={`Manage casinos in ${list.name}`}
+                            className="grid h-6 w-6 place-items-center rounded border border-emerald-500/40 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/50 transition cursor-pointer"
+                          >
+                            <Settings size={11} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteList(list.id)}
+                            title={`Delete ${list.name}`}
+                            className="grid h-6 w-6 place-items-center rounded border border-rose-900/40 bg-rose-950/40 text-rose-300 hover:bg-rose-900/50 transition cursor-pointer"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* "+ New List" button */}
+                <button
+                  type="button"
+                  onClick={() => setIsNewListModalOpen(true)}
+                  title="Create new custom list"
+                  className="flex items-center gap-1 rounded-lg border border-dashed border-zinc-700/80 bg-zinc-900/40 px-2.5 py-1.5 text-xs font-semibold text-zinc-400 hover:text-emerald-300 hover:border-emerald-500/50 transition shrink-0 cursor-pointer"
+                >
+                  <Plus size={13} className="text-emerald-400" />
+                  <span>New List</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filter & Sort Controls */}
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-3.5 py-2 text-xs text-zinc-400 shadow-sm backdrop-blur-sm">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-medium text-zinc-500">Filter:</span>
+                  <select
+                    value={casinoFilter}
+                    onChange={(event) => setCasinoFilter(event.target.value as typeof casinoFilter)}
+                    aria-label="Filter casinos"
+                    className="h-8 rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 text-xs text-zinc-200 outline-none focus:border-zinc-700 transition cursor-pointer"
+                  >
+                    <option value="all">All casinos</option>
+                    <option value="ready">Ready to claim</option>
+                    <option value="claimed">Claimed</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-medium text-zinc-500">Sort:</span>
+                  <select
+                    value={casinoSort}
+                    onChange={(event) => setCasinoSort(event.target.value as typeof casinoSort)}
+                    aria-label="Sort casinos"
+                    className="h-8 rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 text-xs text-zinc-200 outline-none focus:border-zinc-700 transition cursor-pointer"
+                  >
+                    <option value="status">Status</option>
+                    <option value="next-available">Next Available</option>
+                    <option value="provider">Provider</option>
+                    <option value="f2p">Best F2P</option>
+                    <option value="trustpilot">Trustpilot</option>
+                    <option value="name-asc">Name A-Z</option>
+                    <option value="name-desc">Name Z-A</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-3.5 py-2 text-xs text-zinc-400 shadow-sm backdrop-blur-sm">
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-medium text-zinc-500">Filter:</span>
-                    <select
-                      value={casinoFilter}
-                      onChange={(event) => setCasinoFilter(event.target.value as typeof casinoFilter)}
-                      aria-label="Filter casinos"
-                      className="h-8 rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 text-xs text-zinc-200 outline-none focus:border-zinc-700 transition cursor-pointer"
-                    >
-                      <option value="all">All casinos</option>
-                      <option value="ready">Ready to claim</option>
-                      <option value="claimed">Claimed</option>
-                    </select>
-                  </div>
+              <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer select-none hover:text-zinc-200 transition">
+                <input
+                  type="checkbox"
+                  checked={showHidden}
+                  onChange={(event) => setShowHidden(event.target.checked)}
+                  aria-label="Show hidden casinos"
+                  className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-900 accent-emerald-500 cursor-pointer"
+                />
+                <span>Show hidden</span>
+              </label>
+            </div>
 
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-medium text-zinc-500">Sort:</span>
-                    <select
-                      value={casinoSort}
-                      onChange={(event) => setCasinoSort(event.target.value as typeof casinoSort)}
-                      aria-label="Sort casinos"
-                      className="h-8 rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 text-xs text-zinc-200 outline-none focus:border-zinc-700 transition cursor-pointer"
+            {/* Casinos List using RollcallCard */}
+            <div className="space-y-2.5">
+              {sortedCasinos.map((casino) => (
+                <RollcallCard
+                  key={casino.id}
+                  casino={casino}
+                  status={statusFor(casino)}
+                  siteUrl={siteUrlFor(casino)}
+                  rating={ratingForCasino(casino.name, casino.trustpilotRating)}
+                  isActionMenuOpen={openActionMenu === casino.id}
+                  onToggleActionMenu={handleToggleActionMenu}
+                  onClaim={handleInitiateClaim}
+                  onConfirmClaim={handleConfirmClaim}
+                  onUndoClaim={handleUndoClaim}
+                  onResetToReady={handleResetToReady}
+                  onCancelSnooze={handleCancelSnooze}
+                  onSnoozeDuration={handleSnoozeDuration}
+                  onSetCustomTimer={handleSetCustomTimer}
+                  onOpenCasino={openCasino}
+                  onOpenBonus={casino.bonusUrl ? openBonus : undefined}
+                  pendingInfo={pendingClaims[casino.id]}
+                />
+              ))}
+              {sortedCasinos.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-emerald-900/60 bg-[#0c1f17]/40 p-8 text-center text-xs text-[#718275] space-y-3">
+                  <p>No casinos found matching the current filter.</p>
+                  {activeListId !== "all" && (
+                    <button
+                      type="button"
+                      onClick={() => setIsManageListModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 font-bold text-zinc-950 hover:bg-emerald-400 transition cursor-pointer"
                     >
-                      <option value="status">Status</option>
-                      <option value="f2p">Best F2P</option>
-                      <option value="trustpilot">Trustpilot</option>
-                      <option value="name-asc">Name A-Z</option>
-                      <option value="name-desc">Name Z-A</option>
-                    </select>
-                  </div>
+                      <Plus size={13} />
+                      <span>Add Casinos to this List</span>
+                    </button>
+                  )}
                 </div>
-
-                <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer select-none hover:text-zinc-200 transition">
-                  <input
-                    type="checkbox"
-                    checked={showHidden}
-                    onChange={(event) => setShowHidden(event.target.checked)}
-                    aria-label="Show hidden casinos"
-                    className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-900 accent-emerald-500 cursor-pointer"
-                  />
-                  <span>Show hidden</span>
-                </label>
-              </div>
-
-              {/* Casinos List using RollcallCard */}
-              <div className="space-y-2.5">
-                {sortedCasinos.map((casino) => (
-                  <RollcallCard
-                    key={casino.id}
-                    casino={casino}
-                    status={statusFor(casino)}
-                    siteUrl={siteUrlFor(casino)}
-                    rating={ratingForCasino(casino.name, casino.trustpilotRating)}
-                    isActionMenuOpen={openActionMenu === casino.id}
-                    onToggleActionMenu={handleToggleActionMenu}
-                    onClaim={handleInitiateClaim}
-                    onConfirmClaim={handleConfirmClaim}
-                    onUndoClaim={handleUndoClaim}
-                    onResetToReady={handleResetToReady}
-                    onCancelSnooze={handleCancelSnooze}
-                    onSnoozeDuration={handleSnoozeDuration}
-                    onSetCustomTimer={handleSetCustomTimer}
-                    onOpenCasino={openCasino}
-                    onOpenBonus={casino.bonusUrl ? openBonus : undefined}
-                    pendingInfo={pendingClaims[casino.id]}
-                  />
-                ))}
-                {sortedCasinos.length === 0 && (
-                  <div className="rounded-xl border border-dashed border-[#293a30] p-8 text-center text-xs text-[#718275]">
-                    No casinos found matching the current filter.
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </div>
         )}
       </div>
         {actionCasino && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-20 grid place-items-center bg-black/65 p-5"
             role="presentation"
-            onClick={() => setOpenActionMenu(null)}
+            onMouseDown={() => setOpenActionMenu(null)}
           >
             <div
-              className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900/95 p-5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
+              className="w-full max-w-sm rounded-2xl border border-[#38503d] bg-[#19251f] p-6 shadow-2xl"
               role="dialog"
               aria-modal="true"
               aria-labelledby="casino-actions-title"
-              onClick={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
             >
-              <div className="flex items-start justify-between gap-3 border-b border-zinc-800/80 pb-3">
-                <div className="min-w-0">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-emerald-400 font-semibold">
-                    Casino Settings
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">
+                    Casino actions
                   </p>
-                  <h2 id="casino-actions-title" className="mt-1 text-base font-bold text-zinc-100 truncate">
+                  <h2 id="casino-actions-title" className="mt-2 font-serif text-2xl font-semibold text-[#e5eee3]">
                     {actionCasino.name}
                   </h2>
                 </div>
                 <button
                   type="button"
                   onClick={() => setOpenActionMenu(null)}
-                  aria-label="Close casino settings"
-                  className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800/80 hover:text-white transition cursor-pointer"
+                  aria-label="Close casino actions"
+                  className="text-[#91a595] hover:text-white"
                 >
-                  <X size={18} />
+                  <X size={20} />
                 </button>
               </div>
-
-              <div className="mt-4 grid gap-2">
-                {/* 1. Mark as Ready */}
+              <div className="mt-6 grid gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenActionMenu(null);
+                    toggleHiddenCasino(actionCasino);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-[#d4e4d2] hover:bg-[#2a4230]"
+                >
+                  <EyeOff size={16} /> {actionCasino.hidden ? "Unhide casino" : "Hide casino"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenActionMenu(null);
+                    openCasinoEditor(actionCasino);
+                  }}
+                  className="w-full rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-[#d4e4d2] hover:bg-[#2a4230]"
+                >
+                  Edit casino
+                </button>
                 <button
                   type="button"
                   onClick={() => {
                     setOpenActionMenu(null);
                     handleResetToReady(actionCasino);
                   }}
-                  className="flex w-full items-center gap-2.5 rounded-xl border border-emerald-900/40 bg-emerald-950/20 px-3.5 py-2.5 text-left text-xs font-bold text-emerald-400 hover:bg-emerald-950/50 hover:border-emerald-700/60 transition cursor-pointer"
+                  className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-emerald-400 hover:bg-[#2a4230]"
                 >
-                  <RotateCcw size={15} className="shrink-0" />
-                  <span>Mark as Ready to Claim</span>
+                  <RotateCcw size={16} /> Mark as Ready to Claim
                 </button>
-
-                {/* 2. Set Custom Timer */}
                 <button
                   type="button"
                   onClick={() => {
@@ -2057,13 +2245,10 @@ export default function TrackerPage() {
                     setOpenActionMenu(null);
                     setCustomTimerCasino(target);
                   }}
-                  className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-950/60 px-3.5 py-2.5 text-left text-xs font-semibold text-zinc-200 hover:bg-zinc-800/80 hover:border-zinc-700 transition cursor-pointer"
+                  className="flex w-full items-center gap-2 rounded-xl border border-zinc-700/80 px-4 py-3 text-left text-sm font-semibold text-zinc-200 hover:bg-zinc-800"
                 >
-                  <Clock size={15} className="shrink-0 text-amber-400" />
-                  <span>Set Custom Timer</span>
+                  <Clock size={16} className="text-[#f0a03c]" /> Set Custom Timer
                 </button>
-
-                {/* 3. Cancel Snooze (if snoozed) */}
                 {actionCasino.snoozedUntil && (
                   <button
                     type="button"
@@ -2071,50 +2256,20 @@ export default function TrackerPage() {
                       setOpenActionMenu(null);
                       handleCancelSnooze(actionCasino);
                     }}
-                    className="flex w-full items-center gap-2.5 rounded-xl border border-amber-900/40 bg-amber-950/20 px-3.5 py-2.5 text-left text-xs font-semibold text-amber-300 hover:bg-amber-950/50 hover:border-amber-700/60 transition cursor-pointer"
+                    className="flex w-full items-center gap-2 rounded-xl border border-amber-800/60 px-4 py-3 text-left text-sm font-semibold text-amber-300 hover:bg-amber-950/40"
                   >
-                    <X size={15} className="shrink-0" />
-                    <span>Cancel Snooze</span>
+                    <X size={16} /> Cancel Snooze
                   </button>
                 )}
-
-                {/* 4. Edit Casino Details */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenActionMenu(null);
-                    openCasinoEditor(actionCasino);
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-950/60 px-3.5 py-2.5 text-left text-xs font-semibold text-zinc-200 hover:bg-zinc-800/80 hover:border-zinc-700 transition cursor-pointer"
-                >
-                  <Settings size={15} className="shrink-0 text-zinc-400" />
-                  <span>Edit Casino Details</span>
-                </button>
-
-                {/* 5. Hide / Unhide Casino */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenActionMenu(null);
-                    toggleHiddenCasino(actionCasino);
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-950/60 px-3.5 py-2.5 text-left text-xs font-semibold text-zinc-300 hover:bg-zinc-800/80 hover:border-zinc-700 transition cursor-pointer"
-                >
-                  <EyeOff size={15} className="shrink-0 text-zinc-400" />
-                  <span>{actionCasino.hidden ? "Unhide Casino" : "Hide Casino"}</span>
-                </button>
-
-                {/* 6. Delete Casino */}
                 <button
                   type="button"
                   onClick={() => {
                     setOpenActionMenu(null);
                     saveCasinos(casinos.filter((item) => item.id !== actionCasino.id));
                   }}
-                  className="flex w-full items-center gap-2.5 rounded-xl border border-red-900/40 bg-red-950/20 px-3.5 py-2.5 text-left text-xs font-semibold text-red-300 hover:bg-red-950/40 hover:border-red-800/60 transition cursor-pointer"
+                  className="flex w-full items-center gap-2 rounded-xl border border-[#633c3d] px-4 py-3 text-left text-sm font-semibold text-[#e69b91] hover:bg-[#422c2b]"
                 >
-                  <Trash2 size={15} className="shrink-0 text-red-400" />
-                  <span>Delete Casino</span>
+                  <Trash2 size={16} /> Delete casino
                 </button>
               </div>
             </div>
@@ -2486,6 +2641,232 @@ export default function TrackerPage() {
         directoryData={directorySnapshot}
         isAdmin={isAdmin}
       />
+
+      {/* Floating Bubbles Dock (Bottom-Left) */}
+      <aside aria-label="Quick Access Feeds" className="fixed bottom-6 left-6 z-40 flex flex-col gap-2.5">
+        {/* Feed Bubble */}
+        <button
+          type="button"
+          onClick={() => setActiveDrawer((prev) => (prev === "feed" ? null : "feed"))}
+          aria-label="Open Community Feed"
+          className="group flex items-center gap-2 rounded-full border border-emerald-500/50 bg-[#0c1f17]/95 px-4 py-2.5 shadow-2xl shadow-black/80 backdrop-blur-md text-xs font-bold text-zinc-200 hover:text-white hover:border-emerald-400 hover:bg-emerald-950/80 active:scale-95 transition-all cursor-pointer"
+        >
+          <MessageSquare size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+          <span>Feed</span>
+        </button>
+
+        {/* Bonus Drops Bubble */}
+        <button
+          type="button"
+          onClick={() => setActiveDrawer((prev) => (prev === "drops" ? null : "drops"))}
+          aria-label="Open Bonus Drops"
+          className="group flex items-center gap-2 rounded-full border border-amber-500/50 bg-[#19150c]/95 px-4 py-2.5 shadow-2xl shadow-black/80 backdrop-blur-md text-xs font-bold text-amber-200 hover:text-white hover:border-amber-400 hover:bg-amber-950/80 active:scale-95 transition-all cursor-pointer"
+        >
+          <Gift size={16} className="text-amber-400 group-hover:scale-110 transition-transform" />
+          <span>Drops</span>
+        </button>
+      </aside>
+
+      {/* Slide-Over Drawer Overlay for Community Feed & Drops */}
+      {activeDrawer && (
+        <div className="fixed inset-0 z-50 flex">
+          {/* Backdrop Blur */}
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity cursor-pointer"
+            onClick={() => setActiveDrawer(null)}
+            aria-label="Close drawer"
+          />
+
+          {/* Drawer Container */}
+          <div className="relative z-50 flex flex-col w-full sm:w-[500px] lg:w-[560px] h-full bg-[#0c1a13] border-r border-emerald-900/60 shadow-2xl animate-in slide-in-from-left duration-200 overflow-hidden">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between border-b border-emerald-950/80 bg-[#0a150f] px-4 py-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="flex rounded-lg border border-emerald-900/60 bg-[#07130e] p-0.5 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setActiveDrawer("feed")}
+                    className={`flex items-center gap-1.5 rounded-md px-3 py-1 transition cursor-pointer ${
+                      activeDrawer === "feed"
+                        ? "bg-emerald-500 text-zinc-950 font-bold shadow-sm"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    <MessageSquare size={13} />
+                    <span>Feed</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveDrawer("drops")}
+                    className={`flex items-center gap-1.5 rounded-md px-3 py-1 transition cursor-pointer ${
+                      activeDrawer === "drops"
+                        ? "bg-amber-500 text-zinc-950 font-bold shadow-sm"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    <Gift size={13} />
+                    <span>Drops</span>
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveDrawer(null)}
+                title="Close"
+                className="grid h-8 w-8 place-items-center rounded-lg border border-emerald-900/40 bg-[#07130e] text-zinc-400 hover:text-white hover:border-emerald-500/50 transition cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Drawer Content */}
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+              <SocialFeed
+                compact={true}
+                initialType={activeDrawer === "drops" ? "drop_code" : "all"}
+                currentUserEmail={signedInUser?.email}
+                currentUserName={signedInUser?.name}
+                currentUserAvatar={signedInUser?.avatarUrl || undefined}
+                isAdmin={isAdmin}
+                casinos={casinos}
+                onClaimCasino={handleClaimFromFeed}
+                onClose={() => setActiveDrawer(null)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Custom List Modal */}
+      {isNewListModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          onClick={() => setIsNewListModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-emerald-900/70 bg-[#0c1a13] p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-sm text-white">Create Custom List</h3>
+              <button
+                type="button"
+                onClick={() => setIsNewListModalOpen(false)}
+                className="text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleCreateList(newListName);
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1">List Name</label>
+                <input
+                  type="text"
+                  value={newListName}
+                  onChange={(e) => setNewListName(e.target.value)}
+                  placeholder="e.g. Daily Priority, Wheel Spins..."
+                  className="w-full h-9 rounded-lg border border-emerald-900/80 bg-[#07130e] px-3 text-xs text-white placeholder-zinc-500 outline-none focus:border-emerald-500"
+                  autoFocus
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsNewListModalOpen(false)}
+                  className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-xs text-zinc-300 hover:text-white cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newListName.trim()}
+                  className="rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 px-3 py-1.5 text-xs font-bold text-zinc-950 transition cursor-pointer"
+                >
+                  Create List
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Manage List Casinos Modal */}
+      {isManageListModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          onClick={() => setIsManageListModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md max-h-[85vh] flex flex-col rounded-2xl border border-emerald-900/70 bg-[#0c1a13] shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-emerald-950/80 px-4 py-3 bg-[#0a150f]">
+              <div>
+                <h3 className="font-bold text-sm text-white">
+                  Manage List: {customLists.find((l) => l.id === activeListId)?.name}
+                </h3>
+                <p className="text-[11px] text-zinc-400">Check casinos to include in this list</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsManageListModalOpen(false)}
+                className="text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-1.5 max-h-[60vh]">
+              {casinos
+                .filter((c) => !c.hidden)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((casino) => {
+                  const currentList = customLists.find((l) => l.id === activeListId);
+                  const isInList = currentList?.casinoIds.includes(casino.id) ?? false;
+
+                  return (
+                    <label
+                      key={casino.id}
+                      className={`flex items-center justify-between p-2.5 rounded-xl border transition cursor-pointer ${
+                        isInList
+                          ? "border-emerald-500/50 bg-emerald-950/30 text-white"
+                          : "border-zinc-800/80 bg-[#07130e]/80 text-zinc-300 hover:border-zinc-700"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="h-7 w-7 shrink-0 grid place-items-center rounded bg-[#0f1d15] border border-emerald-900/40 text-xs">
+                          <CasinoLogo name={casino.name} siteUrl={siteUrlFor(casino)} />
+                        </div>
+                        <span className="text-xs font-semibold truncate">{casino.name}</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={isInList}
+                        onChange={() => handleToggleCasinoInActiveList(casino.id)}
+                        className="h-4 w-4 rounded accent-emerald-500 cursor-pointer"
+                      />
+                    </label>
+                  );
+                })}
+            </div>
+            <div className="flex justify-end border-t border-emerald-950/80 px-4 py-3 bg-[#0a150f]">
+              <button
+                type="button"
+                onClick={() => setIsManageListModalOpen(false)}
+                className="rounded-lg bg-emerald-500 hover:bg-emerald-400 px-4 py-1.5 text-xs font-bold text-zinc-950 transition cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

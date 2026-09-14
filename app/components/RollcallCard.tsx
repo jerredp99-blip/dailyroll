@@ -26,7 +26,7 @@ const STATUS_STYLES: Record<
   { card: string; dot: string; label: string }
 > = {
   ready: {
-    card: "border-l-4 border-l-emerald-400 bg-gradient-to-r from-emerald-950/40 to-[#0c1f17] border border-[#1b3d2f] hover:border-emerald-500/50 shadow-md shadow-emerald-950/20",
+    card: "border-l-4 border-l-emerald-400 bg-gradient-to-r from-emerald-950/60 to-[#0d231a] border border-emerald-900/60 hover:border-emerald-500/50 shadow-lg shadow-black/40",
     dot: "bg-emerald-400",
     label: "text-emerald-400",
   },
@@ -36,7 +36,7 @@ const STATUS_STYLES: Record<
     label: "text-amber-300",
   },
   claimed: {
-    card: "bg-[#0a1812]/80 border border-[#163327] text-zinc-400 hover:border-[#1b3d2f] shadow-sm",
+    card: "bg-[#0a1712]/90 border border-emerald-950/80 text-zinc-400 opacity-90 hover:opacity-100 hover:border-[#1b3d2f] shadow-md shadow-black/30",
     dot: "bg-zinc-600",
     label: "text-zinc-400",
   },
@@ -130,7 +130,7 @@ function RollcallCardComponent({
       role="article"
       tabIndex={0}
       style={{ contentVisibility: "auto", containIntrinsicSize: "0 64px" }}
-      className={`group flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(0,0,0,0.2)] focus:outline-none focus:ring-2 focus:ring-emerald-500/40 ${
+      className={`group flex cursor-pointer items-center justify-between gap-3 rounded-2xl p-3.5 border transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(0,0,0,0.3)] focus:outline-none focus:ring-2 focus:ring-emerald-500/40 ${
         isPending
           ? isDefocused
             ? "border-[#1b3d2f] bg-[#0c1f17] shadow-sm"
@@ -174,7 +174,7 @@ function RollcallCardComponent({
                     e.preventDefault();
                     openInExternalBrowser(`https://www.trustpilot.com/search?query=${encodeURIComponent(casino.name)}`);
                   }}
-                  className="text-xs text-amber-400/90 hover:text-amber-300 tracking-tighter"
+                  className="inline-flex items-center flex-nowrap whitespace-nowrap gap-0.5 text-amber-400 text-xs tracking-tight"
                 >
                   <TrustpilotStars rating={rating ?? casino.trustpilotRating} />
                 </a>
@@ -299,7 +299,7 @@ function RollcallCardComponent({
               type="button"
               onClick={handleClaimClick}
               aria-label={`Claim ${casino.dailyBonus} for ${casino.name}`}
-              className="flex min-w-28 h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-bold text-xs px-4 py-2 shadow active:scale-[0.97] transition-all"
+              className="flex min-w-28 h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs px-4 py-2 shadow-md shadow-emerald-950/40 active:scale-[0.97] transition-all"
             >
               <CheckCircle2 size={14} strokeWidth={2.5} />
               <span>Claim {casino.dailyBonus}!</span>
@@ -314,12 +314,20 @@ function RollcallCardComponent({
               className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 font-mono text-xs font-semibold shadow-inner shrink-0 ${
                 currentStatus.isSnoozed
                   ? "border-amber-700/60 bg-amber-950/30 text-amber-300"
-                  : "border-emerald-900/60 bg-[#07130e] text-emerald-300"
+                  : currentStatus.remainingMs < 3600000
+                  ? "border-amber-700/60 bg-amber-950/60 text-amber-300"
+                  : "border-rose-800/60 bg-rose-950/60 text-rose-300"
               }`}
             >
               <span className="relative flex h-2 w-2 mr-1 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                {currentStatus.isSnoozed || currentStatus.remainingMs < 3600000 ? (
+                  <>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                  </>
+                ) : (
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500/80" />
+                )}
               </span>
               <span>
                 {currentStatus.isSnoozed

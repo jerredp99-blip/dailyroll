@@ -369,6 +369,13 @@ function PostCardComponent({
       )
   );
 
+  const worksCount = currentPost.reactions?.["👍"]?.length || 0;
+  const expiredCount = currentPost.reactions?.["👎"]?.length || 0;
+  const isReportedExpired = Boolean(
+    isBonusDrop &&
+      (expiredCount >= 3 || (expiredCount > 0 && expiredCount > worksCount && expiredCount >= 2))
+  );
+
   const displayContent = useMemo(() => {
     if (!currentPost.content) return "";
     if (!destinationUrl) return currentPost.content;
@@ -395,7 +402,9 @@ function PostCardComponent({
       style={{ contentVisibility: "auto", containIntrinsicSize: "0 120px" }}
       className={`rounded-xl transition-all duration-150 shadow-sm ${
         isBonusDrop
-          ? "border border-emerald-500/40 bg-gradient-to-br from-[#0c2419] to-[#081710] py-2.5 px-3"
+          ? `border border-emerald-500/40 bg-gradient-to-br from-[#0c2419] to-[#081710] py-2.5 px-3 ${
+              isReportedExpired ? "opacity-60 hover:opacity-100" : ""
+            }`
           : "border border-[#1b3d2f] bg-[#0c1f17] hover:border-emerald-500/50 shadow-md shadow-emerald-950/20 p-3.5 sm:p-4"
       } backdrop-blur ${
         destinationUrl ? "cursor-pointer hover:border-emerald-500/60" : ""
@@ -441,6 +450,11 @@ function PostCardComponent({
               {isBonusDrop && (
                 <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5">
                   🎁 BONUS DROP
+                </span>
+              )}
+              {isReportedExpired && (
+                <span className="inline-flex items-center gap-1 rounded bg-rose-950/80 text-rose-300 border border-rose-700/60 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 shadow-sm">
+                  Reported Expired
                 </span>
               )}
             </div>
@@ -890,23 +904,41 @@ function PostCardComponent({
         } flex items-center justify-between border-t border-zinc-800/80 gap-2 text-xs`}
       >
         {isBonusDrop ? (
-          /* Bonus Drop Social Footer: Single "Works 👍 [count]" confirmation counter and comment count icon */
+          /* Bonus Drop Social Footer: "Works 👍" and "Expired 👎" confirmation counters and comment count icon */
           <div className="flex items-center justify-between w-full">
-            <button
-              type="button"
-              onClick={() => handleAddReaction("👍")}
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition active:scale-95 cursor-pointer ${
-                currentUserEmail && currentPost.reactions?.["👍"]?.includes(currentUserEmail.toLowerCase())
-                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold shadow-sm"
-                  : "border border-zinc-800 bg-zinc-900/80 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 hover:bg-zinc-800/60"
-              }`}
-              title="Confirm this bonus drop works"
-            >
-              <span>Works 👍</span>
-              <span className="font-semibold text-[11px] sm:text-xs">
-                {currentPost.reactions?.["👍"]?.length || 0}
-              </span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleAddReaction("👍")}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition active:scale-95 cursor-pointer ${
+                  currentUserEmail && currentPost.reactions?.["👍"]?.includes(currentUserEmail.toLowerCase())
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold shadow-sm"
+                    : "border border-zinc-800 bg-zinc-900/80 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 hover:bg-zinc-800/60"
+                }`}
+                title="Confirm this bonus drop works"
+              >
+                <span>Works 👍</span>
+                <span className="font-semibold text-[11px] sm:text-xs">
+                  {worksCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleAddReaction("👎")}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition active:scale-95 cursor-pointer ${
+                  currentUserEmail && currentPost.reactions?.["👎"]?.includes(currentUserEmail.toLowerCase())
+                    ? "bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold shadow-sm"
+                    : "border border-zinc-800 bg-zinc-900/80 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 hover:bg-zinc-800/60"
+                }`}
+                title="Report this bonus drop as expired or not working"
+              >
+                <span>Expired 👎</span>
+                <span className="font-semibold text-[11px] sm:text-xs">
+                  {expiredCount}
+                </span>
+              </button>
+            </div>
 
             {/* Comment count icon */}
             <button

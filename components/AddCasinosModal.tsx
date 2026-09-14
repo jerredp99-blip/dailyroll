@@ -32,6 +32,28 @@ export function AddCasinosModal({
 }: AddCasinosModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState<"available" | "added" | "all">("available");
+  const [confirmingCasino, setConfirmingCasino] = useState<string | null>(null);
+  const [visitedAffiliates, setVisitedAffiliates] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = localStorage.getItem("dailyroll_affiliate_visited");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const markAffiliateVisited = (name: string) => {
+    const key = name.trim().toLowerCase();
+    setVisitedAffiliates((prev) => {
+      if (prev.includes(key)) return prev;
+      const next = [...prev, key];
+      try {
+        localStorage.setItem("dailyroll_affiliate_visited", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // Compile full directory of names
   const allNames = useMemo(() => {
@@ -195,6 +217,37 @@ export function AddCasinosModal({
                 userCasino?.trustpilotRating ??
                 seed?.trustpilotRating;
 
+              const affiliateUrl =
+                directoryData?.affiliateUrls?.[casinoName] ||
+                userCasino?.affiliateUrl;
+
+              const isAffiliateVisited = visitedAffiliates.includes(casinoName.trim().toLowerCase());
+              const hasUnvisitedAffiliate = Boolean(affiliateUrl && !isAffiliateVisited);
+              const isConfirming = confirmingCasino === casinoName;
+
+              const handleAddClick = () => {
+                if (hasUnvisitedAffiliate && affiliateUrl && !isConfirming) {
+                  openInExternalBrowser(affiliateUrl);
+                  markAffiliateVisited(casinoName);
+                  setConfirmingCasino(casinoName);
+                  return;
+                }
+                setConfirmingCasino(null);
+                onAddCasino(casinoName);
+              };
+
+              const handleClaimClick = () => {
+                if (hasUnvisitedAffiliate && affiliateUrl && !isConfirming) {
+                  openInExternalBrowser(affiliateUrl);
+                  markAffiliateVisited(casinoName);
+                  setConfirmingCasino(casinoName);
+                  return;
+                }
+                setConfirmingCasino(null);
+                onAddCasino(casinoName);
+                openInExternalBrowser(siteUrl);
+              };
+
               return (
                 <article
                   key={casinoName}
@@ -265,20 +318,30 @@ export function AddCasinosModal({
                         {/* Secondary: + Add to Rollcall */}
                         <button
                           type="button"
-                          onClick={() => onAddCasino(casinoName)}
-                          className="flex items-center gap-1 rounded-lg border border-[#395341] bg-[#14241b] px-2.5 py-1.5 text-xs font-bold text-[#b5d6b3] hover:border-emerald-500 hover:text-white transition active:scale-95 cursor-pointer"
+                          onClick={handleAddClick}
+                          className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold transition active:scale-95 cursor-pointer ${
+                            isConfirming
+                              ? "bg-emerald-500 text-zinc-950 hover:bg-emerald-400 shadow-md shadow-emerald-950/40 animate-pulse"
+                              : hasUnvisitedAffiliate
+                              ? "border border-emerald-500/60 bg-[#14281c] text-emerald-300 hover:border-emerald-400 hover:text-white"
+                              : "border border-[#395341] bg-[#14241b] text-[#b5d6b3] hover:border-emerald-500 hover:text-white"
+                          }`}
+                          title={
+                            isConfirming
+                              ? `Confirm adding ${casinoName} to Rollcall`
+                              : hasUnvisitedAffiliate
+                              ? `Open referral link and add ${casinoName}`
+                              : `Add ${casinoName}`
+                          }
                         >
                           <Plus size={13} />
-                          <span>Add</span>
+                          <span>{isConfirming ? "Confirm & Add" : "Add"}</span>
                         </button>
 
                         {/* Primary: Claim [Daily Bonus]! Initialized to ready */}
                         <button
                           type="button"
-                          onClick={() => {
-                            onAddCasino(casinoName);
-                            openInExternalBrowser(siteUrl);
-                          }}
+                          onClick={handleClaimClick}
                           className="flex items-center gap-1.5 rounded-lg bg-[#39ff6a] px-3 py-1.5 text-xs font-extrabold text-[#0d1712] shadow-[0_4px_12px_rgba(57,255,106,0.3)] hover:bg-[#5aff84] transition active:scale-95 cursor-pointer"
                         >
                           <CheckCircle2 size={13} strokeWidth={2.5} />

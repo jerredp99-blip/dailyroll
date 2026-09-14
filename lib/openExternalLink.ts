@@ -8,16 +8,12 @@
  */
 
 export function isAndroid(): boolean {
-  if (typeof window === "undefined" || typeof navigator === "undefined") {
-    return false;
-  }
-  return /android/i.test(navigator.userAgent || navigator.vendor || "");
+  if (typeof navigator === "undefined") return false;
+  return /android/i.test(navigator.userAgent || "");
 }
 
 export function isAndroidStandalone(): boolean {
-  if (typeof window === "undefined" || typeof navigator === "undefined") {
-    return false;
-  }
+  if (typeof window === "undefined") return false;
   const isAndr = isAndroid();
   const isStandalone = Boolean(
     (window.matchMedia &&

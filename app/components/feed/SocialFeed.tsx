@@ -30,6 +30,8 @@ export function SocialFeed({
   casinos,
   onClaimCasino,
   compact = false,
+  initialType = "all",
+  onClose,
 }: {
   currentUserEmail?: string;
   currentUserName?: string;
@@ -38,11 +40,19 @@ export function SocialFeed({
   casinos?: Casino[];
   onClaimCasino?: (casino: Casino) => void;
   compact?: boolean;
+  initialType?: PostType | "all";
+  onClose?: () => void;
 }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentType, setCurrentType] = useState<PostType | "all">("all");
+  const [currentType, setCurrentType] = useState<PostType | "all">(initialType);
   const [selectedTag, setSelectedTag] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (initialType) {
+      setCurrentType(initialType);
+    }
+  }, [initialType]);
   const [sortBy, setSortBy] = useState<"newest" | "likes" | "comments">("newest");
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
