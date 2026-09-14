@@ -13,6 +13,7 @@ import {
   apiUpdateAdminCasino,
 } from "@/lib/api-client";
 import { casinoDirectory, casinoDirectoryUrls } from "@/lib/casino-directory";
+import { ExpandableSearch } from "@/app/components/ExpandableSearch";
 
 import type { Casino } from "@/types/casino";
 
@@ -63,6 +64,7 @@ export default function AdminCasinosPage() {
   const [directoryBonusUrl, setDirectoryBonusUrl] = useState("");
   const [directoryRating, setDirectoryRating] = useState("");
   const [directoryError, setDirectoryError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -252,6 +254,17 @@ export default function AdminCasinosPage() {
     }
   }
 
+  const filteredDirectoryList = directoryList.filter((name) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.trim().toLowerCase();
+    const nameMatch = name.toLowerCase().includes(q);
+    const provider = directoryProviders[name] || "";
+    const providerMatch = provider.toLowerCase().includes(q);
+    const url = directoryUrls[name] || "";
+    const urlMatch = url.toLowerCase().includes(q);
+    return nameMatch || providerMatch || urlMatch;
+  });
+
   if (!loaded) {
     return <main className="grid min-h-screen place-items-center bg-[#101815] text-[#9bcf9c]">Loading casino workspace...</main>;
   }
@@ -271,10 +284,18 @@ export default function AdminCasinosPage() {
               <h2 className="text-lg font-semibold text-[#e5eee3]">Master casino list</h2>
               <p className="mt-1 text-sm text-[#93a495]">The full directory of casinos available to every user. Edit a casino&apos;s URL, rating, or provider group here to update it everywhere at once.</p>
             </div>
-            <button type="button" onClick={openNewDirectoryEntry} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[#79b77f] px-3 py-2 text-xs font-semibold text-[#122519] hover:bg-[#91c991]"><Plus size={14} /> Add casino</button>
+            <div className="flex items-center gap-2">
+              <ExpandableSearch
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search master list..."
+                expandedWidth="w-48 sm:w-64"
+              />
+              <button type="button" onClick={openNewDirectoryEntry} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[#79b77f] px-3 py-2 text-xs font-semibold text-[#122519] hover:bg-[#91c991]"><Plus size={14} /> Add casino</button>
+            </div>
           </div>
           <div className="mt-5 grid gap-3 lg:grid-cols-2">
-            {directoryList.map((name) => (
+            {filteredDirectoryList.map((name) => (
               <article key={name} className="flex items-center justify-between gap-4 rounded-xl border border-[#304638] bg-[#1f3027] p-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -294,7 +315,13 @@ export default function AdminCasinosPage() {
                 </div>
               </article>
             ))}
-            {directoryList.length === 0 && <p className="text-sm text-[#819487]">No casinos in the master list yet.</p>}
+            {filteredDirectoryList.length === 0 && (
+              <p className="col-span-full rounded-xl border border-dashed border-[#304638] p-6 text-center text-sm text-[#819487]">
+                {searchQuery.trim()
+                  ? `No casinos found matching "${searchQuery.trim()}".`
+                  : "No casinos in the master list yet."}
+              </p>
+            )}
           </div>
         </section>
         <div className="mt-8 space-y-5">

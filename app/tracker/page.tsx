@@ -28,6 +28,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
+import { ExpandableSearch } from "@/app/components/ExpandableSearch";
 import { calculateCasinoStatus, resetCasinoTimers, useCurrentTime, SNOOZE_PRESETS, type CasinoStatus } from "@/lib/timerUtils";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
@@ -341,6 +342,7 @@ export default function TrackerPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [casinoFilter, setCasinoFilter] = useState<"all" | "ready" | "claimed">("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [casinoSort, setCasinoSort] = useState<
     "status" | "next-available" | "provider" | "f2p" | "trustpilot" | "name-asc" | "name-desc"
   >(() => {
@@ -1402,6 +1404,14 @@ export default function TrackerPage() {
         if (currentList && !currentList.casinoIds.includes(casino.id)) return false;
       }
 
+      // Search filter matching casino.name or casino.provider (case-insensitive)
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        const nameMatch = casino.name.toLowerCase().includes(q);
+        const providerMatch = Boolean(casino.provider && casino.provider.toLowerCase().includes(q));
+        if (!nameMatch && !providerMatch) return false;
+      }
+
       return true;
     })
     .sort((firstCasino, secondCasino) => {
@@ -1971,8 +1981,8 @@ export default function TrackerPage() {
           <div className="mx-auto max-w-4xl space-y-3 px-1 sm:px-2 pb-24">
             {/* Controls Card: Lists, Filter & Sort Toolbar + Action Buttons */}
             <div className="w-full bg-zinc-900/90 border border-zinc-800/80 rounded-2xl p-2 sm:p-2.5 backdrop-blur-md shadow-sm space-y-2">
-              {/* Single Horizontal Row for Dropdowns */}
-              <div className="grid grid-cols-3 gap-1.5 sm:gap-2 w-full items-center">
+              {/* Single Horizontal Row for Dropdowns & Expandable Search */}
+              <div className="flex items-center gap-1.5 sm:gap-2 w-full">
                 {/* Dropdown 1: Lists */}
                 <select
                   value={activeListId}
@@ -1985,7 +1995,7 @@ export default function TrackerPage() {
                     }
                   }}
                   aria-label="Select casino list"
-                  className="h-8 w-full bg-zinc-950/80 border border-zinc-800 text-[11px] font-medium text-zinc-200 rounded-xl px-2 py-0 focus:outline-none focus:border-emerald-500 truncate cursor-pointer"
+                  className="h-8 flex-1 min-w-0 bg-zinc-950/80 border border-zinc-800 text-[11px] font-medium text-zinc-200 rounded-xl px-2 py-0 focus:outline-none focus:border-emerald-500 truncate cursor-pointer"
                 >
                   {customLists.map((list) => {
                     const count =
@@ -2014,7 +2024,7 @@ export default function TrackerPage() {
                   value={casinoFilter}
                   onChange={(event) => setCasinoFilter(event.target.value as typeof casinoFilter)}
                   aria-label="Filter casinos"
-                  className="h-8 w-full bg-zinc-950/80 border border-zinc-800 text-[11px] font-medium text-zinc-200 rounded-xl px-2 py-0 focus:outline-none focus:border-emerald-500 truncate cursor-pointer"
+                  className="h-8 flex-1 min-w-0 bg-zinc-950/80 border border-zinc-800 text-[11px] font-medium text-zinc-200 rounded-xl px-2 py-0 focus:outline-none focus:border-emerald-500 truncate cursor-pointer"
                 >
                   <option value="all" className="bg-zinc-900 text-zinc-200">Filter: All</option>
                   <option value="ready" className="bg-zinc-900 text-zinc-200">Ready</option>
@@ -2039,7 +2049,7 @@ export default function TrackerPage() {
                     } catch {}
                   }}
                   aria-label="Sort casinos"
-                  className="h-8 w-full bg-zinc-950/80 border border-zinc-800 text-[11px] font-medium text-zinc-200 rounded-xl px-2 py-0 focus:outline-none focus:border-emerald-500 truncate cursor-pointer"
+                  className="h-8 flex-1 min-w-0 bg-zinc-950/80 border border-zinc-800 text-[11px] font-medium text-zinc-200 rounded-xl px-2 py-0 focus:outline-none focus:border-emerald-500 truncate cursor-pointer"
                 >
                   <option value="next-available" className="bg-zinc-900 text-zinc-200">Next Avail</option>
                   <option value="provider" className="bg-zinc-900 text-zinc-200">Provider</option>
@@ -2048,6 +2058,14 @@ export default function TrackerPage() {
                   <option value="name-asc" className="bg-zinc-900 text-zinc-200">Name A-Z</option>
                   <option value="name-desc" className="bg-zinc-900 text-zinc-200">Name Z-A</option>
                 </select>
+
+                {/* Collapsible Search Trigger / Inline Input */}
+                <ExpandableSearch
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search casinos..."
+                  expandedWidth="w-36 sm:w-60"
+                />
               </div>
 
               {/* Auxiliary Controls: Active List Management & Hidden List Indicator */}
@@ -2181,11 +2199,22 @@ export default function TrackerPage() {
               {sortedCasinos.length === 0 && (
                 <div className="rounded-2xl border border-dashed border-emerald-900/60 bg-[#0c1f17]/40 p-8 text-center text-xs text-[#718275] space-y-3">
                   <p>
-                    {activeListId === "hidden"
+                    {searchQuery.trim()
+                      ? `No casinos found matching "${searchQuery.trim()}".`
+                      : activeListId === "hidden"
                       ? "No hidden casinos found."
                       : "No casinos found matching the current filter."}
                   </p>
-                  {activeListId !== "all" && activeListId !== "hidden" && (
+                  {searchQuery.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 font-medium text-zinc-300 hover:text-white transition cursor-pointer"
+                    >
+                      Clear search
+                    </button>
+                  )}
+                  {activeListId !== "all" && activeListId !== "hidden" && !searchQuery.trim() && (
                     <button
                       type="button"
                       onClick={() => setIsManageListModalOpen(true)}
