@@ -1963,94 +1963,63 @@ export default function TrackerPage() {
           </div>
         ) : (
           <div className="mx-auto max-w-4xl space-y-3 px-1 sm:px-2 pb-24">
-            {/* Custom Lists Tab Strip */}
-            <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-none">
-              <div className="flex items-center gap-1.5 min-w-0">
-                {customLists.map((list) => {
-                  const isActive = list.id === activeListId;
-                  const count =
-                    list.id === "all"
-                      ? casinos.filter((c) => !c.hidden).length
-                      : list.casinoIds.filter((id) => casinos.some((c) => c.id === id && !c.hidden)).length;
+            {/* Controls Card: Lists, Filter & Sort Dropdowns */}
+            <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-3 sm:p-3.5 text-xs text-zinc-400 shadow-sm backdrop-blur-sm space-y-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 w-full items-center">
+                {/* Group 1: Lists Dropdown */}
+                <div className="flex items-center w-full min-w-0">
+                  <span className="text-xs font-semibold text-zinc-400 mr-2 shrink-0">List:</span>
+                  <select
+                    value={activeListId}
+                    onChange={(event) => {
+                      const val = event.target.value;
+                      if (val === "__create_new__") {
+                        setIsNewListModalOpen(true);
+                      } else if (val) {
+                        handleSelectActiveList(val);
+                      }
+                    }}
+                    aria-label="Select casino list"
+                    className="h-9 w-full rounded-xl bg-zinc-950/80 border border-zinc-800 text-zinc-200 text-xs px-3 focus:border-emerald-500 focus:outline-none transition-colors cursor-pointer"
+                  >
+                    {customLists.map((list) => {
+                      const count =
+                        list.id === "all"
+                          ? casinos.filter((c) => !c.hidden).length
+                          : list.casinoIds.filter((id) => casinos.some((c) => c.id === id && !c.hidden)).length;
+                      return (
+                        <option key={list.id} value={list.id} className="bg-zinc-900 text-zinc-200">
+                          {list.name} ({count})
+                        </option>
+                      );
+                    })}
+                    <option disabled value="" className="bg-zinc-900 text-zinc-600">
+                      ──────────
+                    </option>
+                    <option value="__create_new__" className="bg-zinc-900 text-emerald-400 font-semibold">
+                      + Create New List...
+                    </option>
+                  </select>
+                </div>
 
-                  return (
-                    <div key={list.id} className="relative flex items-center group shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleSelectActiveList(list.id)}
-                        className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition active:scale-95 cursor-pointer ${
-                          isActive
-                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-sm"
-                            : "border border-zinc-800/80 bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
-                        }`}
-                      >
-                        <span>{list.name}</span>
-                        <span
-                          className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
-                            isActive ? "bg-emerald-500/30 text-emerald-200 font-bold" : "bg-zinc-800 text-zinc-400"
-                          }`}
-                        >
-                          {count}
-                        </span>
-                      </button>
-
-                      {/* If custom list and active, show inline edit / manage trigger */}
-                      {list.id !== "all" && isActive && (
-                        <div className="ml-1 flex items-center gap-0.5">
-                          <button
-                            type="button"
-                            onClick={() => setIsManageListModalOpen(true)}
-                            title={`Manage casinos in ${list.name}`}
-                            className="grid h-6 w-6 place-items-center rounded border border-emerald-500/40 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/50 transition cursor-pointer"
-                          >
-                            <Settings size={11} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteList(list.id)}
-                            title={`Delete ${list.name}`}
-                            className="grid h-6 w-6 place-items-center rounded border border-rose-900/40 bg-rose-950/40 text-rose-300 hover:bg-rose-900/50 transition cursor-pointer"
-                          >
-                            <Trash2 size={11} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {/* "+ New List" button */}
-                <button
-                  type="button"
-                  onClick={() => setIsNewListModalOpen(true)}
-                  title="Create new custom list"
-                  className="flex items-center gap-1 rounded-lg border border-dashed border-zinc-700/80 bg-zinc-900/40 px-2.5 py-1.5 text-xs font-semibold text-zinc-400 hover:text-emerald-300 hover:border-emerald-500/50 transition shrink-0 cursor-pointer"
-                >
-                  <Plus size={13} className="text-emerald-400" />
-                  <span>New List</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Filter & Sort Controls */}
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-3.5 py-2 text-xs text-zinc-400 shadow-sm backdrop-blur-sm">
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-medium text-zinc-500">Filter:</span>
+                {/* Group 2: Filter Dropdown */}
+                <div className="flex items-center w-full min-w-0">
+                  <span className="text-xs font-semibold text-zinc-400 mr-2 shrink-0">Filter:</span>
                   <select
                     value={casinoFilter}
                     onChange={(event) => setCasinoFilter(event.target.value as typeof casinoFilter)}
                     aria-label="Filter casinos"
-                    className="h-8 rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 text-xs text-zinc-200 outline-none focus:border-zinc-700 transition cursor-pointer"
+                    className="h-9 w-full rounded-xl bg-zinc-950/80 border border-zinc-800 text-zinc-200 text-xs px-3 focus:border-emerald-500 focus:outline-none transition-colors cursor-pointer"
                   >
-                    <option value="all">All casinos</option>
-                    <option value="ready">Ready to claim</option>
-                    <option value="claimed">Claimed</option>
+                    <option value="all" className="bg-zinc-900 text-zinc-200">All casinos</option>
+                    <option value="ready" className="bg-zinc-900 text-zinc-200">Ready to claim</option>
+                    <option value="claimed" className="bg-zinc-900 text-zinc-200">Claimed</option>
                   </select>
                 </div>
 
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-medium text-zinc-500">Sort:</span>
+                {/* Group 3: Sort Dropdown */}
+                <div className="flex items-center w-full min-w-0">
+                  <span className="text-xs font-semibold text-zinc-400 mr-2 shrink-0">Sort:</span>
                   <select
                     value={casinoSort}
                     onChange={(event) => {
@@ -2068,28 +2037,56 @@ export default function TrackerPage() {
                       } catch {}
                     }}
                     aria-label="Sort casinos"
-                    className="h-8 rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 text-xs text-zinc-200 outline-none focus:border-zinc-700 transition cursor-pointer"
+                    className="h-9 w-full rounded-xl bg-zinc-950/80 border border-zinc-800 text-zinc-200 text-xs px-3 focus:border-emerald-500 focus:outline-none transition-colors cursor-pointer"
                   >
-                    <option value="next-available">Next Available</option>
-                    <option value="provider">Provider</option>
-                    <option value="f2p">Best F2P</option>
-                    <option value="trustpilot">Trustpilot</option>
-                    <option value="name-asc">Name A-Z</option>
-                    <option value="name-desc">Name Z-A</option>
+                    <option value="next-available" className="bg-zinc-900 text-zinc-200">Next Available</option>
+                    <option value="provider" className="bg-zinc-900 text-zinc-200">Provider</option>
+                    <option value="f2p" className="bg-zinc-900 text-zinc-200">Best F2P</option>
+                    <option value="trustpilot" className="bg-zinc-900 text-zinc-200">Trustpilot</option>
+                    <option value="name-asc" className="bg-zinc-900 text-zinc-200">Name A-Z</option>
+                    <option value="name-desc" className="bg-zinc-900 text-zinc-200">Name Z-A</option>
                   </select>
                 </div>
               </div>
 
-              <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer select-none hover:text-zinc-200 transition">
-                <input
-                  type="checkbox"
-                  checked={showHidden}
-                  onChange={(event) => setShowHidden(event.target.checked)}
-                  aria-label="Show hidden casinos"
-                  className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-900 accent-emerald-500 cursor-pointer"
-                />
-                <span>Show hidden</span>
-              </label>
+              {/* Auxiliary Controls: Active List Management & Show Hidden */}
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-800/40">
+                {activeListId !== "all" ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-zinc-500">Custom list:</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsManageListModalOpen(true)}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 transition cursor-pointer"
+                    >
+                      <Settings size={12} />
+                      <span>Manage casinos</span>
+                    </button>
+                    <span className="text-zinc-700">•</span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteList(activeListId)}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-rose-400 hover:text-rose-300 transition cursor-pointer"
+                    >
+                      <Trash2 size={12} />
+                      <span>Delete list</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div />
+                )}
+
+                <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer select-none hover:text-zinc-200 transition shrink-0 ml-auto">
+                  <input
+                    type="checkbox"
+                    checked={showHidden}
+                    onChange={(event) => setShowHidden(event.target.checked)}
+                    aria-label="Show hidden casinos"
+                    className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-900 accent-emerald-500 cursor-pointer"
+                  />
+                  <span>Show hidden</span>
+                </label>
+              </div>
             </div>
 
             {/* Primary Action Buttons Row (Directly Beneath Filter & Sort Controls) */}
