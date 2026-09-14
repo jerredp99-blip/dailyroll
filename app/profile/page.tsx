@@ -95,8 +95,11 @@ export default function ProfilePage() {
           setNotifications(data.preferences.notifications);
           setAmoeEnabled(data.preferences.amoe);
           const savedOrder = data.preferences.sortOrder;
+          const isMigrated = typeof window !== "undefined" && window.localStorage.getItem("dailyroll_sort_migrated_v2");
           setSortOrder(
-            savedOrder === "trustpilot" || savedOrder === "f2p"
+            !isMigrated && savedOrder === "f2p"
+              ? "next-available"
+              : savedOrder === "trustpilot" || savedOrder === "f2p"
               ? savedOrder
               : "next-available",
           );
@@ -196,6 +199,7 @@ export default function ProfilePage() {
       } satisfies StoredPreferences),
     );
     window.localStorage.setItem("dailyroll_casino_sort", sortOrder);
+    window.localStorage.setItem("dailyroll_sort_migrated_v2", "true");
 
     try {
       await apiSaveProfile({

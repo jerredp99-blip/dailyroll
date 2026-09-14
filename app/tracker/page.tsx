@@ -347,7 +347,25 @@ export default function TrackerPage() {
   >(() => {
     if (typeof window === "undefined") return "next-available";
     try {
-      return (localStorage.getItem("dailyroll_casino_sort") as any) || "next-available";
+      const migrated = localStorage.getItem("dailyroll_sort_migrated_v2");
+      if (!migrated) {
+        localStorage.setItem("dailyroll_sort_migrated_v2", "true");
+        localStorage.setItem("dailyroll_casino_sort", "next-available");
+        try {
+          const stored = localStorage.getItem("dailyroll_profile_prefs");
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            parsed.sortOrder = "next-available";
+            localStorage.setItem("dailyroll_profile_prefs", JSON.stringify(parsed));
+          }
+        } catch {}
+        return "next-available";
+      }
+      const stored = localStorage.getItem("dailyroll_casino_sort");
+      if (!stored || stored === "status") {
+        return "next-available";
+      }
+      return stored as any;
     } catch {
       return "next-available";
     }
@@ -699,7 +717,12 @@ export default function TrackerPage() {
           const parsedPreferences = JSON.parse(storedPreferences) as {
             sortOrder?: typeof casinoSort;
           };
-          if (parsedPreferences.sortOrder && (parsedPreferences.sortOrder as string) !== "status") {
+          if (parsedPreferences.sortOrder === ("status" as any) || (!localStorage.getItem("dailyroll_sort_migrated_v2") && parsedPreferences.sortOrder === "f2p")) {
+            parsedPreferences.sortOrder = "next-available";
+            localStorage.setItem("dailyroll_profile_prefs", JSON.stringify(parsedPreferences));
+          }
+          const explicitSort = localStorage.getItem("dailyroll_casino_sort");
+          if (!explicitSort && parsedPreferences.sortOrder) {
             setCasinoSort(parsedPreferences.sortOrder);
           }
         } catch {
@@ -2119,6 +2142,13 @@ export default function TrackerPage() {
                       setCasinoSort(next);
                       try {
                         localStorage.setItem("dailyroll_casino_sort", next);
+                        localStorage.setItem("dailyroll_sort_migrated_v2", "true");
+                        const stored = localStorage.getItem("dailyroll_profile_prefs");
+                        if (stored) {
+                          const parsed = JSON.parse(stored);
+                          parsed.sortOrder = next;
+                          localStorage.setItem("dailyroll_profile_prefs", JSON.stringify(parsed));
+                        }
                       } catch {}
                     }}
                     aria-label="Sort casinos"
