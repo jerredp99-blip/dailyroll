@@ -324,7 +324,14 @@ export default function TrackerPage() {
   const [casinoFilter, setCasinoFilter] = useState<"all" | "ready" | "claimed">("all");
   const [casinoSort, setCasinoSort] = useState<
     "status" | "next-available" | "provider" | "f2p" | "trustpilot" | "name-asc" | "name-desc"
-  >("status");
+  >(() => {
+    if (typeof window === "undefined") return "next-available";
+    try {
+      return (localStorage.getItem("dailyroll_casino_sort") as any) || "next-available";
+    } catch {
+      return "next-available";
+    }
+  });
   const [customLists, setCustomLists] = useState<CustomCasinoList[]>(() => {
     if (typeof window === "undefined") return DEFAULT_CUSTOM_LISTS;
     try {
@@ -2068,12 +2075,18 @@ export default function TrackerPage() {
                   <span className="text-[11px] font-medium text-zinc-500">Sort:</span>
                   <select
                     value={casinoSort}
-                    onChange={(event) => setCasinoSort(event.target.value as typeof casinoSort)}
+                    onChange={(event) => {
+                      const next = event.target.value as typeof casinoSort;
+                      setCasinoSort(next);
+                      try {
+                        localStorage.setItem("dailyroll_casino_sort", next);
+                      } catch {}
+                    }}
                     aria-label="Sort casinos"
                     className="h-8 rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 text-xs text-zinc-200 outline-none focus:border-zinc-700 transition cursor-pointer"
                   >
-                    <option value="status">Status</option>
                     <option value="next-available">Next Available</option>
+                    <option value="status">Status</option>
                     <option value="provider">Provider</option>
                     <option value="f2p">Best F2P</option>
                     <option value="trustpilot">Trustpilot</option>
