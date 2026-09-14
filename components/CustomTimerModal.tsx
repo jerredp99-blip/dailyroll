@@ -122,7 +122,7 @@ export function CustomTimerModal({
         aria-labelledby="custom-timer-title"
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
-        className="w-full max-w-sm rounded-2xl border border-emerald-800/80 bg-[#0d1a13] p-5 shadow-[0_16px_40px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 duration-150"
+        className="w-full max-w-sm rounded-2xl border border-[#1b3d2f] bg-[#0c1f17] text-white p-5 shadow-[0_16px_40px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-3 border-b border-emerald-900/60 pb-3">

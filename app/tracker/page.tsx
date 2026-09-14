@@ -237,7 +237,7 @@ export default function TrackerPage() {
   const now = useCurrentTime();
   const [pendingClaims, setPendingClaims] = useState<Record<string, { expiresAt: number; isDefocused: boolean }>>({});
 
-  // Global Defocus Detection for 90-Second Pending Claims
+  // Global Defocus Detection for 90-Second Pending Claims (defocuses only when clicked away)
   useEffect(() => {
     const handleDefocusAll = () => {
       setPendingClaims((prev) => {
@@ -253,12 +253,6 @@ export default function TrackerPage() {
         }
         return changed ? next : prev;
       });
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        handleDefocusAll();
-      }
     };
 
     const handleDocumentMouseDown = (e: MouseEvent) => {
@@ -290,13 +284,9 @@ export default function TrackerPage() {
       handleDefocusAll();
     };
 
-    window.addEventListener("blur", handleDefocusAll);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
     document.addEventListener("mousedown", handleDocumentMouseDown);
 
     return () => {
-      window.removeEventListener("blur", handleDefocusAll);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
       document.removeEventListener("mousedown", handleDocumentMouseDown);
     };
   }, []);
@@ -1355,7 +1345,7 @@ export default function TrackerPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#101815] text-[#e6eee5]">
+    <main className="min-h-screen bg-[#070d0a] text-[#e6eee5]">
       {isSidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px] cursor-pointer transition-opacity"
@@ -1681,17 +1671,6 @@ export default function TrackerPage() {
                               </Link>
                             </div>
                             <div className="mt-1 flex flex-wrap items-center gap-2">
-                              {hasStreak && (
-                                <span className="inline-flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-950/40 px-2 py-0.5 text-[10px] font-bold text-orange-400">
-                                  <Flame size={10} className="fill-orange-400" />
-                                  Streak
-                                </span>
-                              )}
-                              {minRedemption && (
-                                <span className="rounded-full border border-[#38503f] bg-[#122218] px-2 py-0.5 text-[10px] font-medium text-[#86a88d]">
-                                  {minRedemption}
-                                </span>
-                              )}
                               <a
                                 href={`https://www.trustpilot.com/search?query=${encodeURIComponent(casinoName)}`}
                                 target="_blank"

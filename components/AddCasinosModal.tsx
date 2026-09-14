@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, X, Plus, Check, ExternalLink, CheckCircle2, Flame, ShieldAlert } from "lucide-react";
+import { Search, X, Plus, Check, ExternalLink, CheckCircle2, ShieldAlert } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { CasinoLogo } from "@/components/CasinoLogo";
 import { TrustpilotStars } from "@/components/TrustpilotStars";
@@ -190,16 +190,6 @@ export function AddCasinosModal({
                 seed?.dailyBonus ||
                 "Free daily";
 
-              const minRedemption =
-                directoryData?.minRedemption?.[casinoName] ||
-                seed?.minRedemption ||
-                (seed ? "$100 Min Cash" : undefined);
-
-              const hasStreak =
-                directoryData?.hasStreak?.[casinoName] ??
-                seed?.hasStreak ??
-                false;
-
               const rating =
                 directoryData?.ratings?.[casinoName] ??
                 userCasino?.trustpilotRating ??
@@ -226,25 +216,12 @@ export function AddCasinosModal({
                         </Link>
                       </div>
 
-                      {/* Badges: Streak, Min Redemption, Trustpilot */}
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5 sm:gap-2">
-                        {hasStreak && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-950/40 px-2 py-0.5 text-[10px] font-bold text-orange-400">
-                            <Flame size={10} className="fill-orange-400" />
-                            Streak
-                          </span>
-                        )}
-
-                        {minRedemption && (
-                          <span className="rounded-full border border-[#38503f] bg-[#122218] px-2 py-0.5 text-[10px] font-medium text-[#86a88d]">
-                            {minRedemption}
-                          </span>
-                        )}
-
-                        {rating !== undefined && rating !== null && (
+                      {/* Badges: Trustpilot */}
+                      {rating !== undefined && rating !== null && (
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5 sm:gap-2">
                           <TrustpilotStars rating={Number(rating)} />
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 

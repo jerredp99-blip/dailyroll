@@ -393,10 +393,12 @@ function PostCardComponent({
     <article
       onClick={handleArticleClick}
       style={{ contentVisibility: "auto", containIntrinsicSize: "0 120px" }}
-      className={`rounded-xl border border-zinc-800/70 bg-zinc-900/70 hover:border-zinc-700/80 transition-all duration-150 shadow-sm ${
-        isBonusDrop ? "py-2.5 px-3" : "p-3.5 sm:p-4"
+      className={`rounded-xl transition-all duration-150 shadow-sm ${
+        isBonusDrop
+          ? "border border-emerald-500/40 bg-gradient-to-br from-[#0c2419] to-[#081710] py-2.5 px-3"
+          : "border border-[#1b3d2f] bg-[#0c1f17] hover:border-emerald-500/50 shadow-md shadow-emerald-950/20 p-3.5 sm:p-4"
       } backdrop-blur ${
-        destinationUrl ? "cursor-pointer hover:bg-zinc-900/90" : ""
+        destinationUrl ? "cursor-pointer hover:border-emerald-500/60" : ""
       }`}
     >
       {/* Header: Author + Timestamp + Menu Button */}
