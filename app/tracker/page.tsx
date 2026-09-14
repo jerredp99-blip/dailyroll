@@ -306,7 +306,6 @@ export default function TrackerPage() {
   const [resetTime, setResetTime] = useState("00:00");
   const [isAddCasinosPage, setIsAddCasinosPage] = useState(false);
   const [showAlreadyAdded, setShowAlreadyAdded] = useState(false);
-  const [showHidden, setShowHidden] = useState(false);
   const [directoryFilter, setDirectoryFilter] = useState<"available" | "added" | "all">("available");
   const [directorySort, setDirectorySort] = useState<"name-asc" | "name-desc" | "f2p" | "trustpilot">("name-asc");
   const [isAdmin, setIsAdmin] = useState(false);
@@ -432,7 +431,7 @@ export default function TrackerPage() {
   };
 
   const handleDeleteList = (id: string) => {
-    if (id === "all") return;
+    if (id === "all" || id === "hidden") return;
     if (!window.confirm("Are you sure you want to delete this list?")) return;
     const updated = customLists.filter((l) => l.id !== id);
     saveCustomLists(updated);
@@ -442,7 +441,7 @@ export default function TrackerPage() {
   };
 
   const handleToggleCasinoInActiveList = (casinoId: string) => {
-    if (activeListId === "all") return;
+    if (activeListId === "all" || activeListId === "hidden") return;
     const updated = customLists.map((list) => {
       if (list.id !== activeListId) return list;
       const exists = list.casinoIds.includes(casinoId);
@@ -1387,16 +1386,20 @@ export default function TrackerPage() {
 
   const sortedCasinos = casinos
     .filter((casino) => {
-      if (!showHidden && casino.hidden) return false;
+      if (activeListId === "hidden") {
+        if (!casino.hidden) return false;
+      } else {
+        if (casino.hidden) return false;
+      }
       const isPending = Boolean(pendingClaims[casino.id]);
       const isReady = statusFor(casino).ready;
       if (casinoFilter === "ready") return isReady || isPending;
       if (casinoFilter === "claimed") return !isReady && !isPending;
 
       // Custom list filter
-      const currentList = customLists.find((l) => l.id === activeListId) || customLists[0];
-      if (currentList && currentList.id !== "all") {
-        if (!currentList.casinoIds.includes(casino.id)) return false;
+      if (activeListId !== "all" && activeListId !== "hidden") {
+        const currentList = customLists.find((l) => l.id === activeListId);
+        if (currentList && !currentList.casinoIds.includes(casino.id)) return false;
       }
 
       return true;
@@ -1519,6 +1522,9 @@ export default function TrackerPage() {
   // User's active Rollcall casinos (filtered strictly by non-hidden and active custom list)
   const activeCustomList = customLists.find((l) => l.id === activeListId) || customLists[0];
   const userRollcallCasinos = casinos.filter((c) => {
+    if (activeListId === "hidden") {
+      return Boolean(c.hidden);
+    }
     if (c.hidden) return false;
     if (activeCustomList && activeCustomList.id !== "all") {
       return activeCustomList.casinoIds.includes(c.id);
@@ -1993,6 +1999,9 @@ export default function TrackerPage() {
                         </option>
                       );
                     })}
+                    <option value="hidden" className="bg-zinc-900 text-zinc-400">
+                      Hidden Casinos ({casinos.filter((c) => Boolean(c.hidden)).length})
+                    </option>
                     <option disabled value="" className="bg-zinc-900 text-zinc-600">
                       ──────────
                     </option>
@@ -2049,44 +2058,41 @@ export default function TrackerPage() {
                 </div>
               </div>
 
-              {/* Auxiliary Controls: Active List Management & Show Hidden */}
-              <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-800/40">
-                {activeListId !== "all" ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-zinc-500">Custom list:</span>
-                    <button
-                      type="button"
-                      onClick={() => setIsManageListModalOpen(true)}
-                      className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 transition cursor-pointer"
-                    >
-                      <Settings size={12} />
-                      <span>Manage casinos</span>
-                    </button>
-                    <span className="text-zinc-700">•</span>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteList(activeListId)}
-                      className="inline-flex items-center gap-1 text-[11px] font-medium text-rose-400 hover:text-rose-300 transition cursor-pointer"
-                    >
-                      <Trash2 size={12} />
-                      <span>Delete list</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div />
-                )}
-
-                <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer select-none hover:text-zinc-200 transition shrink-0 ml-auto">
-                  <input
-                    type="checkbox"
-                    checked={showHidden}
-                    onChange={(event) => setShowHidden(event.target.checked)}
-                    aria-label="Show hidden casinos"
-                    className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-900 accent-emerald-500 cursor-pointer"
-                  />
-                  <span>Show hidden</span>
-                </label>
-              </div>
+              {/* Auxiliary Controls: Active List Management & Hidden List Indicator */}
+              {activeListId !== "all" && (
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-800/40">
+                  {activeListId === "hidden" ? (
+                    <div className="flex items-center gap-1.5 text-[11px] text-zinc-400">
+                      <EyeOff size={12} className="text-zinc-500 shrink-0" />
+                      <span className="font-medium text-zinc-300">
+                        Viewing Hidden Casinos ({casinos.filter((c) => Boolean(c.hidden)).length})
+                      </span>
+                      <span className="hidden sm:inline text-zinc-600">• Use card menu (•••) to unhide</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-zinc-500">Custom list:</span>
+                      <button
+                        type="button"
+                        onClick={() => setIsManageListModalOpen(true)}
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 transition cursor-pointer"
+                      >
+                        <Settings size={12} />
+                        <span>Manage casinos</span>
+                      </button>
+                      <span className="text-zinc-700">•</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteList(activeListId)}
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-rose-400 hover:text-rose-300 transition cursor-pointer"
+                      >
+                        <Trash2 size={12} />
+                        <span>Delete list</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Primary Action Buttons Row (Directly Beneath Filter & Sort Controls) */}
@@ -2182,8 +2188,12 @@ export default function TrackerPage() {
               ))}
               {sortedCasinos.length === 0 && (
                 <div className="rounded-2xl border border-dashed border-emerald-900/60 bg-[#0c1f17]/40 p-8 text-center text-xs text-[#718275] space-y-3">
-                  <p>No casinos found matching the current filter.</p>
-                  {activeListId !== "all" && (
+                  <p>
+                    {activeListId === "hidden"
+                      ? "No hidden casinos found."
+                      : "No casinos found matching the current filter."}
+                  </p>
+                  {activeListId !== "all" && activeListId !== "hidden" && (
                     <button
                       type="button"
                       onClick={() => setIsManageListModalOpen(true)}
