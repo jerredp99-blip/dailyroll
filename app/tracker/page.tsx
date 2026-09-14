@@ -1723,33 +1723,6 @@ export default function TrackerPage() {
           </header>
         )}
 
-        {/* Sub-Navigation Pills in Regular Document Flow (Hidden on mobile) */}
-        {!isAddCasinosPage && (
-          <div className="mb-3 max-w-4xl mx-auto hidden md:flex">
-            <div className="flex rounded-xl bg-zinc-900/90 p-1 border border-zinc-800">
-              <button
-                type="button"
-                onClick={() => setActiveDrawer("feed")}
-                className="flex-1 flex items-center justify-center gap-2 rounded-lg py-1.5 text-xs font-semibold text-zinc-400 hover:text-white transition cursor-pointer"
-              >
-                <MessageSquare size={14} />
-                <span>Feed</span>
-              </button>
-              <div
-                className="flex-1 flex items-center justify-center gap-2 rounded-lg py-1.5 text-xs font-bold bg-zinc-800 text-white shadow-sm ring-1 ring-zinc-700 select-none"
-              >
-                <LayoutDashboard size={14} className="text-emerald-400" />
-                <span>Rollcall</span>
-                {readyCount > 0 && (
-                  <span className="rounded-full bg-emerald-500 px-1.5 py-0.2 text-[10px] font-bold text-zinc-950">
-                    {readyCount}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         {isAddCasinosPage ? (
           <div className="mx-auto max-w-4xl">
             <section className="mt-4">
