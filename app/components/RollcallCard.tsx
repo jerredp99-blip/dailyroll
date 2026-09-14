@@ -368,29 +368,21 @@ export function RollcallCard({
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#294631] text-sm font-bold text-[#9bcf9c]">
           {renderLogo ? renderLogo() : casino.name.slice(0, 2).toUpperCase()}
         </div>
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="font-semibold text-[#e5eee3]">{casino.name}</h2>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+            <h2 className="font-semibold text-[#e5eee3] text-sm sm:text-base leading-tight truncate">{casino.name}</h2>
+            {casino.provider && (
+              <span className="rounded-full border border-[#38503f] bg-[#122218] px-2 py-0.5 text-[10px] sm:text-[11px] font-medium text-[#86a88d]">
+                {casino.provider}
+              </span>
+            )}
             {casino.hidden && (
-              <span className="rounded-full border border-[#4a5d51] bg-[#1f2218] px-2 py-0.5 text-xs text-[#a3b1a5]">
+              <span className="rounded-full border border-[#4a5d51] bg-[#1f2218] px-2 py-0.5 text-[10px] text-[#a3b1a5]">
                 Hidden
               </span>
             )}
             {renderTrustpilot && renderTrustpilot()}
           </div>
-          <p className="mt-1 flex items-center gap-2 text-xs">
-            <span
-              aria-hidden="true"
-              className={`h-2.5 w-2.5 shrink-0 rounded-full ${styles.dot}`}
-            />
-            <span className={`font-semibold ${styles.label}`}>
-              {status.ready
-                ? "Ready to claim"
-                : status.isSnoozed
-                  ? `Snoozed (${formatSnoozeRemaining(status.remainingMs)})`
-                  : `Available in ${status.shortLabel}`}
-            </span>
-          </p>
         </div>
       </div>
 
@@ -406,24 +398,27 @@ export function RollcallCard({
           <span>Claim {casino.dailyBonus}!</span>
         </button>
       ) : (
-        <div className="ml-auto relative flex items-center gap-1.5">
+        <div className="ml-auto relative flex items-center gap-1.5 shrink-0">
           <div
             aria-label={
               status.isSnoozed
-                ? `Snoozed (Resets in ${formatSnoozeRemaining(status.remainingMs)})`
+                ? `Snoozed · ${formattedCountdown}`
                 : `Resets in ${formattedCountdown}`
             }
-            className={`flex min-w-28 sm:min-w-32 items-center justify-center gap-1.5 rounded-lg border px-2.5 sm:px-3 py-1.5 sm:py-2 font-mono text-xs font-semibold shadow-inner ${
+            className={`flex items-center justify-center gap-1.5 rounded-lg border px-2.5 sm:px-3 py-1.5 sm:py-2 font-mono text-xs font-semibold shadow-inner ${
               status.isSnoozed
                 ? "border-amber-700/60 bg-[#1c1810] text-amber-300"
-                : "border-[#3a4c40] bg-[#111c16] text-[#f0a03c]"
+                : "border-[#3a4c40] bg-[#111c16] text-[#edf5ec]"
             }`}
           >
-            <Clock size={14} className={status.isSnoozed ? "text-amber-400" : "text-[#f0a03c]"} />
+            <span className="relative flex h-2 w-2 mr-1 sm:mr-1.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
             <span>
               {status.isSnoozed
-                ? `Snoozed (${formatSnoozeRemaining(status.remainingMs)})`
-                : formattedCountdown}
+                ? `Snoozed · ${formattedCountdown}`
+                : `Resets in ${formattedCountdown}`}
             </span>
           </div>
 
