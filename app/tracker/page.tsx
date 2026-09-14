@@ -323,15 +323,11 @@ export default function TrackerPage() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [casinoFilter, setCasinoFilter] = useState<"all" | "ready" | "claimed">("all");
   const [casinoSort, setCasinoSort] = useState<
-    "next-available" | "provider" | "f2p" | "trustpilot" | "name-asc" | "name-desc"
+    "status" | "next-available" | "provider" | "f2p" | "trustpilot" | "name-asc" | "name-desc"
   >(() => {
     if (typeof window === "undefined") return "next-available";
     try {
-      const stored = localStorage.getItem("dailyroll_casino_sort");
-      if (stored && stored !== "status") {
-        return stored as any;
-      }
-      return "next-available";
+      return (localStorage.getItem("dailyroll_casino_sort") as any) || "next-available";
     } catch {
       return "next-available";
     }
@@ -1629,7 +1625,7 @@ export default function TrackerPage() {
           <Menu size={18} />
         )}
       </button>
-      <div className="w-full px-2.5 pt-14 pb-4 sm:px-8 sm:py-6">
+      <div className="w-full px-2.5 pt-3 pb-24 sm:px-8 sm:py-6 sm:pb-28">
         {/* Header (only on Add Casinos sub-page) */}
         {isAddCasinosPage && (
           <header className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3 border-b border-[#263a2c] pb-3 mb-4 sm:mb-6">
@@ -1651,6 +1647,32 @@ export default function TrackerPage() {
           </header>
         )}
 
+        {/* Mobile Sub-Navigation Pills in Regular Document Flow */}
+        {!isAddCasinosPage && (
+          <div className="mb-3 max-w-4xl mx-auto md:hidden">
+            <div className="flex rounded-xl bg-zinc-900/90 p-1 border border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setActiveDrawer("feed")}
+                className="flex-1 flex items-center justify-center gap-2 rounded-lg py-1.5 text-xs font-semibold text-zinc-400 hover:text-white transition cursor-pointer"
+              >
+                <MessageSquare size={14} />
+                <span>Feed</span>
+              </button>
+              <div
+                className="flex-1 flex items-center justify-center gap-2 rounded-lg py-1.5 text-xs font-bold bg-zinc-800 text-white shadow-sm ring-1 ring-zinc-700 select-none"
+              >
+                <LayoutDashboard size={14} className="text-emerald-400" />
+                <span>Rollcall</span>
+                {readyCount > 0 && (
+                  <span className="rounded-full bg-emerald-500 px-1.5 py-0.2 text-[10px] font-bold text-zinc-950">
+                    {readyCount}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {isAddCasinosPage ? (
           <div className="mx-auto max-w-4xl">
@@ -1858,9 +1880,9 @@ export default function TrackerPage() {
             </section>
           </div>
         ) : (
-          <div className="mx-auto max-w-4xl space-y-3 px-1 sm:px-2">
+          <div className="mx-auto max-w-4xl space-y-3 px-1 sm:px-2 pb-24">
             {/* Tracker Counter Banner with Batch Claim */}
-            <div className="sticky top-14 md:top-4 z-20 bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-xl px-4 py-2 shadow-sm">
+            <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-xl px-4 py-2 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                 {/* Metric Balance Pill */}
                 <div className="flex items-center">
@@ -2076,7 +2098,7 @@ export default function TrackerPage() {
             </div>
 
             {/* Casinos List using RollcallCard */}
-            <div className="space-y-2.5">
+            <div className="space-y-2.5 pb-24">
               {sortedCasinos.map((casino) => (
                 <RollcallCard
                   key={casino.id}
@@ -2583,27 +2605,19 @@ export default function TrackerPage() {
         isAdmin={isAdmin}
       />
 
-      {/* Persistent Quick Access Feeds (Top-Left Ergonomic Thumb Zone) */}
-      <aside aria-label="Quick Access Feeds" className="fixed top-2.5 left-3.5 sm:left-6 z-40 flex items-center gap-2">
-        {/* Feed Button */}
-        <button
-          type="button"
-          onClick={() => setActiveDrawer((prev) => (prev === "feed" ? null : "feed"))}
-          aria-label="Open Community Feed"
-          className="group flex h-9 items-center gap-1.5 rounded-full border border-emerald-500/40 bg-[#0c1f17]/95 px-3 py-1.5 shadow-lg shadow-black/60 backdrop-blur-md text-xs font-bold text-zinc-200 hover:text-white hover:border-emerald-400 hover:bg-emerald-950/80 active:scale-95 transition-all cursor-pointer"
-        >
-          <MessageSquare size={14} className="text-emerald-400 group-hover:scale-110 transition-transform" />
-          <span>Feed</span>
-        </button>
-
+      {/* Floating Feed & Drops Bubbles (Anchored to Bottom-Right) */}
+      <aside
+        aria-label="Quick Access Feeds"
+        className="fixed bottom-6 right-4 z-40 flex flex-col items-end gap-2.5 sm:bottom-8 sm:right-6"
+      >
         {/* Bonus Drops Button with Dynamic Counter */}
         <button
           type="button"
           onClick={() => setActiveDrawer((prev) => (prev === "drops" ? null : "drops"))}
           aria-label="Open Bonus Drops"
-          className="group flex h-9 items-center gap-1.5 rounded-full border border-amber-500/40 bg-[#19150c]/95 px-3 py-1.5 shadow-lg shadow-black/60 backdrop-blur-md text-xs font-bold text-amber-200 hover:text-white hover:border-amber-400 hover:bg-amber-950/80 active:scale-95 transition-all cursor-pointer"
+          className="group flex h-10 items-center gap-2 rounded-full border border-amber-500/40 bg-[#19150c]/95 px-3.5 py-2 shadow-xl shadow-black/70 backdrop-blur-md text-xs font-bold text-amber-200 hover:text-white hover:border-amber-400 hover:bg-amber-950/90 active:scale-95 transition-all cursor-pointer shadow-[0_0_15px_rgba(245,158,11,0.2)]"
         >
-          <Gift size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
+          <Gift size={15} className="text-amber-400 group-hover:scale-110 transition-transform" />
           <span>Drops</span>
           {activeDropsCount > 0 && (
             <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-extrabold text-zinc-950 leading-none shadow-sm">
@@ -2611,11 +2625,22 @@ export default function TrackerPage() {
             </span>
           )}
         </button>
+
+        {/* Community Feed Button */}
+        <button
+          type="button"
+          onClick={() => setActiveDrawer((prev) => (prev === "feed" ? null : "feed"))}
+          aria-label="Open Community Feed"
+          className="group flex h-10 items-center gap-2 rounded-full border border-emerald-500/40 bg-[#0c1f17]/95 px-3.5 py-2 shadow-xl shadow-black/70 backdrop-blur-md text-xs font-bold text-zinc-200 hover:text-white hover:border-emerald-400 hover:bg-emerald-950/90 active:scale-95 transition-all cursor-pointer shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+        >
+          <MessageSquare size={15} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+          <span>Feed</span>
+        </button>
       </aside>
 
       {/* Slide-Over Drawer Overlay for Community Feed & Drops */}
       {activeDrawer && (
-        <div className="fixed inset-0 z-50 flex">
+        <div className="fixed inset-0 z-50 flex justify-end">
           {/* Backdrop Blur */}
           <div
             className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity cursor-pointer"
@@ -2624,7 +2649,7 @@ export default function TrackerPage() {
           />
 
           {/* Drawer Container */}
-          <div className="relative z-50 flex flex-col w-full sm:w-[500px] lg:w-[560px] h-full bg-[#0c1a13] border-r border-emerald-900/60 shadow-2xl animate-in slide-in-from-left duration-200 overflow-hidden">
+          <div className="relative z-50 flex flex-col w-full sm:w-[500px] lg:w-[560px] h-full bg-[#0c1a13] border-l border-emerald-900/60 shadow-2xl animate-in slide-in-from-right duration-200 overflow-hidden">
             {/* Drawer Header */}
             <div className="flex items-center justify-between border-b border-emerald-950/80 bg-[#0a150f] px-4 py-3 shrink-0">
               <div className="flex items-center gap-2">
