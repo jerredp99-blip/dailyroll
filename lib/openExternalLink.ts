@@ -42,12 +42,23 @@ export function isValidHttpUrl(stringUrl?: string | null): boolean {
   }
 }
 
+let lastOpenedUrl = "";
+let lastOpenedTime = 0;
+
 export function openInExternalBrowser(url: string): Window | null | void {
   if (!url || typeof window === "undefined") return;
 
   const trimmed = url.trim();
   if (!isValidHttpUrl(trimmed)) return;
   const targetUrl = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  const now = Date.now();
+  if (targetUrl === lastOpenedUrl && now - lastOpenedTime < 1500) {
+    // Prevent duplicate window/tab launches from rapid clicks or multi-trigger handlers
+    return;
+  }
+  lastOpenedUrl = targetUrl;
+  lastOpenedTime = now;
 
   // 1. Try standard window.open in a new browsing context
   try {

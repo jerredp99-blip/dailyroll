@@ -236,9 +236,22 @@ export default function TrackerPage() {
   }, [signedInUser]);
   const now = useCurrentTime();
   const [pendingClaims, setPendingClaims] = useState<Record<string, { expiresAt: number; isDefocused: boolean }>>({});
+  const claimingIdsRef = useRef<Record<string, number>>({});
 
   // Global Defocus Detection for 90-Second Pending Claims (defocuses only when clicked away)
   useEffect(() => {
+    let lastWindowFocusTime = Date.now();
+
+    const handleWindowFocus = () => {
+      lastWindowFocusTime = Date.now();
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        lastWindowFocusTime = Date.now();
+      }
+    };
+
     const handleDefocusAll = () => {
       setPendingClaims((prev) => {
         let changed = false;
@@ -256,6 +269,11 @@ export default function TrackerPage() {
     };
 
     const handleDocumentMouseDown = (e: MouseEvent) => {
+      // If user just switched back to this tab / window, do not defocus on that activation click!
+      if (Date.now() - lastWindowFocusTime < 1000) {
+        return;
+      }
+
       const target = e.target as HTMLElement | null;
       if (!target) return;
       const pendingCard = target.closest("[data-pending-card='true']");
@@ -284,9 +302,13 @@ export default function TrackerPage() {
       handleDefocusAll();
     };
 
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     document.addEventListener("mousedown", handleDocumentMouseDown);
 
     return () => {
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       document.removeEventListener("mousedown", handleDocumentMouseDown);
     };
   }, []);
@@ -718,6 +740,12 @@ export default function TrackerPage() {
   }, [now, pendingClaims, casinos, markClaimed]);
 
   const handleInitiateClaim = useCallback((casino: Casino) => {
+    const nowTime = Date.now();
+    if (nowTime - (claimingIdsRef.current[casino.id] || 0) < 2000) {
+      return;
+    }
+    claimingIdsRef.current[casino.id] = nowTime;
+
     const target = casino.claimUrl ?? siteUrlFor(casino);
     if (target) {
       openInExternalBrowser(target);

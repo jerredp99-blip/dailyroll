@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Link from "next/link";
 import { CheckCircle2, Clock, ExternalLink, MoreHorizontal } from "lucide-react";
 import type { Casino } from "@/types/casino";
@@ -97,10 +97,15 @@ function RollcallCardComponent({
   const isPending = Boolean(pendingInfo);
   const isDefocused = Boolean(pendingInfo?.isDefocused);
 
+  const lastClaimClickRef = useRef(0);
+
   // Triggered when user clicks "Claim [Reward]!"
   const handleClaimClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    const nowClick = Date.now();
+    if (nowClick - lastClaimClickRef.current < 2000) return;
+    lastClaimClickRef.current = nowClick;
     onClaim(casino);
   };
 
