@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Copy, Check } from "lucide-react";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
+import { notifyDropClaimed, getClaimedDropIds } from "@/lib/dropsStore";
 
 interface BonusDropBannerProps {
   postId?: string;
@@ -30,16 +31,8 @@ export function BonusDropBanner({
   useEffect(() => {
     if (!postId) return;
     const checkClaimed = () => {
-      try {
-        const stored = JSON.parse(localStorage.getItem("dailyroll_claimed_drops") || "[]");
-        if (Array.isArray(stored) && stored.includes(postId)) {
-          setIsClaimed(true);
-        } else {
-          setIsClaimed(false);
-        }
-      } catch {
-        // Ignore localStorage read errors
-      }
+      const stored = getClaimedDropIds();
+      setIsClaimed(stored.includes(postId));
     };
 
     checkClaimed();
@@ -62,18 +55,7 @@ export function BonusDropBanner({
   const markAsClaimed = () => {
     setIsClaimed(true);
     if (postId) {
-      try {
-        const stored = JSON.parse(localStorage.getItem("dailyroll_claimed_drops") || "[]");
-        const list = Array.isArray(stored) ? stored : [];
-        if (!list.includes(postId)) {
-          localStorage.setItem("dailyroll_claimed_drops", JSON.stringify([...list, postId]));
-        }
-      } catch {
-        // Ignore localStorage write errors
-      }
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("dailyroll_drop_claimed", { detail: { postId } }));
-      }
+      notifyDropClaimed(postId);
     }
     onClaimed?.();
   };

@@ -29,6 +29,7 @@ import { useRouter } from "next/navigation";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
 import { ExpandableSearch } from "@/app/components/ExpandableSearch";
+import { useActiveDropsCount, notifyDropsUpdated } from "@/lib/dropsStore";
 import { calculateCasinoStatus, resetCasinoTimers, useCurrentTime, SNOOZE_PRESETS, type CasinoStatus } from "@/lib/timerUtils";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
@@ -250,7 +251,7 @@ export default function TrackerPage() {
   }, [signedInUser]);
   const now = useCurrentTime();
   const [pendingClaims, setPendingClaims] = useState<Record<string, { expiresAt: number; isDefocused?: boolean }>>({});
-  const [activeDropsCount, setActiveDropsCount] = useState<number>(0);
+  const activeDropsCount = useActiveDropsCount();
   const [feedUnreadCount, setFeedUnreadCount] = useState<number>(0);
 
   // Poll / fetch active bonus drop count and feed unread count for dynamic navigation indicator
@@ -266,9 +267,8 @@ export default function TrackerPage() {
         if (dropsRes.ok) {
           const data = await dropsRes.json();
           const posts = Array.isArray(data) ? data : data.posts || [];
-          if (mounted) {
-            const active = posts.filter((p: any) => !p.expired && !p.isExpired);
-            setActiveDropsCount(active.length);
+          if (mounted && posts.length > 0) {
+            notifyDropsUpdated(posts);
           }
         }
 
@@ -2797,6 +2797,17 @@ export default function TrackerPage() {
                   >
                     <Gift size={13} />
                     <span>Drops</span>
+                    {activeDropsCount > 0 && (
+                      <span
+                        className={`ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                          activeDrawer === "drops"
+                            ? "bg-zinc-950 text-amber-400"
+                            : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                        }`}
+                      >
+                        {activeDropsCount}
+                      </span>
+                    )}
                   </button>
                 </div>
               </div>

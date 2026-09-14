@@ -23,6 +23,7 @@ import { CATEGORY_TAGS, CASINO_TAGS } from "@/lib/casino-tags";
 import type { Post, Comment } from "@/lib/store";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { BonusDropBanner } from "@/components/BonusDropBanner";
+import { notifyDropFeedback } from "@/lib/dropsStore";
 
 const EMOJI_OPTIONS = ["🔥", "🎰", "💎", "🚀"];
 
@@ -213,6 +214,9 @@ function PostCardComponent({
       if (data.success && data.post) {
         setCurrentPost(data.post);
         onPostUpdated?.(data.post);
+        if (isBonusDrop) {
+          notifyDropFeedback(data.post.id, emoji === "👎" ? "expired" : "worked");
+        }
       }
     } catch (err) {
       console.error("Failed to react to post", err);

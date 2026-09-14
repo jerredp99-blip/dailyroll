@@ -6,10 +6,10 @@ import { PostCard } from "@/app/components/feed/PostCard";
 import { PostComposer } from "@/app/components/feed/PostComposer";
 import { CompactTrackerSidebar } from "@/app/components/feed/CompactTrackerSidebar";
 import { FeedNavRail } from "@/app/components/feed/FeedNavRail";
-import { TagBadge } from "@/app/components/feed/TagBadge";
 import { Loader2, RefreshCw, X, Radio, Trophy, Gift, MessageSquare, ChevronDown, ExternalLink } from "lucide-react";
 import type { Post, PostType, Casino } from "@/lib/store";
 import { getActiveRollcallCasinoKeys, isDropInUserRollcall } from "@/lib/userCasinos";
+import { isBonusDrop, isBonusDropActive, notifyDropsUpdated, getUserReportedExpiredDropIds } from "@/lib/dropsStore";
 
 const DEFAULT_TAGS = [
   "BIG_WIN",
@@ -150,6 +150,10 @@ export function SocialFeed({
       if (data.success && Array.isArray(data.posts)) {
         setPosts(data.posts);
         setLastUpdated(new Date());
+        const drops = data.posts.filter(isBonusDrop);
+        if (drops.length > 0) {
+          notifyDropsUpdated(drops);
+        }
       }
     } catch (err: unknown) {
       // Ignore normal abort errors from cancelled requests
@@ -341,14 +345,15 @@ export function SocialFeed({
   }, [posts, isBonusDropPost, activeRollcallKeys]);
 
   const unclaimedDropsCount = useMemo(() => {
+    const reported = getUserReportedExpiredDropIds();
     return posts.filter((p) => {
-      if (!isBonusDropPost(p) || claimedDropIds.includes(p.id)) return false;
+      if (!isBonusDropActive(p, claimedDropIds, reported)) return false;
       if (!showAllCasinoDrops && activeRollcallKeys.size > 0) {
         return isDropInUserRollcall(p, activeRollcallKeys);
       }
       return true;
     }).length;
-  }, [posts, claimedDropIds, isBonusDropPost, showAllCasinoDrops, activeRollcallKeys]);
+  }, [posts, claimedDropIds, showAllCasinoDrops, activeRollcallKeys]);
 
   const sortedPosts = useMemo(() => {
     let list = [...posts];
