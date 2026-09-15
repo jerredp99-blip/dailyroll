@@ -167,7 +167,7 @@ export function PrizeWheelBadge({ showLabel = true }: { showLabel?: boolean }) {
   return (
     <span
       title="Lucky Wheel"
-      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/15 via-emerald-500/15 to-purple-500/15 border border-amber-400/40 text-amber-300 font-extrabold text-[10px] sm:text-[11px] leading-tight align-middle shrink-0 mx-0.5 shadow-sm hover:border-amber-400/70 transition-all cursor-default select-none"
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/15 via-emerald-500/15 to-purple-500/15 border border-amber-400/40 text-amber-300 font-extrabold text-[10px] sm:text-[11px] leading-tight align-middle shrink-0 mx-0.5 shadow-sm hover:border-amber-400/70 transition-all cursor-inherit select-none"
     >
       <PrizeWheelIcon className="w-4 h-4 sm:w-[17px] sm:h-[17px]" />
       {showLabel && <span className="font-extrabold uppercase tracking-tight text-amber-300">Wheel</span>}
@@ -182,7 +182,7 @@ export function ScratchcardBadge({ showLabel = true }: { showLabel?: boolean }) 
   return (
     <span
       title="Daily Scratchcard"
-      className="relative overflow-hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-gradient-to-tr from-purple-950/60 via-indigo-900/50 to-pink-950/60 border border-purple-400/40 text-purple-300 font-extrabold text-[10px] sm:text-[11px] leading-tight align-middle shrink-0 mx-0.5 shadow-sm hover:border-purple-400/70 transition-all cursor-default select-none"
+      className="relative overflow-hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-gradient-to-tr from-purple-950/60 via-indigo-900/50 to-pink-950/60 border border-purple-400/40 text-purple-300 font-extrabold text-[10px] sm:text-[11px] leading-tight align-middle shrink-0 mx-0.5 shadow-sm hover:border-purple-400/70 transition-all cursor-inherit select-none"
     >
       <ScratchcardIcon className="w-4 h-3.5" />
       {showLabel && <span className="font-extrabold uppercase tracking-tight text-purple-300">Scratcher</span>}

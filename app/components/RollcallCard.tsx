@@ -27,6 +27,7 @@ import {
 import { CasinoLogo } from "@/components/CasinoLogo";
 import { TrustpilotStars } from "@/components/TrustpilotStars";
 import { CustomTimerModal } from "@/components/CustomTimerModal";
+import { renderBonusLabel } from "@/components/BonusLabelBadge";
 
 export type { CasinoStatus, StatusState };
 
@@ -433,7 +434,7 @@ function RollcallCardComponent({
               }}
               aria-label={`Settings for ${casino.name}`}
               title={`Settings for ${casino.name}`}
-              className="h-8 w-8 rounded-lg bg-zinc-950/60 border border-emerald-900/60 hover:border-emerald-500/50 flex items-center justify-center text-emerald-400 transition-all active:scale-95 cursor-pointer shrink-0"
+              className="h-8.5 w-8.5 sm:h-9 sm:w-9 rounded-xl bg-gradient-to-b from-zinc-950 to-[#07140e] hover:from-emerald-950/80 hover:to-[#071811] border border-emerald-900/60 hover:border-emerald-500/60 text-emerald-400 hover:text-emerald-300 shadow-[inset_0_1px_0_rgba(52,211,153,0.15),0_2px_0_#064e3b,0_4px_8px_rgba(0,0,0,0.5)] hover:shadow-[inset_0_1px_0_rgba(52,211,153,0.25),0_2px_0_#065f46,0_0_8px_rgba(16,185,129,0.15)] active:translate-y-[2px] active:shadow-[inset_0_1px_0_rgba(52,211,153,0.1),0_0_0_#064e3b,0_1px_2px_rgba(0,0,0,0.5)] flex items-center justify-center transition-all duration-100 cursor-pointer shrink-0 select-none"
             >
               <MoreHorizontal size={16} />
             </button>
@@ -448,7 +449,7 @@ function RollcallCardComponent({
               if (onConfirmClaim) onConfirmClaim(casino);
               else onClaim(casino);
             }}
-            className="h-8 w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-lg bg-emerald-400 hover:bg-emerald-300 px-3.5 text-xs font-bold text-zinc-950 shadow-sm transition active:scale-95 cursor-pointer whitespace-nowrap"
+            className="h-8 w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-b from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 text-zinc-950 px-3.5 text-xs font-extrabold shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_2px_0_#047857,0_3px_6px_rgba(0,0,0,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_2px_0_#059669,0_0_10px_rgba(52,211,153,0.3)] active:translate-y-[2px] active:shadow-none transition-all duration-100 cursor-pointer whitespace-nowrap select-none"
           >
             <CheckCircle2 size={14} strokeWidth={2.5} />
             <span>Claimed ✓</span>
@@ -464,10 +465,10 @@ function RollcallCardComponent({
                 onOpenBonus(casino);
               }}
               aria-label={`Open ${casino.bonusTitle || "Bonus"} for ${casino.name}`}
-              className="flex items-center gap-1.5 rounded-lg border border-[#1b3d2f] hover:border-emerald-500/50 bg-[#07130e] hover:bg-[#0c1f17] px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white transition"
+              className="flex items-center gap-1.5 rounded-lg border border-[#1b3d2f] hover:border-emerald-500/50 bg-[#07130e] hover:bg-[#0c1f17] px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white shadow-[inset_0_1px_0_rgba(52,211,153,0.1),0_2px_0_#063826] active:translate-y-[1.5px] active:shadow-none transition-all duration-100"
             >
               <ExternalLink size={13} strokeWidth={2.5} />
-              <span>{casino.bonusTitle || "Bonus"}</span>
+              <span className="inline-flex items-center gap-1">{renderBonusLabel(casino.bonusTitle || "Bonus")}</span>
             </button>
           )}
 
@@ -483,21 +484,25 @@ function RollcallCardComponent({
                 }}
                 aria-label={`Settings for ${casino.name}`}
                 title={`Settings for ${casino.name}`}
-                className="h-8.5 w-8.5 sm:h-9 sm:w-9 rounded-xl bg-zinc-950/60 border border-emerald-900/60 hover:border-emerald-500/50 flex items-center justify-center text-emerald-400 transition-all active:scale-95 cursor-pointer shrink-0"
+                className="h-8.5 w-8.5 sm:h-9 sm:w-9 rounded-xl bg-gradient-to-b from-zinc-950 to-[#07140e] hover:from-emerald-950/80 hover:to-[#071811] border border-emerald-900/60 hover:border-emerald-500/60 text-emerald-400 hover:text-emerald-300 shadow-[inset_0_1px_0_rgba(52,211,153,0.15),0_2px_0_#064e3b,0_4px_8px_rgba(0,0,0,0.5)] hover:shadow-[inset_0_1px_0_rgba(52,211,153,0.25),0_2px_0_#065f46,0_0_8px_rgba(16,185,129,0.15)] active:translate-y-[2px] active:shadow-[inset_0_1px_0_rgba(52,211,153,0.1),0_0_0_#064e3b,0_1px_2px_rgba(0,0,0,0.5)] flex items-center justify-center transition-all duration-100 cursor-pointer shrink-0 select-none"
               >
                 <MoreHorizontal size={16} />
               </button>
 
-              {/* Ready Claim Button with vivid green indicator dot */}
+              {/* Ready Claim Button with vivid green indicator dot, clicky physical depth & bonus animations */}
               <button
                 type="button"
                 onClick={handleClaimClick}
-                aria-label={`Claim ${casino.dailyBonus} for ${casino.name}`}
-                className="h-8.5 sm:h-9 px-3 sm:px-4 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/40 hover:border-emerald-400 text-emerald-400 transition-all shadow-sm active:scale-[0.97] flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap"
+                aria-label={`Claim ${casino.dailyBonus || "bonus"} for ${casino.name}`}
+                className="h-8.5 sm:h-9 px-3.5 sm:px-4 rounded-xl bg-gradient-to-b from-[#082218] to-[#04140e] hover:from-[#0b2e21] hover:to-[#061a12] border border-emerald-500/50 hover:border-emerald-400 text-emerald-300 hover:text-emerald-200 font-bold text-xs sm:text-sm tracking-tight shadow-[inset_0_1px_0_rgba(52,211,153,0.3),0_2px_0_#064e3b,0_4px_8px_rgba(0,0,0,0.5)] hover:shadow-[inset_0_1px_0_rgba(52,211,153,0.4),0_2px_0_#065f46,0_0_12px_rgba(16,185,129,0.2)] active:translate-y-[2px] active:shadow-[inset_0_1px_0_rgba(52,211,153,0.2),0_0_0_#064e3b,0_1px_2px_rgba(0,0,0,0.5)] flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-100 cursor-pointer whitespace-nowrap select-none"
               >
-                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse shrink-0" />
-                <span className="text-emerald-400 font-bold text-xs sm:text-sm tracking-tight">
-                  Claim {casino.dailyBonus}!
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)] animate-pulse shrink-0" />
+                <span className="pointer-events-none inline-flex items-center gap-1">
+                  {casino.dailyBonus ? (
+                    <>Claim {renderBonusLabel(casino.dailyBonus)}!</>
+                  ) : (
+                    <>Claim Bonus!</>
+                  )}
                 </span>
               </button>
             </>
