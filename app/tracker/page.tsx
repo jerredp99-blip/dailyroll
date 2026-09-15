@@ -6,18 +6,13 @@ import {
   Clock,
   ExternalLink,
   EyeOff,
-  LayoutDashboard,
-  LogOut,
-  Menu,
   MoreHorizontal,
   Plus,
   Settings,
-  ShieldCheck,
   Trash2,
   X,
   MessageSquare,
   Gift,
-  Compass,
   Loader2,
   Zap,
   RotateCcw,
@@ -29,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
 import { ExpandableSearch } from "@/app/components/ExpandableSearch";
+import { GeminiLogo } from "@/app/components/AiAssistant";
 import { useActiveDropsCount, notifyDropsUpdated } from "@/lib/dropsStore";
 import { calculateCasinoStatus, resetCasinoTimers, useCurrentTime, SNOOZE_PRESETS, type CasinoStatus } from "@/lib/timerUtils";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
@@ -339,8 +335,6 @@ export default function TrackerPage() {
   const [editResetTime, setEditResetTime] = useState("00:00");
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
   const [customTimerCasino, setCustomTimerCasino] = useState<Casino | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [casinoFilter, setCasinoFilter] = useState<"all" | "ready" | "claimed">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [casinoSort, setCasinoSort] = useState<
@@ -464,9 +458,6 @@ export default function TrackerPage() {
   const abortStaggerRef = useRef(false);
   const editScrollPosition = useRef<number | null>(null);
   const rollcallScrollPosition = useRef<number | null>(null);
-  const profileMenuRef = useRef<HTMLDivElement>(null);
-  const sidebarRef = useRef<HTMLElement>(null);
-  const sidebarToggleRef = useRef<HTMLButtonElement>(null);
 
   function showAddCasinosPage(show: boolean) {
     if (show) {
@@ -490,55 +481,6 @@ export default function TrackerPage() {
       }
     }
   }
-
-  async function signOut() {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } catch {
-      // Even if the server call fails, clear local state.
-    }
-    setSignedInUser(null);
-    setIsAdmin(false);
-    setIsProfileMenuOpen(false);
-    router.replace("/sign-in");
-  }
-
-  useEffect(() => {
-    if (!isProfileMenuOpen) return;
-    function closeMenu(event: MouseEvent) {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-        setIsProfileMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", closeMenu);
-    return () => document.removeEventListener("mousedown", closeMenu);
-  }, [isProfileMenuOpen]);
-
-  // Close sidebar when clicking outside or pressing Escape
-  useEffect(() => {
-    if (!isSidebarOpen) return;
-    function handleOutsideClick(event: MouseEvent) {
-      if (
-        sidebarRef.current &&
-        !sidebarRef.current.contains(event.target as Node) &&
-        sidebarToggleRef.current &&
-        !sidebarToggleRef.current.contains(event.target as Node)
-      ) {
-        setIsSidebarOpen(false);
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setIsSidebarOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleOutsideClick);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isSidebarOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1127,8 +1069,6 @@ export default function TrackerPage() {
     setOpenActionMenu((open) => (open === id ? null : id));
   }, []);
 
-  const profileInitial = isAdmin ? "A" : signedInUser?.name.trim().charAt(0).toUpperCase() ?? "";
-
   function addCasino(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!name.trim() || !url.trim()) return;
@@ -1554,202 +1494,6 @@ export default function TrackerPage() {
 
   return (
     <main className="min-h-screen bg-[#090b0a] text-[#e6eee5]">
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px] cursor-pointer transition-opacity"
-          onClick={() => setIsSidebarOpen(false)}
-          aria-label="Close sidebar"
-        />
-      )}
-      <aside
-        ref={sidebarRef}
-        className={`fixed right-0 top-0 z-50 flex h-screen w-64 flex-col justify-between border-l border-emerald-900/30 bg-[#0a1410] px-5 py-5 shadow-2xl transition-transform duration-200 lg:px-6 lg:py-8 ${
-          isSidebarOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        <div>
-          {(signedInUser || isAdmin) && (
-            <div ref={profileMenuRef} className="mb-5 border-b border-emerald-900/30 pb-4">
-              <div className="relative flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsProfileMenuOpen((open) => !open)}
-                  aria-expanded={isProfileMenuOpen}
-                  aria-haspopup="menu"
-                  aria-label="Open profile menu"
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#385e40] bg-[#1b3625] p-0.5 transition hover:border-[#79b77f] overflow-hidden"
-                >
-                  {signedInUser?.avatarUrl ? (
-                    <img
-                      src={signedInUser.avatarUrl}
-                      alt={signedInUser.name || "Profile"}
-                      className="h-full w-full rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-[#79b77f] text-sm font-bold text-[#122519]">
-                      {profileInitial}
-                    </span>
-                  )}
-                </button>
-                {isSidebarOpen && (
-                  <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-[#91a595]">
-                      {isAdmin ? "Admin" : "Profile"}
-                    </p>
-                    <p className="truncate text-sm font-semibold text-[#e5eee3]">
-                      {isAdmin ? "Administrator" : signedInUser?.name}
-                    </p>
-                  </div>
-                )}
-                {isProfileMenuOpen && (
-                  <div
-                    className={`absolute z-50 w-64 rounded-xl border border-[#38503d] bg-[#19251f] p-3 shadow-2xl ${isSidebarOpen ? "right-0 top-full mt-2" : "right-full top-0 mr-3"}`}
-                    role="menu"
-                  >
-                    <p className="px-3 py-2 text-xs text-[#718275]">
-                      {isAdmin ? "Admin profile" : "Signed in as"}
-                    </p>
-                    <p className="px-3 text-sm font-semibold text-[#e5eee3]">
-                      {isAdmin ? "Administrator" : signedInUser?.name}
-                    </p>
-                    {!isAdmin && (
-                      <p className="truncate px-3 pt-1 text-xs text-[#91a595]">
-                        {signedInUser?.email}
-                      </p>
-                    )}
-                    <div className="my-3 border-t border-[#304638]" />
-                    {isAdmin && (
-                      <Link
-                        href="/dashboard"
-                        onClick={() => {
-                          setIsProfileMenuOpen(false);
-                          setIsSidebarOpen(false);
-                        }}
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[#b7d5b5] hover:bg-[#2a4230]"
-                      >
-                        <ShieldCheck size={14} /> Admin workspace
-                      </Link>
-                    )}
-                    <button
-                      type="button"
-                      onClick={signOut}
-                      className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[#e69b91] hover:bg-[#422c2b]"
-                    >
-                      <LogOut size={14} /> Sign out
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          <nav
-            className="flex flex-col gap-1.5"
-            aria-label="Dashboard navigation"
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setActiveDrawer("feed");
-                showAddCasinosPage(false);
-                setIsSidebarOpen(false);
-              }}
-              className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors text-gray-400 hover:bg-emerald-950/30 hover:text-white"
-            >
-              <MessageSquare size={16} /> Community Feed
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                showAddCasinosPage(false);
-                setIsSidebarOpen(false);
-              }}
-              className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors ${!isAddCasinosPage ? "border border-emerald-800/50 bg-emerald-900/40 text-emerald-300" : "text-gray-400 hover:bg-emerald-950/30 hover:text-white"}`}
-            >
-              <LayoutDashboard size={16} /> My Rollcall
-            </button>
-            {!signedInUser && (
-              <Link
-                href="/dashboard"
-                onClick={() => setIsSidebarOpen(false)}
-                className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium text-gray-400 transition-colors hover:bg-emerald-950/30 hover:text-white"
-              >
-                <ShieldCheck size={16} /> Admin workspace
-              </Link>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                showAddCasinosPage(true);
-                setIsSidebarOpen(false);
-              }}
-              className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors ${isAddCasinosPage ? "border border-emerald-800/50 bg-emerald-900/40 text-emerald-300" : "text-gray-400 hover:bg-emerald-950/30 hover:text-white"}`}
-            >
-              <Compass size={16} /> Explore Casinos
-            </button>
-            <Link
-              href="/profile"
-              onClick={() => setIsSidebarOpen(false)}
-              className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium text-gray-400 transition-colors hover:bg-emerald-950/30 hover:text-white"
-            >
-              <Settings size={16} /> Profile settings
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                setIsSidebarOpen(false);
-                if (typeof window !== "undefined") {
-                  window.dispatchEvent(new CustomEvent("dailyroll_open_ai_assistant"));
-                }
-              }}
-              className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium text-emerald-400 transition-colors hover:bg-emerald-950/30 hover:text-emerald-300 cursor-pointer"
-            >
-              <Sparkles size={16} /> AI Bonus Assistant
-            </button>
-            {!signedInUser && (
-              <Link
-                href="/dashboard#sign-ups"
-                onClick={() => setIsSidebarOpen(false)}
-                className="w-full rounded-lg px-4 py-2.5 text-left text-sm font-medium text-gray-400 transition-colors hover:bg-emerald-950/30 hover:text-white"
-              >
-                All casinos
-              </Link>
-            )}
-          </nav>
-        </div>
-        <div className="border-t border-emerald-900/30 pt-5 text-xs text-gray-500">
-          <span className="text-emerald-400">{casinos.length}</span> casinos
-          tracked
-        </div>
-      </aside>
-      <button
-        ref={sidebarToggleRef}
-        type="button"
-        onClick={() => setIsSidebarOpen((open) => !open)}
-        aria-label={isSidebarOpen ? "Close menu" : "Open menu"}
-        aria-expanded={isSidebarOpen}
-        title={isSidebarOpen ? "Close menu" : signedInUser?.name || "Open menu"}
-        className={`fixed right-3.5 top-2.5 z-50 grid h-9 w-9 place-items-center rounded-full border shadow-lg backdrop-blur transition-all duration-150 sm:right-6 sm:top-3.5 lg:right-8 ${
-          isSidebarOpen
-            ? "border-emerald-500 bg-[#14231b] text-emerald-300 hover:bg-[#1d3327]"
-            : "border-[#385e40] bg-[#101815]/90 text-[#b7d5b5] hover:border-[#79b77f] hover:scale-105 active:scale-95 overflow-hidden"
-        }`}
-      >
-        {isSidebarOpen ? (
-          <X size={18} />
-        ) : signedInUser?.avatarUrl ? (
-          <img
-            src={signedInUser.avatarUrl}
-            alt={signedInUser.name || "Profile"}
-            className="h-full w-full object-cover"
-          />
-        ) : signedInUser || isAdmin ? (
-          <span className="grid h-full w-full place-items-center bg-gradient-to-br from-emerald-800 to-teal-900 text-xs font-bold text-emerald-100">
-            {profileInitial}
-          </span>
-        ) : (
-          <Menu size={18} />
-        )}
-      </button>
       <div className="w-full px-2.5 pt-3 pb-24 sm:px-8 sm:py-6 sm:pb-28">
         {/* Header (only on Add Casinos sub-page) */}
         {isAddCasinosPage && (
@@ -2755,6 +2499,22 @@ export default function TrackerPage() {
               {activeDropsCount}
             </span>
           )}
+        </button>
+
+        {/* AI Bonus Assistant Circular Button */}
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("dailyroll_open_ai_assistant"));
+            }
+          }}
+          aria-label="Open Dailyroll Gemini AI Assistant"
+          title="Dailyroll Gemini AI Assistant"
+          className="group h-10 w-10 rounded-full bg-gradient-to-b from-[#131d27]/95 via-[#0d161d]/95 to-[#080d12]/95 border border-cyan-500/50 hover:border-cyan-400 active:scale-95 shadow-lg shadow-black/80 backdrop-blur-md flex items-center justify-center relative transition-all duration-300 cursor-pointer hover:shadow-[0_0_20px_rgba(56,189,248,0.45)]"
+        >
+          <span className="absolute inset-0 rounded-full bg-cyan-400/10 animate-pulse pointer-events-none" />
+          <GeminiLogo className="h-5 w-5 transition-transform duration-300 group-hover:scale-115 drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]" />
         </button>
       </aside>
 

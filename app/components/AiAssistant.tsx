@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import {
   Sparkles,
   X,
@@ -42,6 +43,7 @@ export function GeminiLogo({ className = "w-5 h-5" }: { className?: string }) {
 }
 
 export function AiAssistant() {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<"advisor" | "extract">("advisor");
   const [prompt, setPrompt] = useState("");
@@ -177,17 +179,19 @@ export function AiAssistant() {
 
   return (
     <>
-      {/* Floating Gemini AI Trigger Bubble (Small Gemini Logo) */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 z-40 flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-gradient-to-b from-[#131d27]/95 via-[#0d161d]/95 to-[#080d12]/95 border border-cyan-500/40 hover:border-cyan-300 active:scale-95 shadow-xl shadow-black/80 backdrop-blur-md transition-all duration-300 cursor-pointer hover:shadow-[0_0_22px_rgba(56,189,248,0.45)] group"
-        aria-label="Open Dailyroll Gemini AI Assistant"
-        title="Dailyroll Gemini AI Assistant"
-      >
-        <span className="absolute inset-0 rounded-full bg-cyan-400/10 animate-pulse pointer-events-none" />
-        <GeminiLogo className="h-5 w-5 sm:h-5.5 sm:w-5.5 transition-transform duration-300 group-hover:scale-110 drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]" />
-      </button>
+      {/* Floating Gemini AI Trigger Bubble (Small Gemini Logo) - Hidden on /tracker since docked in floating right stack */}
+      {pathname !== "/tracker" && (
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 z-40 flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-gradient-to-b from-[#131d27]/95 via-[#0d161d]/95 to-[#080d12]/95 border border-cyan-500/40 hover:border-cyan-300 active:scale-95 shadow-xl shadow-black/80 backdrop-blur-md transition-all duration-300 cursor-pointer hover:shadow-[0_0_22px_rgba(56,189,248,0.45)] group"
+          aria-label="Open Dailyroll Gemini AI Assistant"
+          title="Dailyroll Gemini AI Assistant"
+        >
+          <span className="absolute inset-0 rounded-full bg-cyan-400/10 animate-pulse pointer-events-none" />
+          <GeminiLogo className="h-5 w-5 sm:h-5.5 sm:w-5.5 transition-transform duration-300 group-hover:scale-110 drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]" />
+        </button>
+      )}
 
       {/* AI Assistant Modal */}
       {isOpen && (
