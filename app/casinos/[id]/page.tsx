@@ -16,7 +16,6 @@ import {
   Layers,
 } from "lucide-react";
 import type { Casino } from "@/types/casino";
-import { calculateCasinoStatus } from "@/lib/timerUtils";
 import { CasinoDetailHeader } from "@/components/CasinoDetailHeader";
 import { AdminCasinoDataForm } from "@/components/AdminCasinoDataForm";
 import { CasinoDropsFeed } from "@/components/CasinoDropsFeed";
@@ -33,13 +32,6 @@ export default function CasinoDetailPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"drops" | "chat">("drops");
-  const [now, setNow] = useState(Date.now);
-
-  // Live timer tick every second
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   const loadCasinoData = useCallback(async () => {
     if (!rawId) return;
@@ -69,75 +61,6 @@ export default function CasinoDetailPage() {
     loadCasinoData();
   }, [loadCasinoData]);
 
-  // Handler: Update casino in user's rollcall list
-  const updateRollcallState = async (updater: (existing: Casino) => Casino) => {
-    if (!casino) return;
-    const nextCasino = updater(casino);
-    setCasino(nextCasino);
-
-    try {
-      const res = await fetch("/api/casinos");
-      if (res.ok) {
-        const data = await res.json();
-        const currentList = (data.casinos || []) as Casino[];
-        const idx = currentList.findIndex(
-          (c) =>
-            c.id === casino.id ||
-            c.name.toLowerCase() === casino.name.toLowerCase()
-        );
-
-        let updatedList: Casino[];
-        if (idx >= 0) {
-          updatedList = currentList.map((c, i) => (i === idx ? nextCasino : c));
-        } else {
-          updatedList = [...currentList, nextCasino];
-          setIsTracked(true);
-        }
-
-        await fetch("/api/casinos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ casinos: updatedList }),
-        });
-      }
-    } catch (err) {
-      console.error("Failed to update casino in rollcall:", err);
-    }
-  };
-
-  const handleClaim = () => {
-    updateRollcallState((prev) => ({
-      ...prev,
-      lastClaimedAt: new Date().toISOString(),
-      snoozedUntil: null,
-      targetResetTimestamp: null,
-    }));
-  };
-
-  const handleResetToReady = () => {
-    updateRollcallState((prev) => ({
-      ...prev,
-      lastClaimedAt: null,
-      snoozedUntil: null,
-      targetResetTimestamp: null,
-    }));
-  };
-
-  const handleCancelSnooze = () => {
-    updateRollcallState((prev) => ({
-      ...prev,
-      snoozedUntil: null,
-    }));
-  };
-
-  const handleSetCustomTimer = (targetResetTimestamp: number) => {
-    updateRollcallState((prev) => ({
-      ...prev,
-      targetResetTimestamp,
-      lastClaimedAt: new Date().toISOString(),
-      snoozedUntil: null,
-    }));
-  };
 
   const handleAddToRollcall = async () => {
     if (!casino) return;
@@ -189,20 +112,13 @@ export default function CasinoDetailPage() {
     );
   }
 
-  const status = calculateCasinoStatus(casino, now);
-
   return (
     <main className="min-h-screen bg-[#080f0b] text-[#e5eee3] pb-24 pt-4 sm:pt-8 px-3 sm:px-6">
       <div className="mx-auto max-w-4xl space-y-6">
-        {/* 1. Header & Live Tracking Widget */}
+        {/* 1. Header Hero Widget */}
         <CasinoDetailHeader
           casino={casino}
           isTracked={isTracked}
-          status={status}
-          onClaim={handleClaim}
-          onResetToReady={handleResetToReady}
-          onCancelSnooze={handleCancelSnooze}
-          onSetCustomTimer={handleSetCustomTimer}
           onAddToRollcall={handleAddToRollcall}
         />
 
