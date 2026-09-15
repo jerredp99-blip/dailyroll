@@ -188,10 +188,18 @@ export function CasinoDetailHeader({
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
                   </span>
-                  <span>
-                    {status.isSnoozed
-                      ? `Snoozed · ${formattedCountdown}`
-                      : `Resets in ${formattedCountdown}`}
+                  <span className="tabular-nums">
+                    {status.isSnoozed ? (
+                      <>
+                        <span className="hidden sm:inline">Snoozed · </span>
+                        <span>{formattedCountdown}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="hidden sm:inline">Resets in </span>
+                        <span>{formattedCountdown}</span>
+                      </>
+                    )}
                   </span>
                 </div>
 

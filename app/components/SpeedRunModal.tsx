@@ -302,10 +302,8 @@ export function SpeedRunModal({
           : ""
       );
       setNoteInput(currentCasino.notes || "");
-      const defaultSc =
-        currentCasino.dailyBonusSc ||
-        (parseScReward(currentCasino.dailyBonus ?? "") || 1.0);
-      setClaimScInput(String(defaultSc));
+      // Balance input starts empty as it is purely optional
+      setClaimScInput("");
     }
   }, [currentCasinoId, currentCasino]);
 
@@ -433,13 +431,30 @@ export function SpeedRunModal({
   // STATE 2: "Verification" View ("Did you claim it?")
   // -------------------------------------------------------------
   // User answered [Yes, Claimed] -> Only advance to Step 3 if confirmed
+  // User answered [Yes, Claimed] -> Submits claim and advances queue; applies balance update only if explicitly entered
   function handleConfirmClaimed() {
     if (!session || !currentCasino) return;
 
-    // Optimistically update parent tracker immediately so card flips to countdown and badges decrement
+    // Check if user explicitly typed an SC balance into the optional input
+    const parsedBalance = claimScInput.trim() !== "" ? parseFloat(claimScInput) : undefined;
+    const hasExplicitBalance = typeof parsedBalance === "number" && !isNaN(parsedBalance);
+
+    const rewardSc = parseScReward(currentCasino?.dailyBonus ?? "") || 1.0;
+    const rewardGc = parseGcReward(currentCasino?.dailyBonus ?? "");
+
+    const updates: Partial<Casino> = {
+      snoozedUntil: null,
+      targetResetTimestamp: null,
+    };
+
+    if (hasExplicitBalance) {
+      updates.currentBalance = parsedBalance;
+    }
+
+    // Persist claim and optional balance updates
     if (onClaimSuccess) {
       try {
-        onClaimSuccess(currentCasino.id);
+        onClaimSuccess(currentCasino.id, updates);
       } catch (err) {
         console.error("Failed to mark casino claimed in onClaimSuccess:", err);
       }
@@ -449,16 +464,24 @@ export function SpeedRunModal({
       } catch (err) {
         console.error("Failed to mark casino claimed in onClaim:", err);
       }
+
+      if (hasExplicitBalance && onUpdateCasino) {
+        try {
+          onUpdateCasino(currentCasino, updates);
+        } catch (err) {
+          console.error("Failed to update casino balance in onUpdateCasino:", err);
+        }
+      }
     }
 
-    setSession((prev) => {
-      if (!prev) return null;
-      const nextSession: SpeedRunSessionState = {
-        ...prev,
-        currentStep: 3, // Move to State 3 (Log Balance)
-      };
-      saveSpeedRunSession(nextSession);
-      return nextSession;
+    // Add daily bonus reward to session tally
+    triggerLootAnimation(rewardSc);
+
+    // Advance queue immediately to next casino
+    advanceQueue({
+      claimId: currentCasino.id,
+      addedSc: rewardSc,
+      addedGc: rewardGc,
     });
   }
 
@@ -718,12 +741,12 @@ export function SpeedRunModal({
                 </span>
               </div>
               <p className="text-[11px] text-[#8ca892]">
-                State-aware session runner & bankroll tracker
+                State-aware daily bonus speed runner
               </p>
             </div>
           </div>
 
-          {/* Gamified Live Loot Counter */}
+          {/* Gamified Live Claim Counter */}
           <div className="flex items-center gap-2">
             <div
               className={`relative flex items-center gap-1.5 rounded-xl border px-3 py-1.5 transition-all duration-300 ${
@@ -734,7 +757,7 @@ export function SpeedRunModal({
             >
               <Coins size={14} className={animatingLoot ? "text-amber-300 animate-spin" : "text-[#39ff6a]"} />
               <div className="text-right font-mono">
-                <span className="text-[10px] block leading-none text-[#8ca892]">Session Loot</span>
+                <span className="text-[10px] block leading-none text-[#8ca892]">Claimed This Session</span>
                 <span className="text-xs sm:text-sm font-black">
                   +{sessionLootSc.toFixed(2)} <span className="text-[10px]">SC</span>
                 </span>
@@ -780,11 +803,11 @@ export function SpeedRunModal({
 
             {/* Receipt Summary Grid */}
             <div className="mt-5 grid grid-cols-2 gap-3 text-left">
-              {/* Total SC Loot */}
+              {/* Total SC Claimed */}
               <div className="rounded-2xl border border-emerald-800/40 bg-gradient-to-b from-[#14261d] to-[#0f1c15] p-3.5 shadow-inner">
                 <span className="flex items-center gap-1.5 text-[11px] font-medium text-[#8ea394]">
                   <Sparkles size={13} className="text-[#39ff6a]" />
-                  Total Loot Collected
+                  Total SC Claimed
                 </span>
                 <p className="mt-1 text-lg sm:text-xl font-extrabold text-[#39ff6a] font-mono">
                   +{sessionLootSc.toFixed(2)} SC
@@ -812,12 +835,12 @@ export function SpeedRunModal({
                 </p>
               </div>
 
-              {/* Total Updated Bankroll Across All Casinos */}
+              {/* Total Updated Balance Across All Casinos */}
               <div className="col-span-2 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-[#1b2b20] to-[#16251b] p-3.5 shadow-inner">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
                     <Wallet size={14} className="text-amber-400" />
-                    Total Tracked Bankroll
+                    Total Tracked Casino Balance
                   </span>
                   <span className="text-[10px] font-mono text-[#8ca592]">
                     across all active casinos
@@ -959,16 +982,16 @@ export function SpeedRunModal({
                       </p>
                     </div>
 
-                    {/* Dedicated Value Tracking Input for Sweeps Coins (SC) */}
+                    {/* Dedicated Optional Value Tracking Input for Sweeps Coins (SC) */}
                     <div className="flex items-center justify-between rounded-xl border border-emerald-700/40 bg-[#12281e] px-3.5 py-2.5">
                       <div className="flex items-center gap-2">
-                        <Coins size={16} className="text-emerald-400" />
+                        <Coins size={16} className="text-emerald-400 shrink-0" />
                         <div className="text-left">
-                          <p className="text-xs font-bold text-white">Claim Reward (SC)</p>
-                          <p className="text-[10px] text-[#8ca892]">Logged to session loot & bankroll</p>
+                          <p className="text-xs font-bold text-white">Current Casino SC Balance (Optional)</p>
+                          <p className="text-[10px] text-[#8ca892]">Track your live balance for this casino.</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 bg-[#091510] border border-emerald-900/80 rounded-lg px-2.5 py-1">
+                      <div className="flex items-center gap-1.5 bg-[#091510] border border-emerald-900/80 rounded-lg px-2.5 py-1 shrink-0">
                         <span className="text-xs font-bold text-emerald-400">$</span>
                         <input
                           type="number"
@@ -976,18 +999,28 @@ export function SpeedRunModal({
                           min="0"
                           value={claimScInput}
                           onChange={(e) => setClaimScInput(e.target.value)}
-                          className="w-16 bg-transparent text-right text-xs font-bold text-white outline-none font-mono"
-                          placeholder="1.00"
+                          className="w-16 bg-transparent text-right text-xs font-bold text-white outline-none font-mono placeholder:text-zinc-500"
+                          placeholder="e.g. 1.00"
                         />
                         <span className="text-[10px] font-semibold text-emerald-400">SC</span>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-                      {/* Touch-Friendly Snooze Select */}
-                      <div className="relative flex flex-col items-center justify-center rounded-xl border border-amber-600/40 bg-[#1a281e] p-2 hover:bg-[#25392a] hover:border-amber-500 transition">
+                    <div className="grid grid-cols-3 gap-2 items-center">
+                      {/* Left: Failed / Skip */}
+                      <button
+                        type="button"
+                        onClick={handleFailedSkip}
+                        className="flex flex-col items-center justify-center gap-1 rounded-xl border border-[#314f3c] bg-[#142219] py-2.5 px-2 text-xs font-semibold text-[#a3bfa8] transition hover:border-[#528263] hover:bg-[#1a2e22] hover:text-white active:scale-95 cursor-pointer h-full"
+                      >
+                        <X size={16} />
+                        <span>Failed / Skip</span>
+                      </button>
+
+                      {/* Center: Snooze ⌵ Dropdown */}
+                      <div className="relative flex flex-col items-center justify-center rounded-xl border border-amber-600/40 bg-[#1a281e] p-2 hover:bg-[#25392a] hover:border-amber-500 transition h-full">
                         <Clock size={16} className="text-amber-300 mb-0.5" />
-                        <span className="text-[10px] font-semibold text-amber-300 mb-1">Snooze</span>
+                        <span className="text-[10px] font-semibold text-amber-300 mb-1">Snooze ⌵</span>
                         <select
                           value=""
                           onChange={(e) => {
@@ -998,6 +1031,7 @@ export function SpeedRunModal({
                               handleSnoozeDuration(Number(val));
                             }
                           }}
+                          aria-label="Snooze duration"
                           className="w-full text-center text-xs font-bold bg-[#0f1d15] border border-amber-700/60 rounded-lg py-1 px-1 text-amber-300 outline-none cursor-pointer"
                         >
                           <option value="">Choose ⌵</option>
@@ -1011,21 +1045,11 @@ export function SpeedRunModal({
                         </select>
                       </div>
 
-                      {/* Failed / Skip */}
-                      <button
-                        type="button"
-                        onClick={handleFailedSkip}
-                        className="flex flex-col items-center justify-center gap-1 rounded-xl border border-[#314f3c] bg-[#142219] py-2.5 px-2 text-xs font-semibold text-[#a3bfa8] transition hover:border-[#528263] hover:bg-[#1a2e22] hover:text-white active:scale-95 cursor-pointer"
-                      >
-                        <X size={16} />
-                        <span>Failed / Skip</span>
-                      </button>
-
-                      {/* Yes, Claimed */}
+                      {/* Right: Yes, Claimed */}
                       <button
                         type="button"
                         onClick={handleConfirmClaimed}
-                        className="flex flex-col items-center justify-center gap-1 rounded-xl bg-gradient-to-br from-emerald-500 to-[#39ff6a] py-2.5 px-2 text-xs font-bold text-[#0d1712] shadow-[0_4px_14px_rgba(57,255,106,0.35)] transition hover:scale-102 active:scale-95 cursor-pointer"
+                        className="flex flex-col items-center justify-center gap-1 rounded-xl bg-gradient-to-br from-emerald-500 to-[#39ff6a] py-2.5 px-2 text-xs font-bold text-[#0d1712] shadow-[0_4px_14px_rgba(57,255,106,0.35)] transition hover:scale-102 active:scale-95 cursor-pointer h-full"
                       >
                         <CheckCircle2 size={16} />
                         <span>Yes, Claimed</span>
