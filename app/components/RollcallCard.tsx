@@ -488,18 +488,17 @@ function RollcallCardComponent({
                 <MoreHorizontal size={16} />
               </button>
 
-              {/* Ready Claim Button with live pulsing dot */}
+              {/* Ready Claim Button with vivid green indicator dot */}
               <button
                 type="button"
                 onClick={handleClaimClick}
                 aria-label={`Claim ${casino.dailyBonus} for ${casino.name}`}
-                className="h-8.5 sm:h-9 px-3 sm:px-4 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-zinc-950 font-black text-xs sm:text-sm tracking-tight shadow-lg shadow-emerald-500/25 border border-emerald-300/40 ring-1 ring-emerald-400/50 hover:ring-2 hover:ring-emerald-300 hover:shadow-emerald-400/40 active:scale-[0.97] flex items-center justify-center gap-1 sm:gap-1.5 transition-all duration-150 cursor-pointer whitespace-nowrap"
+                className="h-8.5 sm:h-9 px-3 sm:px-4 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/40 hover:border-emerald-400 text-emerald-400 transition-all shadow-sm active:scale-[0.97] flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap"
               >
-                <span className="relative flex h-2 w-2 shrink-0 mr-1 sm:mr-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-950 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-950"></span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse shrink-0" />
+                <span className="text-emerald-400 font-bold text-xs sm:text-sm tracking-tight">
+                  Claim {casino.dailyBonus}!
                 </span>
-                <span>Claim {casino.dailyBonus}!</span>
               </button>
             </>
           ) : (
