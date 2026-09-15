@@ -1,8 +1,16 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { CheckCircle2, Clock, ExternalLink, MoreHorizontal } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  MoreHorizontal,
+  Pencil,
+  Check,
+  X,
+} from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import {
@@ -59,6 +67,7 @@ export interface RollcallCardProps {
   onCancelSnooze?: (casino: Casino) => void;
   onSnoozeDuration?: (casino: Casino, durationMs: number) => void;
   onSetCustomTimer?: (casino: Casino, targetResetTimestamp: number, customSc?: number) => void;
+  onUpdateCasino?: (casino: Casino, updates: Partial<Casino>) => void;
   onOpenCasino: (casino: Casino) => void;
   onOpenBonus?: (casino: Casino) => void;
   renderLogo?: () => React.ReactNode;
@@ -83,6 +92,7 @@ function RollcallCardComponent({
   onCancelSnooze,
   onSnoozeDuration,
   onSetCustomTimer,
+  onUpdateCasino,
   onOpenCasino,
   onOpenBonus,
   renderLogo,
@@ -90,6 +100,10 @@ function RollcallCardComponent({
   pendingInfo,
 }: RollcallCardProps) {
   const [isCustomTimerOpen, setIsCustomTimerOpen] = useState(false);
+  const [isEditingBalance, setIsEditingBalance] = useState(false);
+  const [newBalanceValue, setNewBalanceValue] = useState("");
+  const balanceInputRef = useRef<HTMLInputElement>(null);
+  const editContainerRef = useRef<HTMLDivElement>(null);
 
   const contextNow = useCurrentTimeContext();
   const currentNow = now ?? contextNow;
@@ -110,6 +124,69 @@ function RollcallCardComponent({
     rawBalance !== "" &&
     !isNaN(numericBalance) &&
     numericBalance > 0.99;
+
+  useEffect(() => {
+    if (isEditingBalance) {
+      balanceInputRef.current?.focus();
+      balanceInputRef.current?.select();
+    }
+  }, [isEditingBalance]);
+
+  useEffect(() => {
+    if (!isEditingBalance) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (editContainerRef.current && !editContainerRef.current.contains(e.target as Node)) {
+        setIsEditingBalance(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isEditingBalance]);
+
+  const handleStartEditBalance = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setNewBalanceValue(
+      rawBalance !== null && rawBalance !== undefined && !isNaN(numericBalance)
+        ? numericBalance.toString()
+        : ""
+    );
+    setIsEditingBalance(true);
+  };
+
+  const handleSaveBalance = async (e?: React.MouseEvent | React.FormEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    const trimmed = newBalanceValue.trim();
+    const parsed = parseFloat(trimmed);
+    const validBalance = trimmed !== "" && !isNaN(parsed) && parsed >= 0 ? parsed : null;
+
+    setIsEditingBalance(false);
+
+    if (onUpdateCasino) {
+      onUpdateCasino(casino, { currentBalance: validBalance });
+    } else {
+      try {
+        const res = await fetch("/api/casinos");
+        if (res.ok) {
+          const data = await res.json();
+          const currentList = (data.casinos || []) as Casino[];
+          const updatedList = currentList.map((c) =>
+            c.id === casino.id || c.name.toLowerCase() === casino.name.toLowerCase()
+              ? { ...c, currentBalance: validBalance }
+              : c
+          );
+          await fetch("/api/casinos", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ casinos: updatedList }),
+          });
+        }
+      } catch (err) {
+        console.error("Failed to update casino balance:", err);
+      }
+    }
+  };
 
   const isPending = Boolean(pendingInfo);
   const isDefocused = Boolean(pendingInfo?.isDefocused);
@@ -191,11 +268,6 @@ function RollcallCardComponent({
                   <TrustpilotStars rating={rating ?? casino.trustpilotRating} />
                 </a>
               )}
-              {showBalanceBadge && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800/80 border border-zinc-700/60 text-emerald-400 font-mono text-[11px] font-bold shrink-0">
-                  {numericBalance.toFixed(2)} SC
-                </span>
-              )}
             </div>
           </div>
         </Link>
@@ -213,6 +285,78 @@ function RollcallCardComponent({
           </div>
         )}
       </div>
+
+      {/* Centered SC Balance Badge / Inline Editor */}
+      {!isPending && (showBalanceBadge || isEditingBalance) && (
+        <div className="flex items-center justify-center shrink-0 mx-1.5 sm:mx-auto">
+          {isEditingBalance ? (
+            <div
+              ref={editContainerRef}
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1.5 bg-zinc-950 border border-emerald-500/80 rounded-xl px-2.5 py-1 shadow-lg ring-1 ring-emerald-500/40 z-20 shrink-0"
+            >
+              <span className="text-xs font-bold text-emerald-400 font-mono">$</span>
+              <input
+                ref={balanceInputRef}
+                type="number"
+                step="0.01"
+                min="0"
+                value={newBalanceValue}
+                onChange={(e) => setNewBalanceValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSaveBalance();
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsEditingBalance(false);
+                  }
+                }}
+                placeholder="0.00"
+                className="w-16 bg-transparent text-right text-xs font-bold text-white outline-none font-mono placeholder:text-zinc-600"
+              />
+              <span className="text-[10px] font-bold text-zinc-400 font-mono">SC</span>
+              <button
+                type="button"
+                onClick={handleSaveBalance}
+                title="Save balance"
+                aria-label="Save balance"
+                className="h-6 w-6 flex items-center justify-center rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold transition active:scale-95 cursor-pointer shrink-0 ml-0.5"
+              >
+                <Check size={12} strokeWidth={3} />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsEditingBalance(false);
+                }}
+                title="Cancel"
+                aria-label="Cancel editing"
+                className="h-6 w-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white transition active:scale-95 cursor-pointer shrink-0"
+              >
+                <X size={12} strokeWidth={2.5} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleStartEditBalance}
+              title="Click to edit tracked SC balance"
+              aria-label={`Edit tracked SC balance for ${casino.name}`}
+              className="group/bal inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700/70 hover:border-emerald-500/60 shadow-sm transition-all active:scale-95 cursor-pointer shrink-0"
+            >
+              <span className="text-emerald-400 font-mono text-xs sm:text-sm font-bold tracking-tight">
+                {numericBalance.toFixed(2)} SC
+              </span>
+              <Pencil size={11} className="text-zinc-400 group-hover/bal:text-emerald-300 transition-colors shrink-0" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Action / Countdown / Pending Controls + Inline Kebab */}
       {isPending ? (

@@ -18,6 +18,7 @@ import {
   RotateCcw,
   Flame,
   Sparkles,
+  Pencil,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -1935,6 +1936,7 @@ export default function TrackerPage() {
                   onCancelSnooze={handleCancelSnooze}
                   onSnoozeDuration={handleSnoozeDuration}
                   onSetCustomTimer={handleSetCustomTimer}
+                  onUpdateCasino={handleUpdateCasino}
                   onOpenCasino={openCasino}
                   onOpenBonus={casino.bonusUrl ? openBonus : undefined}
                   pendingInfo={pendingClaims[casino.id]}
@@ -2025,6 +2027,27 @@ export default function TrackerPage() {
                   className="w-full rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-[#d4e4d2] hover:bg-[#2a4230]"
                 >
                   Edit casino
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = actionCasino.currentBalance ?? 0;
+                    const input = window.prompt(
+                      `Enter tracked SC balance for ${actionCasino.name}:`,
+                      current > 0 ? current.toFixed(2) : ""
+                    );
+                    if (input !== null) {
+                      const trimmed = input.trim();
+                      const val = parseFloat(trimmed);
+                      handleUpdateCasino(actionCasino, {
+                        currentBalance: trimmed !== "" && !isNaN(val) && val >= 0 ? val : null,
+                      });
+                    }
+                    setOpenActionMenu(null);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-emerald-400 hover:bg-[#2a4230]"
+                >
+                  <Pencil size={16} /> Edit SC Balance
                 </button>
                 <button
                   type="button"
