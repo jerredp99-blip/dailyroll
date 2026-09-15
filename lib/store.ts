@@ -32,16 +32,20 @@ export type UserProfile = {
   preferences?: UserPreferences;
 };
 
-export const DEFAULT_ADMIN_USER: UserProfile = {
-  id: "user-admin-timber",
-  name: "Admin Timber",
-  email: "timber420@gmail.com",
-  createdAt: "2026-01-01T00:00:00.000Z",
-  signInMethod: "password",
-  passwordHash: "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
-  role: "admin",
-  isAdmin: true,
-};
+/** Creates admin user profile from environment variables. Returns null if ADMIN_EMAIL is not configured. */
+function getEnvAdminUser(): UserProfile | null {
+  const adminEmail = process.env.ADMIN_EMAIL?.trim();
+  if (!adminEmail) return null;
+  return {
+    id: `user-admin-${adminEmail.split("@")[0]}`,
+    name: "Admin",
+    email: adminEmail.toLowerCase(),
+    createdAt: "2026-01-01T00:00:00.000Z",
+    signInMethod: "password",
+    role: "admin",
+    isAdmin: true,
+  };
+}
 
 import type { Casino, SpeedRunSessionState } from "@/types/casino";
 export type { Casino, SpeedRunSessionState };
@@ -237,7 +241,7 @@ const INITIAL_COMMENTS: Record<string, Comment[]> = {
 };
 
 const EMPTY_STORE: Store = {
-  users: [{ ...DEFAULT_ADMIN_USER }],
+  users: [],
   casinos: {},
   directoryList: null,
   directoryUrls: {},
@@ -265,27 +269,28 @@ const EMPTY_STORE: Store = {
 };
 
 export function ensureAdminUsers(users: UserProfile[]): { users: UserProfile[]; changed: boolean } {
+  const adminUser = getEnvAdminUser();
+  if (!adminUser) return { users: Array.isArray(users) ? users : [], changed: false };
+
   let changed = false;
   const list = Array.isArray(users) ? [...users] : [];
-  const targetEmail = DEFAULT_ADMIN_USER.email.toLowerCase();
+  const targetEmail = adminUser.email.toLowerCase();
   const existingIdx = list.findIndex((u) => u.email.toLowerCase() === targetEmail);
 
   if (existingIdx === -1) {
-    list.push({ ...DEFAULT_ADMIN_USER });
+    list.push({ ...adminUser });
     changed = true;
   } else {
     const existing = list[existingIdx];
     if (
       existing.role !== "admin" ||
-      !existing.isAdmin ||
-      !existing.passwordHash
+      !existing.isAdmin
     ) {
       list[existingIdx] = {
         ...existing,
-        name: existing.name || DEFAULT_ADMIN_USER.name,
+        name: existing.name || adminUser.name,
         role: "admin",
         isAdmin: true,
-        passwordHash: existing.passwordHash || DEFAULT_ADMIN_USER.passwordHash,
       };
       changed = true;
     }
@@ -354,7 +359,8 @@ async function readFileStore(): Promise<Store> {
       comments: parsed.comments && Object.keys(parsed.comments).length > 0 ? parsed.comments : INITIAL_COMMENTS,
     };
   } catch {
-    return { ...EMPTY_STORE, users: [{ ...DEFAULT_ADMIN_USER }], posts: normalizePosts(INITIAL_POSTS) };
+    const adminUser = getEnvAdminUser();
+    return { ...EMPTY_STORE, users: adminUser ? [{ ...adminUser }] : [], posts: normalizePosts(INITIAL_POSTS) };
   }
 }
 

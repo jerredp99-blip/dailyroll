@@ -17,7 +17,6 @@ import {
 
 export const ADMIN_EMAILS = [
   "adminjerredp99@gmail.com",
-  "timber420@gmail.com",
 ];
 export const ADMIN_EMAIL = "AdminJerredp99@gmail.com";
 export const SESSION_COOKIE = "dailyroll_session";
@@ -124,28 +123,10 @@ export async function signInWithPassword(email: string, password: string): Promi
   const users = await getUsers();
   const directMatch = users.find((user) => user.email.toLowerCase() === normalized);
 
-  // 1. Timber420 default admin credentials check
-  if (normalized === "timber420@gmail.com") {
-    const expectedHash = await hashPassword("admin123");
-    const inputHash = await hashPassword(password);
-    const matches =
-      password === "admin123" ||
-      inputHash === expectedHash ||
-      (directMatch?.passwordHash && directMatch.passwordHash === inputHash);
-
-    if (matches) {
-      if (!directMatch || !directMatch.passwordHash || directMatch.role !== "admin" || !directMatch.isAdmin) {
-        await seedAdminUserIfMissing();
-      }
-      return createSessionForEmail(normalized);
-    }
-    return null;
-  }
-
-  // 2. Legacy admin account check
+  // Admin account check (env-var driven only)
   if (normalized === ADMIN_EMAIL.toLowerCase()) {
-    const adminPassword = process.env.ADMIN_PASSWORD?.trim() || "admin123";
-    if (password !== adminPassword) return null;
+    const adminPassword = process.env.ADMIN_PASSWORD?.trim();
+    if (!adminPassword || password !== adminPassword) return null;
 
     if (!directMatch) {
       await saveUsers([

@@ -249,6 +249,7 @@ export default function TrackerPage() {
   const [pendingClaims, setPendingClaims] = useState<Record<string, { expiresAt: number; isDefocused?: boolean }>>({});
   const activeDropsCount = useActiveDropsCount();
   const [feedUnreadCount, setFeedUnreadCount] = useState<number>(0);
+  const [lastOpenedCasino, setLastOpenedCasino] = useState<{ name: string; url: string } | null>(null);
 
   // Poll / fetch active bonus drop count and feed unread count for dynamic navigation indicator
   useEffect(() => {
@@ -544,7 +545,28 @@ export default function TrackerPage() {
         Object.entries(sharedProviders).map(([name, val]) => [name.toLowerCase(), val]),
       );
 
-      const loadedCasinos = saved ?? DEFAULT_CASINOS;
+      let loadedCasinos = saved ?? DEFAULT_CASINOS;
+      if (!user && typeof window !== "undefined") {
+        try {
+          const guestRaw = localStorage.getItem("dailyroll_guest_casinos");
+          if (guestRaw) {
+            const parsedGuest = JSON.parse(guestRaw);
+            if (Array.isArray(parsedGuest) && parsedGuest.length > 0) {
+              loadedCasinos = parsedGuest;
+            }
+          }
+        } catch {}
+      } else if (user && saved === null && typeof window !== "undefined") {
+        try {
+          const guestRaw = localStorage.getItem("dailyroll_guest_casinos");
+          if (guestRaw) {
+            const parsedGuest = JSON.parse(guestRaw);
+            if (Array.isArray(parsedGuest) && parsedGuest.length > 0) {
+              loadedCasinos = parsedGuest;
+            }
+          }
+        } catch {}
+      }
       const currentRatings = { ...sharedRatings };
       if (admin) {
         let hasNewRatings = false;
@@ -650,6 +672,11 @@ export default function TrackerPage() {
       setCasinos(hydratedCasinos);
       if (user && saved === null) {
         await apiSaveCasinos(user.email, hydratedCasinos);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.removeItem("dailyroll_guest_casinos");
+          } catch {}
+        }
       }
       if (user) setSignedInUser(user);
       setIsAdmin(admin);
@@ -713,7 +740,15 @@ export default function TrackerPage() {
 
   const saveCasinos = useCallback((updated: Casino[]) => {
     setCasinos(updated);
-    apiSaveCasinos(signedInUserRef.current?.email, updated);
+    if (signedInUserRef.current?.email) {
+      apiSaveCasinos(signedInUserRef.current.email, updated);
+    } else if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("dailyroll_guest_casinos", JSON.stringify(updated));
+      } catch (err) {
+        console.warn("Failed to persist guest casinos:", err);
+      }
+    }
   }, []);
 
   const statusFor = useCallback((casino: Casino): CasinoStatus => {
@@ -788,6 +823,8 @@ export default function TrackerPage() {
     const target = casino.claimUrl ?? siteUrlFor(casino);
     if (target) {
       openInExternalBrowser(target);
+      setLastOpenedCasino({ name: casino.name, url: target });
+      setTimeout(() => setLastOpenedCasino((prev) => (prev?.url === target ? null : prev)), 7000);
     }
     setPendingClaims((prev) => ({
       ...prev,
@@ -1037,7 +1074,11 @@ export default function TrackerPage() {
 
   const openCasino = useCallback((casino: Casino) => {
     const target = siteUrlFor(casino);
-    if (target) openInExternalBrowser(target);
+    if (target) {
+      openInExternalBrowser(target);
+      setLastOpenedCasino({ name: casino.name, url: target });
+      setTimeout(() => setLastOpenedCasino((prev) => (prev?.url === target ? null : prev)), 7000);
+    }
   }, [siteUrlFor]);
 
   const handleClaimFromFeed = useCallback((casino: Casino) => {
@@ -2695,6 +2736,29 @@ export default function TrackerPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Mobile Pop-up Blocker Fallback Toast */}
+      {lastOpenedCasino && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 rounded-xl border border-emerald-500/50 bg-[#09150f]/95 px-3.5 py-2.5 text-xs text-zinc-200 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-200 max-w-[92vw]">
+          <span className="truncate">Opening <strong className="text-white">{lastOpenedCasino.name}</strong>...</span>
+          <a
+            href={lastOpenedCasino.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-bold text-emerald-400 hover:text-emerald-300 underline underline-offset-2 shrink-0"
+          >
+            Tap if didn't open
+          </a>
+          <button
+            type="button"
+            onClick={() => setLastOpenedCasino(null)}
+            className="ml-1 text-zinc-400 hover:text-zinc-200 p-0.5 shrink-0"
+            aria-label="Dismiss popup notice"
+          >
+            <X size={14} />
+          </button>
         </div>
       )}
     </main>

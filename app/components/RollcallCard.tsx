@@ -266,7 +266,8 @@ function RollcallCardComponent({
                     e.preventDefault();
                     openInExternalBrowser(`https://www.trustpilot.com/search?query=${encodeURIComponent(casino.name)}`);
                   }}
-                  className="inline-flex items-center flex-nowrap whitespace-nowrap gap-0.5 text-amber-400 text-xs tracking-tight"
+                  aria-label={`View Trustpilot reviews for ${casino.name}`}
+                  className="inline-flex items-center flex-nowrap whitespace-nowrap gap-0.5 text-amber-400 text-xs tracking-tight min-h-[24px] py-0.5"
                 >
                   <TrustpilotStars rating={rating ?? casino.trustpilotRating} />
                 </a>
@@ -349,9 +350,9 @@ function RollcallCardComponent({
               <button
                 type="button"
                 onClick={handleStartEditBalance}
-                title="Click to edit tracked SC balance"
-                aria-label={`Edit tracked SC balance for ${casino.name}`}
-                className="group/bal inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-950/40 hover:bg-blue-900/50 border border-blue-500/30 hover:border-blue-400 text-blue-400 font-mono text-[11px] font-bold shrink-0 shadow-sm transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+                title={`Click to edit tracked SC balance for ${casino.name}`}
+                aria-label={`Edit ${numericBalance.toFixed(2)} SC balance`}
+                className="group/bal inline-flex items-center gap-1 px-2.5 h-6 min-h-[24px] min-w-[24px] rounded-md bg-blue-950/40 hover:bg-blue-900/50 border border-blue-500/30 hover:border-blue-400 text-blue-400 font-mono text-[11px] font-bold shrink-0 shadow-sm transition-all active:scale-95 cursor-pointer whitespace-nowrap"
               >
                 <Wallet className="w-3 h-3 text-blue-400/70 shrink-0" />
                 <span>

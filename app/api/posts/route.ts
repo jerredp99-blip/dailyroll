@@ -3,6 +3,35 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { getCurrentSession, isAdminEmail } from "@/lib/auth";
 import { createPost, getPosts, getUsers, type PostType } from "@/lib/store";
 
+// --- In-memory Rate Limiter (3 posts per 5 minutes per IP) ---
+const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const RATE_LIMIT_MAX = 3;
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): { allowed: boolean; retryAfterMs: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now >= entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, retryAfterMs: 0 };
+  }
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return { allowed: false, retryAfterMs: entry.resetAt - now };
+  }
+  entry.count++;
+  return { allowed: true, retryAfterMs: 0 };
+}
+
+// Cleanup stale entries every 10 minutes
+if (typeof globalThis !== "undefined") {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [ip, entry] of rateLimitMap) {
+      if (now >= entry.resetAt) rateLimitMap.delete(ip);
+    }
+  }, 10 * 60 * 1000);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -49,6 +78,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit check
+    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
+    const rateCheck = checkRateLimit(clientIp);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: "Too many posts. Please wait a few minutes before posting again." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rateCheck.retryAfterMs / 1000)) },
+        }
+      );
+    }
+
     const session = await getCurrentSession();
     const body = await request.json();
 
@@ -71,6 +113,11 @@ export async function POST(request: NextRequest) {
     } = body;
 
     const resolvedDestinationUrl = (targetUrl || linkUrl || "").trim() || undefined;
+
+    // Sanitize URL to enforce https://
+    const sanitizedUrl = resolvedDestinationUrl && !resolvedDestinationUrl.startsWith("https://")
+      ? (resolvedDestinationUrl.startsWith("http://") ? resolvedDestinationUrl.replace("http://", "https://") : `https://${resolvedDestinationUrl}`)
+      : resolvedDestinationUrl;
 
     if (!content || !content.trim()) {
       return NextResponse.json(
@@ -131,8 +178,8 @@ export async function POST(request: NextRequest) {
       winAmount: winAmount ? winAmount.trim() : undefined,
       multiplier: multiplier ? multiplier.trim() : undefined,
       dropCode: dropCode ? dropCode.trim().toUpperCase() : undefined,
-      targetUrl: resolvedDestinationUrl,
-      linkUrl: resolvedDestinationUrl,
+      targetUrl: sanitizedUrl,
+      linkUrl: sanitizedUrl,
       mediaUrl: mediaUrl ? mediaUrl.trim() : undefined,
       mediaType: mediaType || undefined,
     });
