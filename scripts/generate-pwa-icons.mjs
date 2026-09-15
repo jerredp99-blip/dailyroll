@@ -66,6 +66,36 @@ function createPng(width, height, renderPixel) {
   return Buffer.concat([sig, makeChunk("IHDR", ihdr), idat, iend]);
 }
 
+function createIco(images) {
+  const count = images.length;
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0); // reserved
+  header.writeUInt16LE(1, 2); // type 1 = icon
+  header.writeUInt16LE(count, 4); // image count
+
+  let offset = 6 + count * 16;
+  const entries = [];
+  const datas = [];
+
+  for (const { width, height, buffer } of images) {
+    const entry = Buffer.alloc(16);
+    entry.writeUInt8(width >= 256 ? 0 : width, 0);
+    entry.writeUInt8(height >= 256 ? 0 : height, 1);
+    entry.writeUInt8(0, 2); // color count
+    entry.writeUInt8(0, 3); // reserved
+    entry.writeUInt16LE(1, 4); // color planes
+    entry.writeUInt16LE(32, 6); // bpp
+    entry.writeUInt32LE(buffer.length, 8); // size
+    entry.writeUInt32LE(offset, 12); // offset
+
+    entries.push(entry);
+    datas.push(buffer);
+    offset += buffer.length;
+  }
+
+  return Buffer.concat([header, ...entries, ...datas]);
+}
+
 // Render Daily Roll Icon (Emerald dark background with dice & coin golden/emerald motifs)
 function renderDailyRollIcon(x, y, w, h) {
   const nx = (x / w) * 2 - 1; // -1 to 1
@@ -88,7 +118,6 @@ function renderDailyRollIcon(x, y, w, h) {
   }
 
   // Central Die (Rounded 3D Die in emerald/teal)
-  // Center is rotated slightly for a dynamic rolling look
   const angle = -0.15;
   const cosA = Math.cos(angle);
   const sinA = Math.sin(angle);
@@ -150,21 +179,88 @@ function renderDailyRollIcon(x, y, w, h) {
 }
 
 const publicDir = path.resolve("public");
+const appDir = path.resolve("app");
 if (!fs.existsSync(publicDir)) {
   fs.mkdirSync(publicDir, { recursive: true });
 }
 
-// Generate 192x192
-const png192 = createPng(192, 192, renderDailyRollIcon);
-fs.writeFileSync(path.join(publicDir, "icon-192.png"), png192);
-console.log("Generated public/icon-192.png (192x192)");
-
-// Generate 512x512
+// 1. Generate PNG icons
 const png512 = createPng(512, 512, renderDailyRollIcon);
 fs.writeFileSync(path.join(publicDir, "icon-512.png"), png512);
 console.log("Generated public/icon-512.png (512x512)");
 
-// Generate 180x180 (Apple Touch Icon)
+const png192 = createPng(192, 192, renderDailyRollIcon);
+fs.writeFileSync(path.join(publicDir, "icon-192.png"), png192);
+console.log("Generated public/icon-192.png (192x192)");
+
 const appleIcon = createPng(180, 180, renderDailyRollIcon);
 fs.writeFileSync(path.join(publicDir, "apple-touch-icon.png"), appleIcon);
+fs.writeFileSync(path.join(publicDir, "apple-touch-icon-precomposed.png"), appleIcon);
 console.log("Generated public/apple-touch-icon.png (180x180)");
+
+const png32 = createPng(32, 32, renderDailyRollIcon);
+fs.writeFileSync(path.join(publicDir, "favicon-32x32.png"), png32);
+const png16 = createPng(16, 16, renderDailyRollIcon);
+fs.writeFileSync(path.join(publicDir, "favicon-16x16.png"), png16);
+
+// 2. Generate ICO file containing 16x16, 32x32, 48x48
+const png48 = createPng(48, 48, renderDailyRollIcon);
+const icoBuffer = createIco([
+  { width: 16, height: 16, buffer: png16 },
+  { width: 32, height: 32, buffer: png32 },
+  { width: 48, height: 48, buffer: png48 },
+]);
+fs.writeFileSync(path.join(publicDir, "favicon.ico"), icoBuffer);
+fs.writeFileSync(path.join(appDir, "favicon.ico"), icoBuffer);
+console.log("Replaced app/favicon.ico and public/favicon.ico with Daily Roll icon");
+
+// 3. Generate static public/manifest.json for browsers that check root directly
+const manifestJson = {
+  name: "Daily Roll | Bonus Tracker",
+  short_name: "Daily Roll",
+  description: "Keep your daily sweepstakes casino bonuses in one place.",
+  start_url: "/tracker",
+  display: "standalone",
+  orientation: "portrait",
+  background_color: "#101815",
+  theme_color: "#101815",
+  icons: [
+    {
+      src: "/icon-192.png",
+      sizes: "192x192",
+      type: "image/png",
+      purpose: "any",
+    },
+    {
+      src: "/icon-192.png",
+      sizes: "192x192",
+      type: "image/png",
+      purpose: "maskable",
+    },
+    {
+      src: "/icon-512.png",
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "any",
+    },
+    {
+      src: "/icon-512.png",
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "maskable",
+    },
+    {
+      src: "/apple-touch-icon.png",
+      sizes: "180x180",
+      type: "image/png",
+    },
+    {
+      src: "/favicon.ico",
+      sizes: "48x48 32x32 16x16",
+      type: "image/x-icon",
+    },
+  ],
+};
+
+fs.writeFileSync(path.join(publicDir, "manifest.json"), JSON.stringify(manifestJson, null, 2));
+console.log("Generated public/manifest.json");
