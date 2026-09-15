@@ -364,7 +364,7 @@ function RollcallCardComponent({
       {isPending ? (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto sm:ml-auto shrink-0">
           {/* Live Countdown Status Chip on Desktop */}
-          <div className="hidden sm:flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-[#0c1a13] px-2.5 py-1.5 font-mono text-xs font-semibold text-emerald-300 shadow-inner shrink-0 whitespace-nowrap">
+          <div className="hidden sm:flex items-center gap-1.5 h-8 rounded-lg border border-emerald-500/40 bg-[#0c1a13] px-2.5 font-mono text-xs font-semibold text-emerald-300 shadow-inner shrink-0 whitespace-nowrap">
             <span className="relative flex h-2 w-2 mr-0.5 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
@@ -374,23 +374,8 @@ function RollcallCardComponent({
             </span>
           </div>
 
-          {/* Primary Claim & Undo Action Buttons */}
-          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
-            {/* [Claimed ✓] Button */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (onConfirmClaim) onConfirmClaim(casino);
-                else onClaim(casino);
-              }}
-              className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-400 hover:bg-emerald-300 px-3 py-2 text-xs font-bold text-zinc-950 shadow-sm transition active:scale-95 cursor-pointer whitespace-nowrap"
-            >
-              <CheckCircle2 size={14} strokeWidth={2.5} />
-              <span>Claimed ✓</span>
-            </button>
-
+          {/* Secondary Action Group: Didn't Claim / Undo, Snooze (with Custom Timer), and Kebab */}
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
             {/* [Didn't Claim / Undo] Button */}
             <button
               type="button"
@@ -399,49 +384,44 @@ function RollcallCardComponent({
                 e.stopPropagation();
                 onUndoClaim?.(casino);
               }}
-              className="flex items-center justify-center rounded-lg border border-zinc-700 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white px-2.5 py-2 text-xs font-semibold transition active:scale-95 cursor-pointer whitespace-nowrap"
+              className="h-8 flex-1 sm:flex-initial flex items-center justify-center rounded-lg border border-zinc-700 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white px-2.5 text-xs font-semibold transition active:scale-95 cursor-pointer whitespace-nowrap"
             >
               Didn't Claim / Undo
             </button>
-          </div>
 
-          {/* Secondary Snooze & Custom Timer & Kebab */}
-          <div className="flex items-center gap-1.5 w-full sm:w-auto">
-            {/* [Snooze ⌵] Select */}
+            {/* [Snooze ⌵] Select (Includes Custom Timer as top option) */}
             <select
               value=""
               onChange={(e) => {
                 e.stopPropagation();
-                const durationMs = Number(e.target.value);
-                if (durationMs && onSnoozeDuration) {
-                  onSnoozeDuration(casino, durationMs);
+                const val = e.target.value;
+                if (val === "custom") {
+                  setIsCustomTimerOpen(true);
+                } else if (val) {
+                  const durationMs = Number(val);
+                  if (durationMs && onSnoozeDuration) {
+                    onSnoozeDuration(casino, durationMs);
+                  }
                 }
               }}
               aria-label="Snooze casino"
               className="h-8 flex-1 sm:flex-initial rounded-lg border border-amber-600/50 bg-[#1e1b13] px-2 text-xs font-semibold text-amber-300 outline-none hover:border-amber-500 focus:border-amber-400 cursor-pointer shrink-0"
             >
-              <option value="">Snooze ⌵</option>
+              <option value="" disabled hidden>
+                Snooze ⌵
+              </option>
+              <option value="custom" className="bg-[#101b15] text-amber-400 font-semibold">
+                Custom Timer...
+              </option>
+              <option disabled className="bg-[#0b140f] text-zinc-600">
+                ──────────
+              </option>
               {SNOOZE_PRESETS.map((preset) => (
                 <option key={preset.ms} value={preset.ms} className="bg-[#101b15] text-white">
                   {preset.label}
                 </option>
               ))}
             </select>
-
-            {/* [Custom Timer] Button */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsCustomTimerOpen(true);
-              }}
-              title="Set custom cooldown timer"
-              className="h-8 flex-1 sm:flex-initial flex items-center justify-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white px-2.5 text-xs font-medium transition cursor-pointer whitespace-nowrap"
-            >
-              <Clock size={13} />
-              <span>Custom Timer</span>
-            </button>
 
             {/* Inline Kebab Button */}
             <button
@@ -453,11 +433,26 @@ function RollcallCardComponent({
               }}
               aria-label={`Settings for ${casino.name}`}
               title={`Settings for ${casino.name}`}
-              className="h-9 w-9 rounded-xl bg-zinc-950/60 border border-emerald-900/60 hover:border-emerald-500/50 flex items-center justify-center text-emerald-400 transition-all active:scale-95 cursor-pointer shrink-0"
+              className="h-8 w-8 rounded-lg bg-zinc-950/60 border border-emerald-900/60 hover:border-emerald-500/50 flex items-center justify-center text-emerald-400 transition-all active:scale-95 cursor-pointer shrink-0"
             >
               <MoreHorizontal size={16} />
             </button>
           </div>
+
+          {/* Primary [Claimed ✓] Button (Anchored far-right) */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (onConfirmClaim) onConfirmClaim(casino);
+              else onClaim(casino);
+            }}
+            className="h-8 w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-lg bg-emerald-400 hover:bg-emerald-300 px-3.5 text-xs font-bold text-zinc-950 shadow-sm transition active:scale-95 cursor-pointer whitespace-nowrap"
+          >
+            <CheckCircle2 size={14} strokeWidth={2.5} />
+            <span>Claimed ✓</span>
+          </button>
         </div>
       ) : (
         <div className="ml-2 flex items-center gap-1.5 sm:gap-2 shrink-0">
