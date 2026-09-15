@@ -25,7 +25,6 @@ import { useRouter } from "next/navigation";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
 import { ExpandableSearch } from "@/app/components/ExpandableSearch";
-import { GeminiLogo } from "@/app/components/AiAssistant";
 import { useActiveDropsCount, notifyDropsUpdated } from "@/lib/dropsStore";
 import { calculateCasinoStatus, resetCasinoTimers, useCurrentTime, SNOOZE_PRESETS, type CasinoStatus } from "@/lib/timerUtils";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
@@ -1850,70 +1849,71 @@ export default function TrackerPage() {
               )}
 
               {/* Primary Action Buttons Row (Embedded Inside Controls Card) */}
-              <div className="grid grid-cols-3 gap-1.5 sm:gap-2 w-full pt-1.5 border-t border-zinc-800/50">
-                {/* 1. Open All (X) */}
-                {isStaggering ? (
-                  <div className="h-8 sm:h-9 px-1.5 sm:px-2.5 rounded-xl bg-zinc-900 border border-amber-500/50 text-amber-300 font-semibold text-[11px] sm:text-xs flex items-center justify-between gap-1 whitespace-nowrap animate-pulse shadow-sm">
-                    <div className="flex items-center gap-1 min-w-0">
-                      <Loader2 size={12} className="animate-spin text-amber-400 shrink-0" />
-                      <span className="truncate text-[10px] sm:text-[11px]">{staggerStatus || "Launching..."}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleCancelStagger}
-                      title="Cancel launching remaining casinos"
-                      className="p-1 text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded transition shrink-0 cursor-pointer"
-                    >
-                      <X size={11} />
-                    </button>
-                  </div>
-                ) : (
+              <div className="flex items-center justify-between gap-3 w-full pt-2 border-t border-zinc-800/50">
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* Add Casinos */}
                   <button
                     type="button"
-                    onClick={handleLaunchAllStaggered}
+                    onClick={() => setIsAddCasinosModalOpen(true)}
+                    title="Add casinos to your rollcall"
+                    className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl bg-gradient-to-b from-zinc-800 to-zinc-900 hover:from-zinc-750 hover:to-zinc-850 text-zinc-100 font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1.5 shadow-md shadow-black/40 border border-zinc-700 hover:border-emerald-500/60 active:translate-y-[1px] active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
+                  >
+                    <Plus size={13} strokeWidth={2.5} className="text-emerald-400 shrink-0" />
+                    <span className="truncate">Add Casinos</span>
+                  </button>
+
+                  {/* Speed Run (X) */}
+                  <button
+                    type="button"
+                    onClick={handleOpenSpeedRun}
                     disabled={readyCount === 0}
-                    title={
+                    title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
+                    className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl text-[11px] sm:text-xs flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${
                       readyCount > 0
-                        ? `Open all ${readyCount} ready casinos (staggered to prevent popup blocking)`
-                        : "No casinos currently ready to claim"
-                    }
-                    className={`h-8 sm:h-9 px-1.5 sm:px-2.5 rounded-xl text-[11px] sm:text-xs flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap transition-all ${
-                      readyCount > 0
-                        ? "bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-zinc-950 font-extrabold shadow-md shadow-emerald-950/60 border border-emerald-300/60 active:translate-y-[1px] active:scale-[0.98] cursor-pointer"
+                        ? "bg-gradient-to-b from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-zinc-950 font-extrabold shadow-md shadow-amber-950/60 border border-amber-300/60 active:translate-y-[1px] active:scale-[0.98] cursor-pointer"
                         : "bg-zinc-950/60 border border-zinc-800/80 text-zinc-600 font-medium opacity-50 cursor-not-allowed shadow-none"
                     }`}
                   >
-                    <ExternalLink size={12} strokeWidth={readyCount > 0 ? 2.5 : 2} className="shrink-0" />
-                    <span className="truncate">Open All ({readyCount})</span>
+                    <Zap size={12} fill={readyCount > 0 ? "currentColor" : "none"} strokeWidth={readyCount > 0 ? 2.5 : 2} className="shrink-0" />
+                    <span className="truncate">Speed Run ({readyCount})</span>
                   </button>
-                )}
+                </div>
 
-                {/* 2. Add Casinos */}
-                <button
-                  type="button"
-                  onClick={() => setIsAddCasinosModalOpen(true)}
-                  title="Add casinos to your rollcall"
-                  className="h-8 sm:h-9 px-1.5 sm:px-2.5 rounded-xl bg-gradient-to-b from-zinc-800 to-zinc-900 hover:from-zinc-750 hover:to-zinc-850 text-zinc-100 font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1 sm:gap-1.5 shadow-md shadow-black/40 border border-zinc-700 hover:border-emerald-500/60 active:translate-y-[1px] active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
-                >
-                  <Plus size={13} strokeWidth={2.5} className="text-emerald-400 shrink-0" />
-                  <span className="truncate">Add Casinos</span>
-                </button>
+                <div className="ml-auto flex items-center gap-2 shrink-0">
+                  {/* Community Feed / Chat Button */}
+                  <button
+                    type="button"
+                    onClick={() => setActiveDrawer((prev) => (prev === "feed" ? null : "feed"))}
+                    aria-label="Open Community Feed"
+                    title="Open Community Feed"
+                    className="px-2.5 h-8 flex items-center gap-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-900/60 hover:border-emerald-400/50 active:scale-95 transition-all text-xs font-semibold cursor-pointer shadow-sm shadow-emerald-950/40"
+                  >
+                    <MessageSquare size={14} className="text-emerald-400 shrink-0" />
+                    <span className="hidden sm:inline">Feed</span>
+                    {feedUnreadCount > 0 && (
+                      <span className="min-w-[16px] h-4 px-1 bg-gradient-to-r from-emerald-400 to-teal-400 text-zinc-950 text-[10px] font-black rounded-full flex items-center justify-center shadow-sm">
+                        {feedUnreadCount}
+                      </span>
+                    )}
+                  </button>
 
-                {/* 3. Speed Run (X) */}
-                <button
-                  type="button"
-                  onClick={handleOpenSpeedRun}
-                  disabled={readyCount === 0}
-                  title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
-                  className={`h-8 sm:h-9 px-1.5 sm:px-2.5 rounded-xl text-[11px] sm:text-xs flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap transition-all ${
-                    readyCount > 0
-                      ? "bg-gradient-to-b from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-zinc-950 font-extrabold shadow-md shadow-amber-950/60 border border-amber-300/60 active:translate-y-[1px] active:scale-[0.98] cursor-pointer"
-                      : "bg-zinc-950/60 border border-zinc-800/80 text-zinc-600 font-medium opacity-50 cursor-not-allowed shadow-none"
-                  }`}
-                >
-                  <Zap size={12} fill={readyCount > 0 ? "currentColor" : "none"} strokeWidth={readyCount > 0 ? 2.5 : 2} className="shrink-0" />
-                  <span className="truncate">Speed Run ({readyCount})</span>
-                </button>
+                  {/* Bonus Drops Button */}
+                  <button
+                    type="button"
+                    onClick={() => setActiveDrawer((prev) => (prev === "drops" ? null : "drops"))}
+                    aria-label="Open Bonus Drops"
+                    title="Open Bonus Drops"
+                    className="px-2.5 h-8 flex items-center gap-1.5 rounded-lg bg-amber-950/60 border border-amber-500/30 text-amber-400 hover:bg-amber-900/60 hover:border-amber-400/50 active:scale-95 transition-all text-xs font-semibold cursor-pointer shadow-sm shadow-amber-950/40"
+                  >
+                    <Gift size={14} className="text-amber-400 shrink-0" />
+                    <span className="hidden sm:inline">Drops</span>
+                    {activeDropsCount > 0 && (
+                      <span className="min-w-[16px] h-4 px-1 bg-gradient-to-r from-amber-400 to-amber-500 text-zinc-950 text-[10px] font-black rounded-full flex items-center justify-center shadow-sm">
+                        {activeDropsCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -2439,7 +2439,7 @@ export default function TrackerPage() {
             </div>
 
             {/* Sticky Pinned Footer */}
-            <div className="shrink-0 p-4 border-t border-white/10 bg-[#121815] sticky bottom-0 z-10 flex gap-2.5">
+            <div className="shrink-0 p-4 pr-14 sm:pr-0 border-t border-white/10 bg-[#121815] sticky bottom-0 z-10 flex gap-2.5 overflow-x-auto no-scrollbar">
               <button
                 type="button"
                 onClick={() => setIsAddOpen(false)}
@@ -2485,61 +2485,6 @@ export default function TrackerPage() {
         isAdmin={isAdmin}
       />
 
-      {/* Floating Feed & Drops Circular Icon Badges (Docked Top-Right under Header, Stacked Vertically) */}
-      <aside
-        aria-label="Quick Access Feeds"
-        className="fixed top-16 right-3.5 z-40 flex flex-col items-center gap-2.5 sm:right-6 lg:right-8"
-      >
-        {/* Community Feed Button */}
-        <button
-          type="button"
-          onClick={() => setActiveDrawer((prev) => (prev === "feed" ? null : "feed"))}
-          aria-label="Open Community Feed"
-          title="Open Community Feed"
-          className="group h-10 w-10 rounded-full bg-gradient-to-b from-[#0e241b]/95 via-[#0a1b13]/95 to-[#06110c]/95 border border-emerald-500/50 hover:border-emerald-400 active:scale-95 shadow-lg shadow-black/80 backdrop-blur-md flex items-center justify-center relative transition-all duration-300 cursor-pointer hover:shadow-[0_0_20px_rgba(16,185,129,0.4)]"
-        >
-          <span className="absolute inset-0 rounded-full bg-emerald-400/10 animate-pulse pointer-events-none" />
-          <MessageSquare className="w-5 h-5 text-emerald-400 group-hover:text-emerald-300 group-hover:scale-125 group-hover:-rotate-12 transition-all duration-300 drop-shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
-          {feedUnreadCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-gradient-to-r from-emerald-400 to-teal-400 text-zinc-950 text-[10px] font-black rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(16,185,129,0.7)] ring-2 ring-[#070d0a]">
-              {feedUnreadCount}
-            </span>
-          )}
-        </button>
-
-        {/* Bonus Drops Circular Button */}
-        <button
-          type="button"
-          onClick={() => setActiveDrawer((prev) => (prev === "drops" ? null : "drops"))}
-          aria-label="Open Bonus Drops"
-          title="Open Bonus Drops"
-          className="group h-10 w-10 rounded-full bg-gradient-to-b from-[#1f1a0e]/95 via-[#161208]/95 to-[#0e0c05]/95 border border-amber-500/50 hover:border-amber-400 active:scale-95 shadow-lg shadow-black/80 backdrop-blur-md flex items-center justify-center relative transition-all duration-300 cursor-pointer hover:shadow-[0_0_20px_rgba(245,158,11,0.4)]"
-        >
-          <span className="absolute inset-0 rounded-full bg-amber-400/10 animate-pulse pointer-events-none" />
-          <Gift className="w-5 h-5 text-amber-400 group-hover:text-amber-300 group-hover:scale-125 group-hover:rotate-12 transition-all duration-300 drop-shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
-          {activeDropsCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-gradient-to-r from-amber-400 to-amber-500 text-zinc-950 text-[10px] font-black rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(245,158,11,0.7)] ring-2 ring-[#070d0a]">
-              {activeDropsCount}
-            </span>
-          )}
-        </button>
-
-        {/* AI Bonus Assistant Circular Button */}
-        <button
-          type="button"
-          onClick={() => {
-            if (typeof window !== "undefined") {
-              window.dispatchEvent(new CustomEvent("dailyroll_open_ai_assistant"));
-            }
-          }}
-          aria-label="Open Dailyroll Gemini AI Assistant"
-          title="Dailyroll Gemini AI Assistant"
-          className="group h-10 w-10 rounded-full bg-gradient-to-b from-[#131d27]/95 via-[#0d161d]/95 to-[#080d12]/95 border border-cyan-500/50 hover:border-cyan-400 active:scale-95 shadow-lg shadow-black/80 backdrop-blur-md flex items-center justify-center relative transition-all duration-300 cursor-pointer hover:shadow-[0_0_20px_rgba(56,189,248,0.45)]"
-        >
-          <span className="absolute inset-0 rounded-full bg-cyan-400/10 animate-pulse pointer-events-none" />
-          <GeminiLogo className="h-5 w-5 transition-transform duration-300 group-hover:scale-115 drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]" />
-        </button>
-      </aside>
 
       {/* Slide-Over Drawer Overlay for Community Feed & Drops */}
       {activeDrawer && (

@@ -27,7 +27,7 @@ import {
 import { CasinoLogo } from "@/components/CasinoLogo";
 import { TrustpilotStars } from "@/components/TrustpilotStars";
 import { CustomTimerModal } from "@/components/CustomTimerModal";
-import { renderBonusLabel } from "@/components/BonusLabelBadge";
+import { renderBonusLabel, renderClaimBadge } from "@/components/BonusLabelBadge";
 
 export type { CasinoStatus, StatusState };
 
@@ -497,13 +497,13 @@ function RollcallCardComponent({
                 className="h-8.5 sm:h-9 px-3.5 sm:px-4 rounded-xl bg-gradient-to-b from-[#082218] to-[#04140e] hover:from-[#0b2e21] hover:to-[#061a12] border border-emerald-500/50 hover:border-emerald-400 text-emerald-300 hover:text-emerald-200 font-bold text-xs sm:text-sm tracking-tight shadow-[inset_0_1px_0_rgba(52,211,153,0.3),0_2px_0_#064e3b,0_4px_8px_rgba(0,0,0,0.5)] hover:shadow-[inset_0_1px_0_rgba(52,211,153,0.4),0_2px_0_#065f46,0_0_12px_rgba(16,185,129,0.2)] active:translate-y-[2px] active:shadow-[inset_0_1px_0_rgba(52,211,153,0.2),0_0_0_#064e3b,0_1px_2px_rgba(0,0,0,0.5)] flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-100 cursor-pointer whitespace-nowrap select-none"
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)] animate-pulse shrink-0" />
-                <span className="pointer-events-none inline-flex items-center gap-1">
-                  {casino.dailyBonus ? (
-                    <>Claim {renderBonusLabel(casino.dailyBonus)}!</>
-                  ) : (
-                    <>Claim Bonus!</>
-                  )}
-                </span>
+                    <span className="pointer-events-none inline-flex items-center gap-1.5">
+                      {casino.dailyBonus ? (
+                        renderClaimBadge(casino.dailyBonus)
+                      ) : (
+                        <>Claim</>
+                      )}
+                    </span>
               </button>
             </>
           ) : (

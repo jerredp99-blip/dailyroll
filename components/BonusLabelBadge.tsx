@@ -167,7 +167,7 @@ export function PrizeWheelBadge({ showLabel = true }: { showLabel?: boolean }) {
   return (
     <span
       title="Lucky Wheel"
-      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/15 via-emerald-500/15 to-purple-500/15 border border-amber-400/40 text-amber-300 font-extrabold text-[10px] sm:text-[11px] leading-tight align-middle shrink-0 mx-0.5 shadow-sm hover:border-amber-400/70 transition-all cursor-inherit select-none"
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/15 via-emerald-500/15 to-purple-500/15 border border-amber-400/40 text-amber-300 font-extrabold text-[10px] sm:text-[11px] leading-tight align-middle shrink-0 mx-0.5 shadow-sm hover:border-amber-400/70 transition-all cursor-default select-none"
     >
       <PrizeWheelIcon className="w-4 h-4 sm:w-[17px] sm:h-[17px]" />
       {showLabel && <span className="font-extrabold uppercase tracking-tight text-amber-300">Wheel</span>}
@@ -182,7 +182,7 @@ export function ScratchcardBadge({ showLabel = true }: { showLabel?: boolean }) 
   return (
     <span
       title="Daily Scratchcard"
-      className="relative overflow-hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-gradient-to-tr from-purple-950/60 via-indigo-900/50 to-pink-950/60 border border-purple-400/40 text-purple-300 font-extrabold text-[10px] sm:text-[11px] leading-tight align-middle shrink-0 mx-0.5 shadow-sm hover:border-purple-400/70 transition-all cursor-inherit select-none"
+      className="relative overflow-hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-gradient-to-tr from-purple-950/60 via-indigo-900/50 to-pink-950/60 border border-purple-400/40 text-purple-300 font-extrabold text-[10px] sm:text-[11px] leading-tight align-middle shrink-0 mx-0.5 shadow-sm hover:border-purple-400/70 transition-all cursor-default select-none"
     >
       <ScratchcardIcon className="w-4 h-3.5" />
       {showLabel && <span className="font-extrabold uppercase tracking-tight text-purple-300">Scratcher</span>}
@@ -227,6 +227,33 @@ export function renderBonusLabel(label?: string | null): React.ReactNode {
 }
 
 /**
+ * Tokenizes a bonus string, replacing 'Wheel' and 'Scratchcard' keywords
+ * with interactive animated SVG badges while keeping other text intact.
+ */
+export function renderClaimBadge(label?: string | null): React.ReactNode {
+  if (!label || typeof label !== "string") return null;
+
+  // Split on keywords
+  const regex = /(\bwheel\b|\bscratch-?card\b|\bscratch\s+card\b)/gi;
+  const parts = label.split(regex);
+
+  if (parts.length === 1) {
+    return label;
+  }
+
+  return parts.map((part, index) => {
+    const lower = part.toLowerCase().trim();
+    if (lower === "wheel") {
+      return <PrizeWheelBadge key={`wheel-${index}`} showLabel={false} />;
+    }
+    if (lower === "scratchcard" || lower === "scratch card" || lower === "scratch-card") {
+      return <ScratchcardBadge key={`scratch-${index}`} showLabel={false} />;
+    }
+    return <React.Fragment key={`text-${index}`}>{part}</React.Fragment>;
+  });
+}
+
+/**
  * Universal BonusLabelBadge component for easy JSX rendering.
  */
 export function BonusLabelBadge({
@@ -246,3 +273,4 @@ export function BonusLabelBadge({
 }
 
 export default BonusLabelBadge;
+
