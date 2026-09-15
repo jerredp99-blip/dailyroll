@@ -229,21 +229,22 @@ function RollcallCardComponent({
       className={`group flex cursor-pointer ${
         isPending
           ? "flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-3.5 border-l-4 border-l-emerald-400 border-emerald-500/80 bg-gradient-to-r from-[#14281e] via-[#102219] to-[#14281e] shadow-[0_4px_20px_rgba(16,185,129,0.18)] ring-1 ring-emerald-500/60"
-          : `items-center justify-between gap-2.5 sm:gap-3 p-3 sm:p-3.5 ${styles.card}`
+          : `items-center justify-between gap-2 sm:gap-3 p-2.5 sm:p-3.5 ${styles.card}`
       } rounded-2xl border transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(0,0,0,0.3)] focus:outline-none focus:ring-2 focus:ring-emerald-500/40 ${
         casino.hidden ? "border-dashed opacity-60 grayscale hover:opacity-90" : ""
       }`}
     >
-      <div className={`flex items-center gap-2.5 min-w-0 flex-1 ${isPending ? "justify-between w-full sm:w-auto" : ""}`}>
+      {/* Left Column (Identity): Logo + Name & Stars */}
+      <div className={`flex items-center gap-2 sm:gap-2.5 min-w-0 ${isPending ? "justify-between w-full sm:w-auto flex-1" : "shrink"}`}>
         <Link
           href={`/casinos/${encodeURIComponent(casino.id)}`}
           onClick={(e) => e.stopPropagation()}
-          className="group/link flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-85 transition cursor-pointer"
+          className="group/link flex items-center gap-2 sm:gap-2.5 min-w-0 hover:opacity-85 transition cursor-pointer"
         >
           <div className="grid h-8 w-8 sm:h-[38px] sm:w-[38px] shrink-0 place-items-center rounded-lg border border-[#1b3d2f] bg-[#07130e] text-sm font-bold text-emerald-400 transition group-hover/link:border-emerald-500/50 overflow-hidden">
             {renderLogo ? renderLogo() : <CasinoLogo name={casino.name} siteUrl={siteUrl} />}
           </div>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex flex-col justify-center">
             <h2 className="font-bold text-xs sm:text-sm text-zinc-100 leading-tight truncate group-hover/link:text-emerald-300 transition">
               {casino.name}
             </h2>
@@ -288,75 +289,77 @@ function RollcallCardComponent({
         )}
       </div>
 
-      {/* Centered SC Balance Badge / Inline Editor */}
-      {!isPending && (showBalanceBadge || isEditingBalance) && (
-        <div className="flex items-center justify-center shrink-0 mx-1.5 sm:mx-auto">
-          {isEditingBalance ? (
-            <div
-              ref={editContainerRef}
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1.5 bg-zinc-950 border border-blue-500/80 rounded-xl px-2.5 py-1 shadow-lg ring-1 ring-blue-500/40 z-20 shrink-0"
-            >
-              <span className="text-xs font-bold text-blue-400 font-mono">$</span>
-              <input
-                ref={balanceInputRef}
-                type="number"
-                step="0.01"
-                min="0"
-                value={newBalanceValue}
-                onChange={(e) => setNewBalanceValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleSaveBalance();
-                  } else if (e.key === "Escape") {
+      {/* Center Column (Tracked Balance): Centered horizontally across the card */}
+      {!isPending && (
+        <div className="flex-1 flex justify-center items-center px-2 min-w-0">
+          {(showBalanceBadge || isEditingBalance) && (
+            isEditingBalance ? (
+              <div
+                ref={editContainerRef}
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1.5 bg-zinc-950 border border-blue-500/80 rounded-xl px-2.5 py-1 shadow-lg ring-1 ring-blue-500/40 z-20 shrink-0"
+              >
+                <span className="text-xs font-bold text-blue-400 font-mono">$</span>
+                <input
+                  ref={balanceInputRef}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={newBalanceValue}
+                  onChange={(e) => setNewBalanceValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSaveBalance();
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsEditingBalance(false);
+                    }
+                  }}
+                  placeholder="0.00"
+                  className="w-16 bg-transparent text-right text-xs font-bold text-blue-100 outline-none font-mono placeholder:text-zinc-600"
+                />
+                <span className="text-[10px] font-bold text-blue-400/80 font-mono">SC</span>
+                <button
+                  type="button"
+                  onClick={handleSaveBalance}
+                  title="Save balance"
+                  aria-label="Save balance"
+                  className="h-6 w-6 flex items-center justify-center rounded-lg bg-blue-500 hover:bg-blue-400 text-zinc-950 font-bold transition active:scale-95 cursor-pointer shrink-0 ml-0.5"
+                >
+                  <Check size={12} strokeWidth={3} />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     setIsEditingBalance(false);
-                  }
-                }}
-                placeholder="0.00"
-                className="w-16 bg-transparent text-right text-xs font-bold text-blue-100 outline-none font-mono placeholder:text-zinc-600"
-              />
-              <span className="text-[10px] font-bold text-blue-400/80 font-mono">SC</span>
+                  }}
+                  title="Cancel"
+                  aria-label="Cancel editing"
+                  className="h-6 w-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white transition active:scale-95 cursor-pointer shrink-0"
+                >
+                  <X size={12} strokeWidth={2.5} />
+                </button>
+              </div>
+            ) : (
               <button
                 type="button"
-                onClick={handleSaveBalance}
-                title="Save balance"
-                aria-label="Save balance"
-                className="h-6 w-6 flex items-center justify-center rounded-lg bg-blue-500 hover:bg-blue-400 text-zinc-950 font-bold transition active:scale-95 cursor-pointer shrink-0 ml-0.5"
+                onClick={handleStartEditBalance}
+                title="Click to edit tracked SC balance"
+                aria-label={`Edit tracked SC balance for ${casino.name}`}
+                className="group/bal inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-950/40 hover:bg-blue-900/50 border border-blue-500/30 hover:border-blue-400 text-blue-400 font-mono text-[11px] font-bold shrink-0 shadow-sm transition-all active:scale-95 cursor-pointer whitespace-nowrap"
               >
-                <Check size={12} strokeWidth={3} />
+                <Wallet className="w-3 h-3 text-blue-400/70 shrink-0" />
+                <span>
+                  {numericBalance.toFixed(2)} SC
+                </span>
+                <Pencil className="w-3 h-3 text-blue-400/70 group-hover/bal:text-blue-300 transition-colors shrink-0" />
               </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsEditingBalance(false);
-                }}
-                title="Cancel"
-                aria-label="Cancel editing"
-                className="h-6 w-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white transition active:scale-95 cursor-pointer shrink-0"
-              >
-                <X size={12} strokeWidth={2.5} />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={handleStartEditBalance}
-              title="Click to edit tracked SC balance"
-              aria-label={`Edit tracked SC balance for ${casino.name}`}
-              className="group/bal inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-950/40 hover:bg-blue-900/50 border border-blue-500/30 hover:border-blue-400 text-blue-400 font-mono text-[11px] font-bold shrink-0 shadow-sm transition-all active:scale-95 cursor-pointer"
-            >
-              <Wallet className="w-3 h-3 text-blue-400/70 shrink-0" />
-              <span>
-                {numericBalance.toFixed(2)} SC
-              </span>
-              <Pencil className="w-3 h-3 text-blue-400/70 group-hover/bal:text-blue-300 transition-colors shrink-0" />
-            </button>
+            )
           )}
         </div>
       )}
@@ -456,7 +459,7 @@ function RollcallCardComponent({
           </button>
         </div>
       ) : (
-        <div className="ml-2 flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="shrink-0 flex items-center gap-2 justify-end">
           {casino.bonusUrl && onOpenBonus && (
             <button
               type="button"
@@ -465,7 +468,7 @@ function RollcallCardComponent({
                 onOpenBonus(casino);
               }}
               aria-label={`Open ${casino.bonusTitle || "Bonus"} for ${casino.name}`}
-              className="flex items-center gap-1.5 rounded-lg border border-[#1b3d2f] hover:border-emerald-500/50 bg-[#07130e] hover:bg-[#0c1f17] px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white shadow-[inset_0_1px_0_rgba(52,211,153,0.1),0_2px_0_#063826] active:translate-y-[1.5px] active:shadow-none transition-all duration-100"
+              className="hidden sm:flex items-center gap-1.5 rounded-lg border border-[#1b3d2f] hover:border-emerald-500/50 bg-[#07130e] hover:bg-[#0c1f17] px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white shadow-[inset_0_1px_0_rgba(52,211,153,0.1),0_2px_0_#063826] active:translate-y-[1.5px] active:shadow-none transition-all duration-100"
             >
               <ExternalLink size={13} strokeWidth={2.5} />
               <span className="inline-flex items-center gap-1">{renderBonusLabel(casino.bonusTitle || "Bonus")}</span>
