@@ -44,6 +44,8 @@ const STATUS_STYLES: Record<
 
 export interface RollcallCardProps {
   casino: Casino;
+  balance?: number | null;
+  userBalance?: number | null;
   status?: CasinoStatus;
   now?: number;
   rating?: number;
@@ -66,6 +68,8 @@ export interface RollcallCardProps {
 
 function RollcallCardComponent({
   casino,
+  balance,
+  userBalance,
   status,
   now,
   rating,
@@ -93,6 +97,19 @@ function RollcallCardComponent({
 
   const styles = STATUS_STYLES[currentStatus.state];
   const formattedCountdown = formatRemainingTimer(currentStatus.remainingMs);
+
+  const rawBalance =
+    userBalance ??
+    balance ??
+    casino.currentBalance ??
+    (casino as { balance?: number | string | null }).balance;
+  const numericBalance = typeof rawBalance === "number" ? rawBalance : Number(rawBalance);
+  const showBalanceBadge =
+    rawBalance !== null &&
+    rawBalance !== undefined &&
+    rawBalance !== "" &&
+    !isNaN(numericBalance) &&
+    numericBalance > 0.10;
 
   const isPending = Boolean(pendingInfo);
   const isDefocused = Boolean(pendingInfo?.isDefocused);
@@ -151,7 +168,7 @@ function RollcallCardComponent({
             <h2 className="font-bold text-xs sm:text-sm text-zinc-100 leading-tight truncate group-hover/link:text-emerald-300 transition">
               {casino.name}
             </h2>
-            <div className="flex items-center gap-1.5 mt-0.5">
+            <div className="flex items-center flex-wrap gap-1.5 mt-0.5">
               {casino.hidden && (
                 <span className="rounded border border-zinc-800 bg-zinc-900/60 px-1.5 py-0.5 text-[10px] text-zinc-500">
                   Hidden
@@ -173,6 +190,11 @@ function RollcallCardComponent({
                 >
                   <TrustpilotStars rating={rating ?? casino.trustpilotRating} />
                 </a>
+              )}
+              {showBalanceBadge && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800/80 border border-zinc-700/60 text-emerald-400 font-mono text-[11px] font-bold shrink-0">
+                  {numericBalance.toFixed(2)} SC
+                </span>
               )}
             </div>
           </div>

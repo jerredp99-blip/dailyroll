@@ -1,6 +1,7 @@
 export {
   CasinoCard,
   RollcallCard,
+  type RollcallCardProps,
   type CasinoStatus,
   type StatusState,
 } from "@/app/components/RollcallCard";
