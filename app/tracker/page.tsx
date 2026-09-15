@@ -2045,7 +2045,7 @@ export default function TrackerPage() {
                     }
                     setOpenActionMenu(null);
                   }}
-                  className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-emerald-400 hover:bg-[#2a4230]"
+                  className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-amber-400 hover:bg-[#2a4230]"
                 >
                   <Pencil size={16} /> Edit SC Balance
                 </button>

@@ -10,6 +10,7 @@ import {
   Pencil,
   Check,
   X,
+  Wallet,
 } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
@@ -293,9 +294,9 @@ function RollcallCardComponent({
             <div
               ref={editContainerRef}
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1.5 bg-zinc-950 border border-emerald-500/80 rounded-xl px-2.5 py-1 shadow-lg ring-1 ring-emerald-500/40 z-20 shrink-0"
+              className="flex items-center gap-1.5 bg-zinc-950 border border-amber-500/80 rounded-xl px-2.5 py-1 shadow-lg ring-1 ring-amber-500/40 z-20 shrink-0"
             >
-              <span className="text-xs font-bold text-emerald-400 font-mono">$</span>
+              <span className="text-xs font-bold text-amber-400 font-mono">$</span>
               <input
                 ref={balanceInputRef}
                 type="number"
@@ -315,15 +316,15 @@ function RollcallCardComponent({
                   }
                 }}
                 placeholder="0.00"
-                className="w-16 bg-transparent text-right text-xs font-bold text-white outline-none font-mono placeholder:text-zinc-600"
+                className="w-16 bg-transparent text-right text-xs font-bold text-amber-100 outline-none font-mono placeholder:text-zinc-600"
               />
-              <span className="text-[10px] font-bold text-zinc-400 font-mono">SC</span>
+              <span className="text-[10px] font-bold text-amber-400/80 font-mono">SC</span>
               <button
                 type="button"
                 onClick={handleSaveBalance}
                 title="Save balance"
                 aria-label="Save balance"
-                className="h-6 w-6 flex items-center justify-center rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold transition active:scale-95 cursor-pointer shrink-0 ml-0.5"
+                className="h-6 w-6 flex items-center justify-center rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold transition active:scale-95 cursor-pointer shrink-0 ml-0.5"
               >
                 <Check size={12} strokeWidth={3} />
               </button>
@@ -347,12 +348,13 @@ function RollcallCardComponent({
               onClick={handleStartEditBalance}
               title="Click to edit tracked SC balance"
               aria-label={`Edit tracked SC balance for ${casino.name}`}
-              className="group/bal inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700/70 hover:border-emerald-500/60 shadow-sm transition-all active:scale-95 cursor-pointer shrink-0"
+              className="group/bal inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 border border-amber-500/30 hover:border-amber-400/60 shadow-sm transition-all active:scale-95 cursor-pointer shrink-0"
             >
-              <span className="text-emerald-400 font-mono text-xs sm:text-sm font-bold tracking-tight">
+              <Wallet size={12} className="text-amber-400 shrink-0" />
+              <span className="text-amber-300 font-mono text-xs sm:text-sm font-bold tracking-tight">
                 {numericBalance.toFixed(2)} SC
               </span>
-              <Pencil size={11} className="text-zinc-400 group-hover/bal:text-emerald-300 transition-colors shrink-0" />
+              <Pencil size={11} className="text-zinc-400 group-hover/bal:text-amber-300 transition-colors shrink-0" />
             </button>
           )}
         </div>
