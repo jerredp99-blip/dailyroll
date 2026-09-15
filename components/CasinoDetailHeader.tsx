@@ -87,8 +87,8 @@ export function CasinoDetailHeader({
               )}
 
               {typeof casino.currentBalance === "number" && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-300">
-                  <Wallet size={12} />
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-950/40 border border-blue-500/30 text-blue-400 font-mono text-[11px] font-bold shrink-0 shadow-sm">
+                  <Wallet className="w-3 h-3 text-blue-400/70 shrink-0" />
                   {casino.currentBalance.toFixed(2)} SC
                 </span>
               )}
