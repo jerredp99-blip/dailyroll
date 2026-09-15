@@ -109,7 +109,7 @@ function RollcallCardComponent({
     rawBalance !== undefined &&
     rawBalance !== "" &&
     !isNaN(numericBalance) &&
-    numericBalance > 0.10;
+    numericBalance > 0.99;
 
   const isPending = Boolean(pendingInfo);
   const isDefocused = Boolean(pendingInfo?.isDefocused);
