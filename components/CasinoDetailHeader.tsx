@@ -11,6 +11,7 @@ import {
 import type { Casino } from "@/types/casino";
 import { CasinoLogo } from "@/components/CasinoLogo";
 import { TrustpilotStars } from "@/components/TrustpilotStars";
+import { BonusLabelBadge } from "@/components/BonusLabelBadge";
 
 function getExternalUrl(url?: string | null): string {
   if (!url) return "#";
@@ -81,8 +82,8 @@ export function CasinoDetailHeader({
 
               {casino.dailyBonus && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-emerald-950/80 px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-400 border border-emerald-800/40">
-                  <Sparkles size={11} />
-                  {casino.dailyBonus}
+                  <Sparkles size={11} className="shrink-0" />
+                  <BonusLabelBadge label={casino.dailyBonus} />
                 </span>
               )}
 

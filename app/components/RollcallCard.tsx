@@ -27,6 +27,7 @@ import {
 import { CasinoLogo } from "@/components/CasinoLogo";
 import { TrustpilotStars } from "@/components/TrustpilotStars";
 import { CustomTimerModal } from "@/components/CustomTimerModal";
+import { BonusLabelBadge, renderBonusLabel } from "@/components/BonusLabelBadge";
 
 export type { CasinoStatus, StatusState };
 
@@ -252,6 +253,11 @@ function RollcallCardComponent({
                   Hidden
                 </span>
               )}
+              {casino.dailyBonus && (
+                <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-mono font-medium text-emerald-300/90 bg-emerald-950/40 border border-emerald-800/30">
+                  <BonusLabelBadge label={casino.dailyBonus} />
+                </span>
+              )}
               {renderTrustpilot ? (
                 renderTrustpilot()
               ) : (
@@ -467,7 +473,7 @@ function RollcallCardComponent({
               className="flex items-center gap-1.5 rounded-lg border border-[#1b3d2f] hover:border-emerald-500/50 bg-[#07130e] hover:bg-[#0c1f17] px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white transition"
             >
               <ExternalLink size={13} strokeWidth={2.5} />
-              <span>{casino.bonusTitle || "Bonus"}</span>
+              <span className="inline-flex items-center gap-1">{renderBonusLabel(casino.bonusTitle || "Bonus")}</span>
             </button>
           )}
 

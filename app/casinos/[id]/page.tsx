@@ -20,6 +20,7 @@ import { CasinoDetailHeader } from "@/components/CasinoDetailHeader";
 import { AdminCasinoDataForm } from "@/components/AdminCasinoDataForm";
 import { CasinoDropsFeed } from "@/components/CasinoDropsFeed";
 import { CasinoCommunityChat } from "@/components/CasinoCommunityChat";
+import { BonusLabelBadge } from "@/components/BonusLabelBadge";
 
 export default function CasinoDetailPage() {
   const params = useParams();
@@ -152,9 +153,9 @@ export default function CasinoDetailPage() {
                 <Coins size={15} className="text-emerald-400" />
                 <span>Daily SC Loot</span>
               </div>
-              <p className="text-base font-extrabold text-emerald-300">
-                {casino.dailyBonusSc || casino.dailyBonus || "1.00 SC"}
-              </p>
+              <div className="text-base font-extrabold text-emerald-300 flex items-center flex-wrap gap-1">
+                <BonusLabelBadge label={casino.dailyBonusSc || casino.dailyBonus || "1.00 SC"} />
+              </div>
             </div>
 
             {/* Daily GC Loot */}

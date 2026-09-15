@@ -27,3 +27,31 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
 .scrollbar-track-transparent::-webkit-scrollbar-track {
   background-color: transparent;
 }
+
+/* KingPrize-inspired Prize Wheel & Scratchcard Animations */
+@keyframes prize-wheel-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes scratch-shimmer {
+  0% {
+    transform: translateX(-150%);
+  }
+  45%, 100% {
+    transform: translateX(180%);
+  }
+}
+
+.animate-wheel-spin {
+  animation: prize-wheel-spin 6s linear infinite;
+  transform-origin: 12px 12px;
+}
+
+.animate-scratch-shimmer {
+  animation: scratch-shimmer 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
