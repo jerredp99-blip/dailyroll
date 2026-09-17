@@ -36,6 +36,7 @@ import { AddCasinosModal } from "@/components/AddCasinosModal";
 import { BalancesIntroTooltip } from "@/components/BalancesIntroTooltip";
 import { CustomTimerModal } from "@/components/CustomTimerModal";
 import { CasinoDetailsModal } from "@/components/CasinoDetailsModal";
+import { Button } from "@/components/ui/Button";
 import { getCasinoDefaultMetadata, MASTER_CASINOS_DATA } from "@/lib/casinosData";
 // import { BankrollSummary } from "@/app/components/BankrollSummary";
 import {
@@ -576,16 +577,6 @@ export default function TrackerPage() {
             }
           }
         } catch {}
-      } else if (user && saved === null && typeof window !== "undefined") {
-        try {
-          const guestRaw = localStorage.getItem("dailyroll_guest_casinos");
-          if (guestRaw) {
-            const parsedGuest = JSON.parse(guestRaw);
-            if (Array.isArray(parsedGuest) && parsedGuest.length > 0) {
-              loadedCasinos = parsedGuest;
-            }
-          }
-        } catch {}
       }
       const currentRatings = { ...sharedRatings };
       if (admin) {
@@ -653,7 +644,8 @@ export default function TrackerPage() {
           sharedProvidersByName[lowerName] || casino.provider;
 
         // User Claim & Display State (Personal to this user, decoupled from static metadata):
-        const lastClaimedAt = casino.lastClaimedAt || localClaimedTimes[casino.id] || null;
+        // Authenticated users strictly use their own server state; guest mode reads unauthenticated localStorage.
+        const lastClaimedAt = user ? (casino.lastClaimedAt || null) : (casino.lastClaimedAt || localClaimedTimes[casino.id] || null);
 
         const seed = getCasinoDefaultMetadata(casino.name);
         const dailyBonusSc =
@@ -1948,45 +1940,46 @@ export default function TrackerPage() {
               <div className="w-full flex items-center justify-between gap-1.5 sm:gap-2 pt-2 border-t border-zinc-800/50 min-w-0">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
                   {/* Add Casinos */}
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
                     onClick={() => setIsAddCasinosModalOpen(true)}
                     title="Add casinos to your rollcall"
-                    className="flex-1 min-w-0 h-10 px-2.5 sm:px-3 rounded-xl inline-flex items-center justify-center gap-1.5 font-bold text-xs text-emerald-400 bg-gradient-to-b from-zinc-800 to-zinc-900 border-t border-zinc-700/60 border-x border-b border-zinc-950 shadow-[0_3px_8px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08),0_2px_0_rgba(15,15,15,1)] hover:text-emerald-300 hover:border-emerald-500/40 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer select-none"
+                    className="flex-1 min-w-0 h-10 px-2.5 sm:px-3 text-xs"
                   >
                     <Plus className="w-4 h-4 text-emerald-400 shrink-0 stroke-[2.5]" />
                     <span className="truncate">Add Casinos</span>
-                  </button>
+                  </Button>
 
                   {/* Speed Run Hero (Primary Tactile Anchor) */}
-                  <button
+                  <Button
                     type="button"
+                    variant={readyCount > 0 ? "primary" : "secondary"}
                     onClick={handleOpenSpeedRun}
                     disabled={readyCount === 0}
                     title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
-                    className={`relative flex-[1.3] min-w-0 h-10 px-2.5 sm:px-3 rounded-xl inline-flex items-center justify-center gap-1.5 font-black text-xs uppercase tracking-wider text-white transition-all cursor-pointer select-none ${
-                      readyCount > 0
-                        ? "bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 border-t border-emerald-300/60 border-x border-b border-emerald-800/80 shadow-[0_4px_14px_rgba(16,185,129,0.45),inset_0_1px_0_rgba(255,255,255,0.4),0_2px_0_rgba(6,78,59,1)] active:translate-y-0.5 active:shadow-[0_1px_4px_rgba(16,185,129,0.3),inset_0_1px_0_rgba(0,0,0,0.2)]"
-                        : "bg-zinc-950/60 border border-zinc-800/80 text-zinc-600 font-medium opacity-50 cursor-not-allowed shadow-none"
+                    className={`flex-[1.3] min-w-0 h-10 px-2.5 sm:px-3 text-xs uppercase tracking-wider ${
+                      readyCount === 0 ? "opacity-50 cursor-not-allowed shadow-none" : ""
                     }`}
                   >
-                    {/* Yellow Lightning Bolt */}
                     <Zap className="w-4 h-4 text-amber-300 fill-amber-300 drop-shadow-[0_0_6px_rgba(252,211,77,0.8)] -rotate-6 shrink-0" />
                     <span className="truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
                       Speed Run ({readyCount})
                     </span>
-                  </button>
+                  </Button>
                 </div>
 
                 {/* Tactile Gift Drops Button */}
-                <button
+                <Button
                   type="button"
+                  variant="warning"
+                  size="icon"
                   onClick={() => setActiveDrawer((prev) => (prev === "drops" ? null : "drops"))}
-                  className="w-10 h-10 rounded-xl inline-flex items-center justify-center bg-gradient-to-b from-zinc-800 to-zinc-900 border-t border-amber-500/30 border-x border-b border-zinc-950 shadow-[0_3px_8px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(251,191,36,0.15),0_2px_0_rgba(15,15,15,1)] hover:border-amber-400/60 text-amber-400 active:translate-y-0.5 active:shadow-none transition-all shrink-0 cursor-pointer"
+                  className="w-10 h-10 shrink-0"
                   title="Active Bonus Drops"
                 >
                   <Gift className="w-4 h-4 fill-amber-400/20" />
-                </button>
+                </Button>
               </div>
             </div>
 

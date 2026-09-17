@@ -1,17 +1,18 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
   ExternalLink,
   Plus,
-  Sparkles,
   Wallet,
+  Pencil,
 } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { CasinoLogo } from "@/components/CasinoLogo";
 import { TrustpilotStars } from "@/components/TrustpilotStars";
-import { BonusLabelBadge } from "@/components/BonusLabelBadge";
+import { apiUpdateCasinoBalance } from "@/lib/api-client";
 
 function getExternalUrl(url?: string | null): string {
   if (!url) return "#";
@@ -24,11 +25,40 @@ export function CasinoDetailHeader({
   casino,
   isTracked,
   onAddToRollcall,
+  onUpdateCasino,
 }: {
   casino: Casino;
   isTracked: boolean;
   onAddToRollcall?: () => void;
+  onUpdateCasino?: (casino: Casino, updates: Partial<Casino>) => void;
 }) {
+  const [isEditingBalance, setIsEditingBalance] = useState(false);
+  const [balanceInput, setBalanceInput] = useState("");
+  const [localBalance, setLocalBalance] = useState<number | null>(casino.currentBalance ?? null);
+
+  useEffect(() => {
+    setLocalBalance(casino.currentBalance ?? null);
+  }, [casino.currentBalance]);
+
+  const handleSaveBalance = async () => {
+    setIsEditingBalance(false);
+    const trimmed = balanceInput.trim();
+    if (trimmed === "") return;
+    const val = parseFloat(trimmed);
+    if (isNaN(val) || val < 0) return;
+
+    setLocalBalance(val);
+    if (onUpdateCasino) {
+      onUpdateCasino(casino, { currentBalance: val });
+    }
+
+    try {
+      await apiUpdateCasinoBalance(casino.id, val);
+    } catch (err) {
+      console.error("Failed to update casino balance:", err);
+    }
+  };
+
   const rawUrl = casino.affiliateUrl || casino.siteUrl || casino.url;
   const visitUrl = getExternalUrl(rawUrl);
 
@@ -80,11 +110,47 @@ export function CasinoDetailHeader({
                 )}
               </div>
 
-              {typeof casino.currentBalance === "number" && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-950/40 border border-blue-500/30 text-blue-400 font-mono text-[11px] font-bold shrink-0 shadow-sm">
-                  <Wallet className="w-3 h-3 text-blue-400/70 shrink-0" />
-                  {casino.currentBalance.toFixed(2)} SC
-                </span>
+              {/* Interactive Balance Pill */}
+              {isEditingBalance ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSaveBalance();
+                  }}
+                  className="inline-flex items-center gap-1 bg-zinc-900 border border-emerald-500/50 rounded-lg px-2 py-0.5 shadow-[0_0_8px_rgba(16,185,129,0.2)]"
+                >
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    autoFocus
+                    value={balanceInput}
+                    onChange={(e) => setBalanceInput(e.target.value)}
+                    onBlur={handleSaveBalance}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        setIsEditingBalance(false);
+                        setBalanceInput(localBalance?.toFixed(2) ?? "0.00");
+                      }
+                    }}
+                    className="w-16 bg-transparent text-xs font-black text-emerald-400 outline-none text-right"
+                  />
+                  <span className="text-[10px] font-bold text-zinc-400">SC</span>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBalanceInput(localBalance != null ? localBalance.toFixed(2) : "0.00");
+                    setIsEditingBalance(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900/80 border border-emerald-500/25 hover:border-emerald-400/50 text-xs font-bold text-emerald-400 cursor-pointer group transition-all"
+                  title="Click to edit balance"
+                >
+                  <Wallet className="w-3 h-3 text-emerald-400/70 group-hover:text-emerald-400 transition-colors shrink-0" />
+                  <span>{localBalance != null ? Number(localBalance).toFixed(2) : "0.00"} SC</span>
+                  <Pencil className="w-3 h-3 text-zinc-500 group-hover:text-emerald-400 transition-colors shrink-0" />
+                </button>
               )}
             </div>
           </div>

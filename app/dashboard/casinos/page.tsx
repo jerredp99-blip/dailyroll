@@ -1,10 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { ArrowLeft, Pencil, Plus, Star, Trash2, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, Pencil, Plus, ShieldAlert, Sparkles, Star, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  apiApproveCasino,
   apiGetCasinos,
   apiGetDirectory,
   apiGetUsers,
@@ -13,6 +14,7 @@ import {
   apiUpdateAdminCasino,
 } from "@/lib/api-client";
 import { casinoDirectory, casinoDirectoryUrls } from "@/lib/casino-directory";
+import { ALL_PENDING_CASINOS, PENDING_CASINOS_BATCH, type PendingCasinoData } from "@/lib/pendingCasinos";
 import { ExpandableSearch } from "@/app/components/ExpandableSearch";
 
 import type { Casino } from "@/types/casino";
@@ -57,6 +59,9 @@ export default function AdminCasinosPage() {
   const [directoryBonusUrls, setDirectoryBonusUrls] = useState<Record<string, string | undefined>>({});
   const [directoryClaimTips, setDirectoryClaimTips] = useState<Record<string, string | undefined>>({});
   const [directoryRatings, setDirectoryRatings] = useState<Record<string, number>>({});
+  const [directoryPendingReview, setDirectoryPendingReview] = useState<Record<string, boolean>>({});
+  const [directoryPublished, setDirectoryPublished] = useState<Record<string, boolean>>({});
+
   const [directoryEditing, setDirectoryEditing] = useState<{ name: string; isNew: boolean } | null>(null);
   const [directoryName, setDirectoryName] = useState("");
   const [directoryProvider, setDirectoryProvider] = useState("");
@@ -69,6 +74,36 @@ export default function AdminCasinosPage() {
   const [directoryError, setDirectoryError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [loaded, setLoaded] = useState(false);
+
+  // Tab State: "master" | "pending"
+  const [activeTab, setActiveTab] = useState<"master" | "pending">("master");
+
+  // Inline edit state for pending review casinos
+  const [pendingFormState, setPendingFormState] = useState<
+    Record<
+      string,
+      {
+        name?: string;
+        provider?: string;
+        url?: string;
+        siteUrl?: string;
+        claimUrl?: string;
+        dailyBonus?: string;
+        dailyBonusLabel?: string;
+        dailyScAmount?: number;
+        dailyBonusSc?: string;
+        dailyGcAmount?: string;
+        resetHours?: number;
+        intervalHours?: number;
+        claimTip?: string;
+        minRedemptionText?: string;
+        minRedemption?: string;
+        affiliateUrl?: string;
+      }
+    >
+  >({});
+  const [approvingName, setApprovingName] = useState<string | null>(null);
+  const [approvedSuccessMessage, setApprovedSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +127,8 @@ export default function AdminCasinosPage() {
         setDirectoryBonusUrls(directory.bonusUrls ?? {});
         setDirectoryClaimTips(directory.claimTips ?? {});
         setDirectoryRatings(directory.ratings);
+        setDirectoryPendingReview(directory.pendingReview ?? {});
+        setDirectoryPublished(directory.published ?? {});
         setLoaded(true);
       } catch {
         if (!cancelled) router.replace("/sign-in");
@@ -99,6 +136,75 @@ export default function AdminCasinosPage() {
     })();
     return () => { cancelled = true; };
   }, [router]);
+
+  // Compute staged casinos awaiting approval
+  const pendingCasinos = ALL_PENDING_CASINOS.filter((c) => {
+    if (directoryPublished[c.name] === true) return false;
+    const isPending = directoryPendingReview[c.name] ?? true;
+    return isPending;
+  });
+
+  const filteredPendingCasinos = pendingCasinos.filter((c) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.trim().toLowerCase();
+    return (
+      c.name.toLowerCase().includes(q) ||
+      c.slug.toLowerCase().includes(q) ||
+      c.siteUrl.toLowerCase().includes(q)
+    );
+  });
+
+  function handlePendingInputChange(casinoName: string, field: string, value: any) {
+    setPendingFormState((prev) => ({
+      ...prev,
+      [casinoName]: {
+        ...prev[casinoName],
+        [field]: value,
+      },
+    }));
+  }
+
+  async function handleApprovePending(casino: PendingCasinoData) {
+    setApprovingName(casino.name);
+    setError("");
+    try {
+      const overrides = pendingFormState[casino.name] || {};
+      const targetName = overrides.name?.trim() || casino.name;
+      const payload = {
+        name: targetName,
+        provider: overrides.provider ?? directoryProviders[casino.name] ?? "",
+        siteUrl: overrides.url ?? overrides.siteUrl ?? casino.siteUrl,
+        claimUrl: overrides.claimUrl ?? directoryClaimUrls[casino.name] ?? "",
+        dailyBonusLabel: overrides.dailyBonusLabel ?? overrides.dailyBonus ?? casino.dailyBonus,
+        dailyScAmount: overrides.dailyScAmount ?? casino.dailyScAmount,
+        dailyGcAmount: overrides.dailyGcAmount ?? "",
+        minRedemptionText: overrides.minRedemptionText ?? overrides.minRedemption ?? casino.minRedemption,
+        resetHours: overrides.resetHours ?? overrides.intervalHours ?? casino.intervalHours,
+        claimTip: overrides.claimTip ?? casino.claimTip,
+        affiliateUrl: overrides.affiliateUrl ?? directoryAffiliateUrls[casino.name] ?? "",
+      };
+
+      const res = await apiApproveCasino(payload);
+
+      setDirectoryPendingReview((prev) => ({ ...prev, [casino.name]: false, [targetName]: false }));
+      setDirectoryPublished((prev) => ({ ...prev, [casino.name]: true, [targetName]: true }));
+      setDirectoryList((prev) => (prev.includes(targetName) ? prev : [...prev, targetName]));
+      if (payload.affiliateUrl) {
+        setDirectoryAffiliateUrls((prev) => ({ ...prev, [targetName]: payload.affiliateUrl }));
+      }
+      if (payload.provider) {
+        setDirectoryProviders((prev) => ({ ...prev, [targetName]: payload.provider }));
+      }
+      setDirectoryUrls((prev) => ({ ...prev, [targetName]: payload.siteUrl }));
+
+      setApprovedSuccessMessage(`${targetName} deployed & approved live!`);
+      setTimeout(() => setApprovedSuccessMessage(null), 4000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to approve casino.");
+    } finally {
+      setApprovingName(null);
+    }
+  }
 
   function openDirectoryEditor(name: string) {
     setDirectoryEditing({ name, isNew: false });
@@ -290,66 +396,345 @@ export default function AdminCasinosPage() {
   return (
     <main className="min-h-screen bg-[#101815] px-5 py-8 text-[#e6eee5] sm:px-10 lg:px-16">
       <div className="mx-auto max-w-7xl">
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-semibold text-[#9bcf9c] hover:text-[#c2e4bd]"><ArrowLeft size={16} /> Admin workspace</Link>
+        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-semibold text-[#9bcf9c] hover:text-[#c2e4bd]">
+          <ArrowLeft size={16} /> Admin workspace
+        </Link>
         <section className="mt-8">
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">Admin casino workspace</p>
           <h1 className="mt-3 font-serif text-4xl font-semibold tracking-[-0.05em] text-[#edf4ea] sm:text-5xl">Every profile, every casino.</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#9aa99c]">Review and edit casino cards for every user without changing their sign-in or claim history.</p>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#9aa99c]">Review, configure, and approve casinos across the master catalog and individual user profiles.</p>
         </section>
+
+        {approvedSuccessMessage && (
+          <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-950/80 p-4 text-sm font-bold text-emerald-300 animate-fadeIn">
+            <CheckCircle2 size={18} className="shrink-0 text-emerald-400" />
+            <span>{approvedSuccessMessage}</span>
+          </div>
+        )}
+
         <section className="mt-8 w-full max-w-full overflow-hidden rounded-2xl border border-[#2b4434] bg-[#19251f] p-4 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-[#e5eee3]">Master casino list</h2>
-              <p className="mt-1 text-sm text-[#93a495]">The full directory of casinos available to every user. Edit a casino&apos;s URL, rating, or provider group here to update it everywhere at once.</p>
+          {/* Section Header & Tab Controls */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#2b4434] pb-4">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab("master")}
+                className={`rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === "master"
+                    ? "bg-[#79b77f] text-[#122519] shadow-sm"
+                    : "bg-[#14201a] text-[#8fa792] hover:text-white"
+                }`}
+              >
+                Master Directory ({directoryList.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("pending")}
+                className={`relative rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                  activeTab === "pending"
+                    ? "bg-amber-500 text-[#122519] shadow-sm"
+                    : "bg-[#14201a] text-amber-400/90 hover:text-amber-300"
+                }`}
+              >
+                <Clock size={14} />
+                <span>Pending Review ({pendingCasinos.length})</span>
+                {pendingCasinos.length > 0 && (
+                  <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                )}
+              </button>
             </div>
+
             <div className="flex items-center gap-2">
               <ExpandableSearch
                 value={searchQuery}
                 onChange={setSearchQuery}
-                placeholder="Search master list..."
+                placeholder={activeTab === "pending" ? "Search pending..." : "Search master list..."}
                 expandedWidth="w-48 sm:w-64"
               />
-              <button type="button" onClick={openNewDirectoryEntry} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[#79b77f] px-3 py-2 text-xs font-semibold text-[#122519] hover:bg-[#91c991]"><Plus size={14} /> Add casino</button>
+              {activeTab === "master" && (
+                <button type="button" onClick={openNewDirectoryEntry} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[#79b77f] px-3 py-2 text-xs font-semibold text-[#122519] hover:bg-[#91c991]">
+                  <Plus size={14} /> Add casino
+                </button>
+              )}
             </div>
           </div>
-          <div className="mt-5 grid w-full gap-3 lg:grid-cols-2">
-            {filteredDirectoryList.map((name) => (
-              <article key={name} className="w-full max-w-full min-w-0 flex items-center justify-between gap-3 sm:gap-4 rounded-xl border border-[#304638] bg-[#1f3027] p-3.5 sm:p-4 box-border">
-                <div className="flex-1 min-w-0 mr-3">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <h3 className="truncate font-bold text-sm text-[#e5eee3]">{name}</h3>
-                    {directoryProviders[name] && (
-                      <span className="shrink-0 rounded bg-teal-950/80 border border-teal-600/40 px-1.5 py-0.5 text-[9px] font-bold text-teal-300">
-                        {directoryProviders[name]}
-                      </span>
-                    )}
+
+          {/* TAB 1: MASTER DIRECTORY */}
+          {activeTab === "master" && (
+            <div className="mt-5 grid w-full gap-3 lg:grid-cols-2">
+              {filteredDirectoryList.map((name) => (
+                <article key={name} className="w-full max-w-full min-w-0 flex items-center justify-between gap-3 sm:gap-4 rounded-xl border border-[#304638] bg-[#1f3027] p-3.5 sm:p-4 box-border">
+                  <div className="flex-1 min-w-0 mr-3">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h3 className="truncate font-bold text-sm text-[#e5eee3]">{name}</h3>
+                      {directoryProviders[name] && (
+                        <span className="shrink-0 rounded bg-teal-950/80 border border-teal-600/40 px-1.5 py-0.5 text-[9px] font-bold text-teal-300">
+                          {directoryProviders[name]}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 truncate block w-full text-xs text-[#a9bbaa]">{directoryUrls[name] || "No URL set"}</p>
+                    <div className="flex items-center text-amber-400 text-xs mt-1">
+                      <Stars rating={directoryRatings[name]} />
+                    </div>
                   </div>
-                  <p className="mt-1 truncate block w-full text-xs text-[#a9bbaa]">{directoryUrls[name] || "No URL set"}</p>
-                  <div className="flex items-center text-amber-400 text-xs mt-1">
-                    <Stars rating={directoryRatings[name]} />
+                  <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                    <button type="button" onClick={() => openDirectoryEditor(name)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#4c6d50] px-2.5 py-1.5 text-xs font-semibold text-[#b7d5b5] hover:bg-[#2a4230] transition">
+                      <Pencil size={13} /> Edit
+                    </button>
+                    <button type="button" onClick={() => removeDirectoryCasino(name)} aria-label={`Remove ${name}`} className="p-1 text-[#718275] hover:text-[#e69b91] transition">
+                      <Trash2 size={15} />
+                    </button>
                   </div>
+                </article>
+              ))}
+              {filteredDirectoryList.length === 0 && (
+                <p className="col-span-full rounded-xl border border-dashed border-[#304638] p-6 text-center text-sm text-[#819487]">
+                  {searchQuery.trim() ? `No casinos found matching "${searchQuery.trim()}".` : "No casinos in the master list yet."}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: PENDING REVIEW QUEUE */}
+          {activeTab === "pending" && (
+            <div className="mt-5 space-y-4">
+              <div className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-950/20 p-3 text-xs text-amber-300">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert size={16} className="text-amber-400 shrink-0" />
+                  <span>
+                    Staged casinos are hidden from standard users. Confirm or edit their specs below, then click <strong>Deploy / Approve</strong> to publish live.
+                  </span>
                 </div>
-                <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-                  <button type="button" onClick={() => openDirectoryEditor(name)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#4c6d50] px-2.5 py-1.5 text-xs font-semibold text-[#b7d5b5] hover:bg-[#2a4230] transition"><Pencil size={13} /> Edit</button>
-                  <button type="button" onClick={() => removeDirectoryCasino(name)} aria-label={`Remove ${name}`} className="p-1 text-[#718275] hover:text-[#e69b91] transition"><Trash2 size={15} /></button>
-                </div>
-              </article>
-            ))}
-            {filteredDirectoryList.length === 0 && (
-              <p className="col-span-full rounded-xl border border-dashed border-[#304638] p-6 text-center text-sm text-[#819487]">
-                {searchQuery.trim()
-                  ? `No casinos found matching "${searchQuery.trim()}".`
-                  : "No casinos in the master list yet."}
-              </p>
-            )}
-          </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                {filteredPendingCasinos.map((casino) => {
+                  const form = pendingFormState[casino.name] || {};
+                  const isApproving = approvingName === casino.name;
+
+                  return (
+                    <div
+                      key={casino.name}
+                      className="w-full bg-[#121d17] border border-amber-500/30 rounded-2xl p-4 sm:p-5 flex flex-col gap-4 shadow-xl"
+                    >
+                      {/* Header Row */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#22362b]">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-black text-white">
+                            {form.name !== undefined ? form.name : casino.name}
+                          </h3>
+                          <span className="text-[10px] font-mono bg-[#0a140f] px-2 py-0.5 rounded text-gray-400 border border-[#233b2e]">
+                            slug: {casino.slug}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-[11px] font-bold text-amber-400">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Awaiting Admin Confirmation</span>
+                        </div>
+                      </div>
+
+                      {/* 1. General Info */}
+                      <div>
+                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider block mb-2">
+                          General Info
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                              Casino Name
+                            </label>
+                            <input
+                              type="text"
+                              value={form.name !== undefined ? form.name : casino.name}
+                              onChange={(e) => handlePendingInputChange(casino.name, "name", e.target.value)}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                              Operator / Provider
+                            </label>
+                            <input
+                              type="text"
+                              value={form.provider !== undefined ? form.provider : directoryProviders[casino.name] || ""}
+                              placeholder="e.g. Blazesoft, eCom Enterprise"
+                              onChange={(e) => handlePendingInputChange(casino.name, "provider", e.target.value)}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                              Site URL
+                            </label>
+                            <input
+                              type="text"
+                              value={form.url !== undefined ? form.url : casino.siteUrl}
+                              onChange={(e) => handlePendingInputChange(casino.name, "url", e.target.value)}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                              Claim / Bonus URL
+                            </label>
+                            <input
+                              type="text"
+                              value={form.claimUrl !== undefined ? form.claimUrl : directoryClaimUrls[casino.name] || ""}
+                              placeholder="https://..."
+                              onChange={(e) => handlePendingInputChange(casino.name, "claimUrl", e.target.value)}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 2. Daily Bonus Specs */}
+                      <div className="pt-2 border-t border-[#22362b]">
+                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider block mb-2">
+                          Daily Bonus Specs
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 block mb-1">
+                              Daily Bonus Label
+                            </label>
+                            <input
+                              type="text"
+                              value={form.dailyBonusLabel !== undefined ? form.dailyBonusLabel : casino.dailyBonus}
+                              placeholder="e.g. 1.00 SC + Daily Wheel"
+                              onChange={(e) => handlePendingInputChange(casino.name, "dailyBonusLabel", e.target.value)}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 block mb-1">
+                              Daily SC Amount
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={form.dailyScAmount !== undefined ? form.dailyScAmount : casino.dailyScAmount ?? 1.0}
+                              onChange={(e) => handlePendingInputChange(casino.name, "dailyScAmount", parseFloat(e.target.value))}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 block mb-1">
+                              Daily GC Amount
+                            </label>
+                            <input
+                              type="text"
+                              value={form.dailyGcAmount !== undefined ? form.dailyGcAmount : ""}
+                              placeholder="e.g. 10,000 GC"
+                              onChange={(e) => handlePendingInputChange(casino.name, "dailyGcAmount", e.target.value)}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 block mb-1">
+                              Timer Cycle (Hours)
+                            </label>
+                            <input
+                              type="number"
+                              value={form.resetHours !== undefined ? form.resetHours : casino.intervalHours ?? 24}
+                              onChange={(e) => handlePendingInputChange(casino.name, "resetHours", parseInt(e.target.value))}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 block mb-1">
+                              Claim Tip
+                            </label>
+                            <input
+                              type="text"
+                              value={form.claimTip !== undefined ? form.claimTip : casino.claimTip || ""}
+                              placeholder="e.g. Click the store popup then claim tab"
+                              onChange={(e) => handlePendingInputChange(casino.name, "claimTip", e.target.value)}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 3. Redemption & Affiliate */}
+                      <div className="pt-2 border-t border-[#22362b]">
+                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider block mb-2">
+                          Redemption &amp; Affiliate
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                              Minimum Redemption
+                            </label>
+                            <input
+                              type="text"
+                              value={form.minRedemptionText !== undefined ? form.minRedemptionText : casino.minRedemption || ""}
+                              placeholder="e.g. $50 (Gift Card) / $100 (Bank)"
+                              onChange={(e) => handlePendingInputChange(casino.name, "minRedemptionText", e.target.value)}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                              Affiliate / Referral URL
+                            </label>
+                            <input
+                              type="text"
+                              value={form.affiliateUrl !== undefined ? form.affiliateUrl : directoryAffiliateUrls[casino.name] || ""}
+                              placeholder="https://..."
+                              onChange={(e) => handlePendingInputChange(casino.name, "affiliateUrl", e.target.value)}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Footer Action Bar */}
+                      <div className="flex items-center justify-between pt-3 border-t border-[#22362b] mt-1">
+                        <span className="text-xs text-gray-400 font-medium">
+                          Status: <strong className="text-gray-300">Hidden (Draft)</strong>
+                        </span>
+                        <button
+                          type="button"
+                          disabled={isApproving}
+                          onClick={() => handleApprovePending(casino)}
+                          className="h-10 px-4 rounded-xl inline-flex items-center justify-center gap-2 text-xs font-black text-white bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 border-t border-emerald-300/60 shadow-[0_3px_12px_rgba(16,185,129,0.35)] active:translate-y-0.5 transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <Sparkles className="w-4 h-4 text-emerald-200" />
+                          <span>{isApproving ? "Publishing..." : "Deploy / Approve"}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredPendingCasinos.length === 0 && (
+                  <div className="col-span-full rounded-xl border border-dashed border-[#304638] p-10 text-center text-sm text-[#819487]">
+                    <CheckCircle2 size={32} className="mx-auto text-emerald-400 mb-2" />
+                    <p className="font-bold text-white">All staged casinos reviewed &amp; approved!</p>
+                    <p className="text-xs text-gray-400 mt-1">There are currently no casinos awaiting admin review.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </section>
+
+        {/* User Profiles Section */}
         <div className="mt-8 space-y-5 w-full max-w-full overflow-hidden">
           {records.map((record) => (
             <section key={record.user.email} className="w-full max-w-full overflow-hidden rounded-2xl border border-[#2b4434] bg-[#19251f] p-4 sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div><h2 className="text-lg font-semibold text-[#e5eee3]">{record.user.name}</h2><p className="mt-1 text-sm text-[#93a495]">{record.user.email}</p></div>
-                <span className="rounded-full border border-[#355b3d] bg-[#1b3625] px-3 py-1 text-xs font-semibold text-[#9bcf9c]">{record.casinos.length} casinos</span>
+                <div>
+                  <h2 className="text-lg font-semibold text-[#e5eee3]">{record.user.name}</h2>
+                  <p className="mt-1 text-sm text-[#93a495]">{record.user.email}</p>
+                </div>
+                <span className="rounded-full border border-[#355b3d] bg-[#1b3625] px-3 py-1 text-xs font-semibold text-[#9bcf9c]">
+                  {record.casinos.length} casinos
+                </span>
               </div>
               <div className="mt-5 grid w-full gap-3 lg:grid-cols-2">
                 {record.casinos.map((casino) => (
@@ -368,7 +753,9 @@ export default function AdminCasinosPage() {
                         <Stars rating={casino.trustpilotRating} />
                       </div>
                     </div>
-                    <button type="button" onClick={() => openEditor(record.user, casino)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#4c6d50] px-2.5 py-1.5 text-xs font-semibold text-[#b7d5b5] hover:bg-[#2a4230] transition"><Pencil size={13} /> Edit</button>
+                    <button type="button" onClick={() => openEditor(record.user, casino)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#4c6d50] px-2.5 py-1.5 text-xs font-semibold text-[#b7d5b5] hover:bg-[#2a4230] transition">
+                      <Pencil size={13} /> Edit
+                    </button>
                   </article>
                 ))}
                 {record.casinos.length === 0 && <p className="text-sm text-[#819487]">No casinos saved for this profile.</p>}
@@ -377,10 +764,21 @@ export default function AdminCasinosPage() {
           ))}
         </div>
       </div>
+
+      {/* Editor Modal for Profile Casinos */}
       {editing && (
         <div className="fixed inset-0 z-20 grid place-items-center bg-black/65 p-5" role="presentation" onMouseDown={() => setEditing(null)}>
           <form onSubmit={saveEdit} className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#38503d] bg-[#19251f] p-6 shadow-2xl" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="flex items-start justify-between"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">Edit profile casino</p><h2 className="mt-2 font-serif text-2xl font-semibold text-[#e5eee3]">{editing.casino.name}</h2><p className="mt-1 text-xs text-[#93a495]">{editing.user.email}</p></div><button type="button" onClick={() => setEditing(null)} aria-label="Close editor" className="text-[#91a595] hover:text-white"><X size={20} /></button></div>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">Edit profile casino</p>
+                <h2 className="mt-2 font-serif text-2xl font-semibold text-[#e5eee3]">{editing.casino.name}</h2>
+                <p className="mt-1 text-xs text-[#93a495]">{editing.user.email}</p>
+              </div>
+              <button type="button" onClick={() => setEditing(null)} aria-label="Close editor" className="text-[#91a595] hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
             <div className="mt-6 grid gap-3">
               <label className="text-xs font-semibold text-[#a9bbaa]">Provider / Network Group<input value={provider} onChange={(event) => setProvider(event.target.value)} placeholder="VGW, Blazesoft, or leave blank if standalone" className="mt-2 h-11 w-full rounded-xl border border-emerald-600/50 bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
               <label className="text-xs font-semibold text-[#a9bbaa]">Site URL (card click / logo)<input required value={url} onChange={(event) => setUrl(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
@@ -407,6 +805,8 @@ export default function AdminCasinosPage() {
           </form>
         </div>
       )}
+
+      {/* Editor Modal for Directory Master Casinos */}
       {directoryEditing && (
         <div className="fixed inset-0 z-20 grid place-items-center bg-black/65 p-5" role="presentation" onMouseDown={() => setDirectoryEditing(null)}>
           <form onSubmit={saveDirectoryEdit} className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#38503d] bg-[#19251f] p-6 shadow-2xl" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
@@ -415,7 +815,9 @@ export default function AdminCasinosPage() {
                 <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">{directoryEditing.isNew ? "Add casino" : "Edit master casino"}</p>
                 <h2 className="mt-2 font-serif text-2xl font-semibold text-[#e5eee3]">{directoryEditing.isNew ? "New casino" : directoryEditing.name}</h2>
               </div>
-              <button type="button" onClick={() => setDirectoryEditing(null)} aria-label="Close editor" className="text-[#91a595] hover:text-white"><X size={20} /></button>
+              <button type="button" onClick={() => setDirectoryEditing(null)} aria-label="Close editor" className="text-[#91a595] hover:text-white">
+                <X size={20} />
+              </button>
             </div>
             <div className="mt-6 grid gap-3">
               {directoryEditing.isNew && (

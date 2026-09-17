@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Wallet,
   CheckCircle2,
@@ -14,7 +14,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { Casino } from "@/types/casino";
-import { apiGetCasinos, apiSaveCasinos, apiGetDirectory, apiUpdateCasinoBalance } from "@/lib/api-client";
+import { apiGetCasinos, apiSaveCasinos, apiGetDirectory } from "@/lib/api-client";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
 import { getCasinoProvider, parseScReward } from "@/lib/speedRunStorage";
@@ -49,54 +49,48 @@ export default function BalancesPage() {
     setIsDetailsModalOpen(true);
   }
 
-  const loadCasinosData = useCallback(async () => {
-    try {
-      const [casinosData, directoryData] = await Promise.all([
-        apiGetCasinos(),
-        apiGetDirectory(),
-      ]);
-
-      if (directoryData) {
-        if (directoryData.providers) setDirectoryProviders(directoryData.providers);
-        if (directoryData.minRedemption) setDirectoryMinRedemptions(directoryData.minRedemption);
-      }
-
-      if (Array.isArray(casinosData) && casinosData.length > 0) {
-        setCasinos(casinosData);
-      } else {
-        try {
-          const guestRaw = localStorage.getItem("dailyroll_guest_casinos");
-          if (guestRaw) {
-            const parsed = JSON.parse(guestRaw);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setCasinos(parsed);
-              setLoading(false);
-              return;
-            }
-          }
-        } catch {}
-        setCasinos(MASTER_CASINOS_DATA as Casino[]);
-      }
-    } catch (err) {
-      console.error("Failed to load casinos for balances page:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   // Load casinos & directory metadata
   useEffect(() => {
-    loadCasinosData();
+    let cancelled = false;
+    (async () => {
+      try {
+        const [casinosData, directoryData] = await Promise.all([
+          apiGetCasinos(),
+          apiGetDirectory(),
+        ]);
+        if (cancelled) return;
 
-    const handleExternalUpdate = () => {
-      loadCasinosData();
-    };
+        if (directoryData) {
+          if (directoryData.providers) setDirectoryProviders(directoryData.providers);
+          if (directoryData.minRedemption) setDirectoryMinRedemptions(directoryData.minRedemption);
+        }
 
-    window.addEventListener("dailyroll_casinos_updated", handleExternalUpdate);
+        if (Array.isArray(casinosData) && casinosData.length > 0) {
+          setCasinos(casinosData);
+        } else {
+          try {
+            const guestRaw = localStorage.getItem("dailyroll_guest_casinos");
+            if (guestRaw) {
+              const parsed = JSON.parse(guestRaw);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setCasinos(parsed);
+                setLoading(false);
+                return;
+              }
+            }
+          } catch {}
+          setCasinos(MASTER_CASINOS_DATA as Casino[]);
+        }
+      } catch (err) {
+        console.error("Failed to load casinos for balances page:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
     return () => {
-      window.removeEventListener("dailyroll_casinos_updated", handleExternalUpdate);
+      cancelled = true;
     };
-  }, [loadCasinosData]);
+  }, []);
 
   // Save balance update
   async function handleSaveBalance(casino: Casino, newValueStr: string) {
@@ -115,9 +109,8 @@ export default function BalancesPage() {
     setCasinos(updated);
 
     try {
+      await apiSaveCasinos(undefined, updated);
       localStorage.setItem("dailyroll_guest_casinos", JSON.stringify(updated));
-      await apiUpdateCasinoBalance(casino.id, validBalance ?? 0).catch(() => apiSaveCasinos(undefined, updated));
-      window.dispatchEvent(new CustomEvent("dailyroll_casinos_updated"));
     } catch (err) {
       console.error("Failed to save updated balance:", err);
     }

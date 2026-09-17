@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { casinoKey, deleteCasinos, getCasinos, saveCasinos, Casino } from "@/lib/store";
+import { casinoKey, createCleanDefaultCasinos, deleteCasinos, getCasinos, saveCasinos, Casino } from "@/lib/store";
 import { getCurrentSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,12 @@ export async function GET(request: NextRequest) {
     if (session.role !== "admin" && key !== casinoKey(session.email)) {
       return NextResponse.json({ error: "Not authorized." }, { status: 403 });
     }
-    const casinos = await getCasinos(key);
+    let casinos = await getCasinos(key);
+    if (!casinos) {
+      // Initialize brand-new user profile with an empty array (0 casinos added)
+      casinos = [];
+      await saveCasinos(key, casinos);
+    }
     return NextResponse.json({ casinos }, { headers: NO_CACHE_HEADERS });
   } catch (error) {
     console.error("Unable to load casinos", error);

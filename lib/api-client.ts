@@ -117,6 +117,8 @@ export type DirectoryData = {
   providers?: Record<string, string>;
   claimTips?: Record<string, string>;
   hasStreak?: Record<string, boolean>;
+  pendingReview?: Record<string, boolean>;
+  published?: Record<string, boolean>;
 };
 
 export async function apiGetDirectory(): Promise<DirectoryData> {
@@ -145,6 +147,8 @@ export async function apiSaveDirectory(update: {
   providers?: Record<string, string>;
   claimTips?: Record<string, string>;
   hasStreak?: Record<string, boolean>;
+  pendingReview?: Record<string, boolean>;
+  published?: Record<string, boolean>;
 }): Promise<DirectoryData> {
   const res = await fetch("/api/directory", {
     method: "POST",
@@ -177,6 +181,8 @@ export async function apiUpdateAdminCasino(data: {
   resetRule?: string | null;
   restrictedStates?: string | null;
   hasStreak?: boolean | null;
+  isPublished?: boolean | null;
+  pendingReview?: boolean | null;
 }): Promise<{ ok: boolean; directory: DirectoryData }> {
   const res = await fetch("/api/admin/casinos", {
     method: "POST",
@@ -184,4 +190,33 @@ export async function apiUpdateAdminCasino(data: {
     body: JSON.stringify(data),
   });
   return readApiResponse<{ ok: boolean; directory: DirectoryData }>(res);
+}
+
+export async function apiApproveCasino(data: {
+  name: string;
+  provider?: string | null;
+  operator?: string | null;
+  siteUrl?: string | null;
+  url?: string | null;
+  affiliateUrl?: string | null;
+  claimUrl?: string | null;
+  dailyBonus?: string | null;
+  dailyBonusLabel?: string | null;
+  dailyBonusSc?: string | null;
+  dailyScAmount?: number | string | null;
+  dailyBonusGc?: string | null;
+  dailyGcAmount?: string | null;
+  minRedemption?: string | null;
+  minRedemptionText?: string | null;
+  intervalHours?: number | string | null;
+  resetHours?: number | string | null;
+  resetAtTime?: string | null;
+  claimTip?: string | null;
+}): Promise<{ ok: boolean; casinoName: string; directory: DirectoryData }> {
+  const res = await fetch("/api/admin/casinos/approve", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return readApiResponse<{ ok: boolean; casinoName: string; directory: DirectoryData }>(res);
 }

@@ -48,6 +48,12 @@ export interface Casino {
   resetRule?: string | null;
   restrictedStates?: string | null;
   hasStreak?: boolean | null;
+
+  /** Staging & Publishing Status */
+  slug?: string;
+  isPublished?: boolean;
+  pendingReview?: boolean;
+  dailyScAmount?: number | null;
 }
 
 export interface SpeedRunSessionState {

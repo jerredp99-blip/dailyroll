@@ -2,11 +2,10 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, X, Plus, Check, ExternalLink, CheckCircle2, ShieldAlert } from "lucide-react";
+import { Search, X, Plus, ExternalLink, ShieldAlert } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { CasinoLogo } from "@/components/CasinoLogo";
 import { TrustpilotStars } from "@/components/TrustpilotStars";
-import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { getCasinoDefaultMetadata, MASTER_CASINOS_DATA } from "@/lib/casinosData";
 import { casinoDirectory, casinoDirectoryUrls } from "@/lib/casino-directory";
 import type { DirectoryData } from "@/lib/api-client";
@@ -34,38 +33,23 @@ export function AddCasinosModal({
 }: AddCasinosModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState<"available" | "added" | "all">("available");
-  const [confirmingCasino, setConfirmingCasino] = useState<string | null>(null);
-  const [visitedAffiliates, setVisitedAffiliates] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const stored = localStorage.getItem("dailyroll_affiliate_visited");
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
 
-  const markAffiliateVisited = (name: string) => {
-    const key = name.trim().toLowerCase();
-    setVisitedAffiliates((prev) => {
-      if (prev.includes(key)) return prev;
-      const next = [...prev, key];
-      try {
-        localStorage.setItem("dailyroll_affiliate_visited", JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-  };
-
-  // Compile full directory of names
+  // Compile full directory of names (filtering out pending review casinos for standard users)
   const allNames = useMemo(() => {
     const list = directoryData?.list && directoryData.list.length > 0 ? directoryData.list : casinoDirectory;
     const set = new Set(list);
     for (const item of MASTER_CASINOS_DATA) {
       set.add(item.name);
     }
-    return Array.from(set);
-  }, [directoryData?.list]);
+    return Array.from(set).filter((name) => {
+      if (isAdmin) return true;
+      const isPending = directoryData?.pendingReview?.[name];
+      const isPub = directoryData?.published?.[name];
+      if (isPending === true) return false;
+      if (isPub === false) return false;
+      return true;
+    });
+  }, [directoryData?.list, directoryData?.pendingReview, directoryData?.published, isAdmin]);
 
   // Lookup existing user casinos by lowercase name
   const userCasinosByName = useMemo(() => {
@@ -223,139 +207,57 @@ export function AddCasinosModal({
                 directoryData?.affiliateUrls?.[casinoName] ||
                 userCasino?.affiliateUrl;
 
-              const isAffiliateVisited = visitedAffiliates.includes(casinoName.trim().toLowerCase());
-              const hasUnvisitedAffiliate = Boolean(affiliateUrl && !isAffiliateVisited);
-              const isConfirming = confirmingCasino === casinoName;
-
-              const handleAddClick = () => {
-                if (hasUnvisitedAffiliate && affiliateUrl && !isConfirming) {
-                  openInExternalBrowser(affiliateUrl);
-                  markAffiliateVisited(casinoName);
-                  setConfirmingCasino(casinoName);
-                  return;
-                }
-                setConfirmingCasino(null);
-                onAddCasino(casinoName);
-              };
-
-              const handleClaimClick = () => {
-                if (hasUnvisitedAffiliate && affiliateUrl && !isConfirming) {
-                  openInExternalBrowser(affiliateUrl);
-                  markAffiliateVisited(casinoName);
-                  setConfirmingCasino(casinoName);
-                  return;
-                }
-                setConfirmingCasino(null);
-                onAddCasino(casinoName);
-                openInExternalBrowser(siteUrl);
-              };
+              const destinationUrl = affiliateUrl?.trim() || siteUrl?.trim() || "#";
 
               return (
                 <article
                   key={casinoName}
-                  className="pt-2.5 first:pt-0 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-950/60 bg-[#0f1d15] p-3 sm:p-3.5 hover:border-emerald-700/60 transition"
+                  className="w-full flex flex-nowrap items-center justify-between gap-2 p-3 sm:p-3.5 rounded-xl border border-emerald-950/60 bg-[#0f1d15] hover:border-emerald-700/60 transition-all min-h-[64px]"
                 >
-                  {/* Left: Logo + Name + Badges */}
-                  <div className="flex items-center gap-3 min-w-0">
+                  {/* Left: Identity Section */}
+                  <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
                     <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#182b20] border border-emerald-900/50">
                       <CasinoLogo name={casinoName} siteUrl={siteUrl} width={32} height={32} />
                     </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onClose();
-                            if (onOpenDetails) {
-                              onOpenDetails(casinoName);
-                            }
-                          }}
-                          className="font-bold text-white text-sm sm:text-base hover:text-emerald-300 transition truncate text-left cursor-pointer"
-                        >
-                          {casinoName}
-                        </button>
-                      </div>
+                    <div className="flex flex-col min-w-0 justify-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          if (onOpenDetails) {
+                            onOpenDetails(casinoName);
+                          }
+                        }}
+                        className="font-bold text-white text-xs sm:text-sm hover:text-emerald-300 transition truncate max-w-full text-left leading-tight cursor-pointer"
+                      >
+                        {casinoName}
+                      </button>
 
                       {/* Badges: Trustpilot */}
                       {rating !== undefined && rating !== null && (
-                        <div className="mt-1 flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <div className="mt-0.5 flex items-center gap-0.5 text-amber-400 text-[10px]">
                           <TrustpilotStars rating={Number(rating)} />
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Right: Actions */}
-                  <div className="flex items-center gap-2 ml-auto shrink-0">
-                    {/* External Link */}
-                    <button
-                      type="button"
-                      onClick={() => openInExternalBrowser(siteUrl)}
-                      title={`Visit ${casinoName}`}
-                      className="grid h-8 w-8 place-items-center rounded-lg border border-[#2f4937] bg-[#111e16] text-[#86a88d] hover:text-white hover:border-emerald-500 transition cursor-pointer"
+                  {/* Right: Sign Up Button */}
+                  <div className="flex items-center ml-auto shrink-0">
+                    <a
+                      href={destinationUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => {
+                        if (!isAdded) {
+                          onAddCasino(casinoName);
+                        }
+                      }}
+                      className="shrink-0 h-9 px-2.5 sm:px-3 rounded-xl inline-flex items-center justify-center gap-1.5 text-[11px] font-bold text-white bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 border-t border-emerald-300/40 border-x border-b border-emerald-900 shadow-[0_2px_8px_rgba(16,185,129,0.3)] active:translate-y-0.5 transition-all select-none whitespace-nowrap"
                     >
-                      <ExternalLink size={13} />
-                    </button>
-
-                    {/* Add / Claim Actions */}
-                    {isAdded ? (
-                      <div className="flex items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-700/50 bg-[#14281c] px-2.5 py-1.5 text-xs font-bold text-emerald-400">
-                          <Check size={12} strokeWidth={3} />
-                          Added
-                        </span>
-
-                        {/* Direct Claim Action */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (userCasino && onClaimCasino) {
-                              onClaimCasino(userCasino);
-                            }
-                            openInExternalBrowser(siteUrl);
-                          }}
-                          className="flex items-center gap-1.5 rounded-lg bg-[#39ff6a] px-3 py-1.5 text-xs font-extrabold text-[#0d1712] shadow-[0_4px_12px_rgba(57,255,106,0.25)] hover:bg-[#5aff84] transition active:scale-95 cursor-pointer"
-                        >
-                          <CheckCircle2 size={13} strokeWidth={2.5} />
-                          <span>Claim {dailyBonus}!</span>
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5">
-                        {/* Secondary: + Add to Rollcall */}
-                        <button
-                          type="button"
-                          onClick={handleAddClick}
-                          className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold transition active:scale-95 cursor-pointer ${
-                            isConfirming
-                              ? "bg-emerald-500 text-zinc-950 hover:bg-emerald-400 shadow-md shadow-emerald-950/40 animate-pulse"
-                              : hasUnvisitedAffiliate
-                              ? "border border-emerald-500/60 bg-[#14281c] text-emerald-300 hover:border-emerald-400 hover:text-white"
-                              : "border border-[#395341] bg-[#14241b] text-[#b5d6b3] hover:border-emerald-500 hover:text-white"
-                          }`}
-                          title={
-                            isConfirming
-                              ? `Confirm adding ${casinoName} to Rollcall`
-                              : hasUnvisitedAffiliate
-                              ? `Open referral link and add ${casinoName}`
-                              : `Add ${casinoName}`
-                          }
-                        >
-                          <Plus size={13} />
-                          <span>{isConfirming ? "Confirm & Add" : "Add"}</span>
-                        </button>
-
-                        {/* Primary: Claim [Daily Bonus]! Initialized to ready */}
-                        <button
-                          type="button"
-                          onClick={handleClaimClick}
-                          className="flex items-center gap-1.5 rounded-lg bg-[#39ff6a] px-3 py-1.5 text-xs font-extrabold text-[#0d1712] shadow-[0_4px_12px_rgba(57,255,106,0.3)] hover:bg-[#5aff84] transition active:scale-95 cursor-pointer"
-                        >
-                          <CheckCircle2 size={13} strokeWidth={2.5} />
-                          <span>Claim {dailyBonus}!</span>
-                        </button>
-                      </div>
-                    )}
+                      <span>Sign Up &amp; Claim Bonuses</span>
+                      <ExternalLink className="w-3 h-3 text-emerald-200 stroke-[2.5] shrink-0" />
+                    </a>
                   </div>
                 </article>
               );

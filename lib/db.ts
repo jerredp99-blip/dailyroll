@@ -56,6 +56,8 @@ export async function updateCasinoMetadata(data: {
   claimTip?: string | null;
   claimInstructions?: string | null;
   hasStreak?: boolean | string | null;
+  isPublished?: boolean | null;
+  pendingReview?: boolean | null;
 }) {
   const trimmedName = data.name.trim();
   const lowerName = trimmedName.toLowerCase();
@@ -243,6 +245,22 @@ export async function updateCasinoMetadata(data: {
         };
       }
     }
+    if ("isPublished" in data) {
+      if (data.isPublished !== null && data.isPublished !== undefined) {
+        store.directoryPublished = {
+          ...(store.directoryPublished || {}),
+          [trimmedName]: Boolean(data.isPublished),
+        };
+      }
+    }
+    if ("pendingReview" in data) {
+      if (data.pendingReview !== null && data.pendingReview !== undefined) {
+        store.directoryPendingReview = {
+          ...(store.directoryPendingReview || {}),
+          [trimmedName]: Boolean(data.pendingReview),
+        };
+      }
+    }
 
     // 3. Atomically update all user records in store.casinos
     const targetKeys = new Set<string>([
@@ -321,6 +339,8 @@ export async function updateCasinoMetadata(data: {
       providers: store.directoryProviders || {},
       claimTips: store.directoryClaimTips || {},
       hasStreak: store.directoryHasStreak || {},
+      pendingReview: store.directoryPendingReview || {},
+      published: store.directoryPublished || {},
     };
   });
 }

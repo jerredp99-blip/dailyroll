@@ -31,6 +31,7 @@ export function SocialFeed({
   onClaimCasino,
   compact = false,
   initialType = "all",
+  hideComposer = false,
   onClose,
 }: {
   currentUserEmail?: string;
@@ -41,6 +42,7 @@ export function SocialFeed({
   onClaimCasino?: (casino: Casino) => void;
   compact?: boolean;
   initialType?: PostType | "all";
+  hideComposer?: boolean;
   onClose?: () => void;
 }) {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -524,14 +526,16 @@ export function SocialFeed({
       </div>
 
       {/* Post Composer (Minimized by default, expands on typebox click) */}
-      <PostComposer
-        currentUserEmail={currentUserEmail}
-        currentUserName={currentUserName}
-        currentUserAvatar={currentUserAvatar}
-        isAdmin={isAdmin}
-        casinos={casinos}
-        onPostCreated={handleNewPost}
-      />
+      {!hideComposer && (
+        <PostComposer
+          currentUserEmail={currentUserEmail}
+          currentUserName={currentUserName}
+          currentUserAvatar={currentUserAvatar}
+          isAdmin={isAdmin}
+          casinos={casinos}
+          onPostCreated={handleNewPost}
+        />
+      )}
 
       {/* Compact Dismissible Non-Rollcall Drops Banner */}
       {!isUnaddedBannerDismissed && untrackedDropsCount > 0 && (currentType === "all" || currentType === "drop_code") && (

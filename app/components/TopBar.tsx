@@ -208,7 +208,7 @@ export function TopBar() {
               href="/tracker"
               className="text-xs sm:text-sm font-semibold text-[#9bcf9c] hover:text-[#c2e4bd]"
             >
-              Feed & Tracker
+              Rollcall
             </Link>
           )}
           {isAdmin && pathname !== "/dashboard" && (
@@ -329,7 +329,7 @@ export function TopBar() {
                       role="menuitem"
                     >
                       <Compass className="w-4 h-4 text-teal-400" />
-                      <span>Rollcall & Feed</span>
+                      <span>Rollcall</span>
                     </Link>
                   </div>
 

@@ -279,6 +279,9 @@ export function CasinoDetailsModal({
               casino={casino}
               isTracked={isTracked}
               onAddToRollcall={handleAddToRollcall}
+              onUpdateCasino={(updatedCasino, updates) => {
+                setCasino((prev) => (prev ? { ...prev, ...updates } : null));
+              }}
             />
 
             {/* 2. Operational Cheat Sheet Grid */}

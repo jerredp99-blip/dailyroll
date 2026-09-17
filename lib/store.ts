@@ -51,6 +51,7 @@ import type { Casino, SpeedRunSessionState } from "@/types/casino";
 export type { Casino, SpeedRunSessionState };
 import { MASTER_CASINOS_DATA } from "@/lib/casinosData";
 import { casinoDirectory, casinoDirectoryUrls } from "@/lib/casino-directory";
+import { ALL_PENDING_CASINOS, PENDING_CASINOS_BATCH } from "@/lib/pendingCasinos";
 
 export type Session = {
   token: string;
@@ -131,6 +132,8 @@ type Store = {
   directoryProviders?: Record<string, string>;
   directoryClaimTips?: Record<string, string>;
   directoryHasStreak?: Record<string, boolean>;
+  directoryPendingReview?: Record<string, boolean>;
+  directoryPublished?: Record<string, boolean>;
   sessions: Record<string, Session>;
   magicLinks: Record<string, MagicLink>;
   posts: Post[];
@@ -263,6 +266,8 @@ const EMPTY_STORE: Store = {
   directoryDetails: {},
   directoryProviders: {},
   directoryHasStreak: {},
+  directoryPendingReview: {},
+  directoryPublished: {},
   sessions: {},
   magicLinks: {},
   posts: INITIAL_POSTS,
@@ -447,6 +452,24 @@ export function casinoKey(email?: string | null) {
   return email ? email.trim().toLowerCase() : "admin";
 }
 
+export function createCleanDefaultCasinos(): Casino[] {
+  return MASTER_CASINOS_DATA.slice(0, 10).map((c, idx) => ({
+    id: String(idx + 1),
+    name: c.name,
+    dailyBonus: c.dailyBonus || "1.00 SC",
+    dailyBonusSc: c.dailyBonusSc || "1.00 SC",
+    dailyBonusGc: c.dailyBonusGc || undefined,
+    siteUrl: c.siteUrl || null,
+    affiliateUrl: null,
+    intervalHours: c.intervalHours || 24,
+    lastClaimedAt: null,
+    currentBalance: null,
+    snoozedUntil: null,
+    targetResetTimestamp: null,
+    hidden: false,
+  }));
+}
+
 export async function getUsers() {
   return (await readStore()).users;
 }
@@ -526,6 +549,9 @@ export async function getDirectory() {
   const defaultMinRedemption: Record<string, string> = {};
   const defaultResetRules: Record<string, string> = {};
   const defaultHasStreak: Record<string, boolean> = {};
+  const defaultClaimTips: Record<string, string> = {};
+  const defaultPendingReview: Record<string, boolean> = {};
+  const defaultPublished: Record<string, boolean> = {};
 
   for (const c of MASTER_CASINOS_DATA) {
     if (c.siteUrl) defaultUrls[c.name] = c.siteUrl;
@@ -535,6 +561,16 @@ export async function getDirectory() {
     if (c.minRedemption) defaultMinRedemption[c.name] = c.minRedemption;
     if (c.resetRule) defaultResetRules[c.name] = c.resetRule;
     if (c.hasStreak !== undefined) defaultHasStreak[c.name] = c.hasStreak;
+  }
+
+  for (const c of ALL_PENDING_CASINOS) {
+    if (c.siteUrl) defaultUrls[c.name] = c.siteUrl;
+    if (c.dailyBonus) defaultDailyBonuses[c.name] = c.dailyBonus;
+    if (c.dailyBonusSc) defaultDailyBonusSc[c.name] = c.dailyBonusSc;
+    if (c.minRedemption) defaultMinRedemption[c.name] = c.minRedemption;
+    if (c.claimTip) defaultClaimTips[c.name] = c.claimTip;
+    defaultPendingReview[c.name] = true;
+    defaultPublished[c.name] = false;
   }
 
   const rawList = store.directoryList && store.directoryList.length > 0 ? store.directoryList : casinoDirectory;
@@ -565,7 +601,10 @@ export async function getDirectory() {
     resetTimes: store.directoryResetTimes || {},
     details: store.directoryDetails || {},
     providers: store.directoryProviders || {},
+    claimTips: { ...defaultClaimTips, ...(store.directoryClaimTips || {}) },
     hasStreak: { ...defaultHasStreak, ...(store.directoryHasStreak || {}) },
+    pendingReview: { ...defaultPendingReview, ...(store.directoryPendingReview || {}) },
+    published: { ...defaultPublished, ...(store.directoryPublished || {}) },
   };
 }
 
@@ -588,7 +627,10 @@ export async function saveDirectory(update: {
   resetTimes?: Record<string, string | null>;
   details?: Record<string, string>;
   providers?: Record<string, string>;
+  claimTips?: Record<string, string>;
   hasStreak?: Record<string, boolean>;
+  pendingReview?: Record<string, boolean>;
+  published?: Record<string, boolean>;
 }) {
   return queueMutation((store) => {
     if (update.list) store.directoryList = update.list;
@@ -621,8 +663,14 @@ export async function saveDirectory(update: {
       store.directoryDetails = { ...(store.directoryDetails || {}), ...update.details };
     if (update.providers)
       store.directoryProviders = { ...(store.directoryProviders || {}), ...update.providers };
+    if (update.claimTips)
+      store.directoryClaimTips = { ...(store.directoryClaimTips || {}), ...update.claimTips };
     if (update.hasStreak)
       store.directoryHasStreak = { ...(store.directoryHasStreak || {}), ...update.hasStreak };
+    if (update.pendingReview)
+      store.directoryPendingReview = { ...(store.directoryPendingReview || {}), ...update.pendingReview };
+    if (update.published)
+      store.directoryPublished = { ...(store.directoryPublished || {}), ...update.published };
     return {
       list: store.directoryList,
       urls: store.directoryUrls || {},
@@ -642,7 +690,10 @@ export async function saveDirectory(update: {
       resetTimes: store.directoryResetTimes || {},
       details: store.directoryDetails || {},
       providers: store.directoryProviders || {},
+      claimTips: store.directoryClaimTips || {},
       hasStreak: store.directoryHasStreak || {},
+      pendingReview: store.directoryPendingReview || {},
+      published: store.directoryPublished || {},
     };
   });
 }
