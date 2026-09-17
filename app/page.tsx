@@ -1,4 +1,4 @@
-import { ArrowRight, Check, Clock, Coins, Sparkles } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth";
 import { SignInForm } from "@/app/components/SignInForm";
@@ -10,95 +10,111 @@ export default async function Home() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#0c1410] text-[#e6eee5]">
+    <main className="relative flex min-h-screen flex-col justify-between overflow-hidden bg-[#070d0a] text-zinc-100 selection:bg-emerald-500 selection:text-zinc-950">
       {/* Ambient background glows */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-40 -top-40 h-[36rem] w-[36rem] rounded-full bg-emerald-900/15 blur-[120px]" />
-        <div className="absolute right-0 top-1/4 h-[32rem] w-[32rem] rounded-full bg-teal-900/10 blur-[130px]" />
-        <div className="absolute bottom-0 left-1/3 h-[28rem] w-[28rem] rounded-full bg-amber-900/10 blur-[140px]" />
+        <div className="absolute -left-40 -top-40 h-[36rem] w-[36rem] rounded-full bg-emerald-500/10 blur-[130px]" />
+        <div className="absolute right-0 top-1/4 h-[32rem] w-[32rem] rounded-full bg-teal-500/10 blur-[140px]" />
+        <div className="absolute bottom-0 left-1/3 h-[28rem] w-[28rem] rounded-full bg-amber-500/5 blur-[150px]" />
       </div>
 
-      <section className="relative mx-auto grid min-h-[calc(100vh-73px)] max-w-7xl items-center gap-12 px-6 pb-16 pt-8 sm:px-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16 lg:px-16">
-        {/* Left Hero Column */}
-        <div className="max-w-xl">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-800/40 bg-[#14231b]/80 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-emerald-300 shadow-sm backdrop-blur">
+      <div className="relative mx-auto flex-1 w-full max-w-6xl min-h-[calc(100vh-4rem)] flex flex-col lg:flex-row items-center justify-between gap-8 px-4 sm:px-8 py-6">
+        {/* Left Column (Hero & Preview) */}
+        <div className="flex flex-col justify-center max-w-xl mx-auto lg:mx-0 flex-1">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-zinc-900/80 px-3.5 py-1 text-xs font-semibold text-emerald-300 shadow-sm backdrop-blur w-fit">
             <Sparkles size={13} className="text-amber-400" />
             <span>Your daily wins, organized</span>
           </div>
 
-          <h1 className="font-serif text-[clamp(2.5rem,8vw,4.25rem)] font-semibold leading-[1.04] tracking-[-0.04em] text-[#edf5ec]">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-none">
             Never miss a daily bonus again.
           </h1>
 
-          <p className="mt-5 text-base leading-7 text-[#9bb09e] sm:text-lg">
+          <p className="mt-4 text-sm sm:text-base leading-relaxed text-zinc-400">
             Track daily login rewards, cooldown timers, and sweepstakes drops across all your favorite platforms in one calm, simple place.
           </p>
 
-          {/* Quick Preview Cards */}
-          <div className="mt-8 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-            <div className="flex items-center gap-2.5 rounded-xl border border-emerald-800/30 bg-[#122018]/80 p-3 backdrop-blur">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
-                <Coins size={16} />
+          {/* Genuine Mini Rollcall Preview Cards */}
+          <div className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            {/* Crown Coins */}
+            <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-zinc-900/80 p-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.4)] backdrop-blur">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400 font-black text-xs">
+                CC
               </div>
-              <div>
-                <p className="text-xs font-semibold text-emerald-200">Crown Coins</p>
-                <p className="text-[11px] text-emerald-400 font-medium">1.00 SC Ready</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2.5 rounded-xl border border-emerald-800/30 bg-[#122018]/80 p-3 backdrop-blur">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-400">
-                <Clock size={16} />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-emerald-200">Stake.us</p>
-                <p className="text-[11px] text-[#869f8c]">Reset in 4h</p>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-xs font-bold text-white truncate">Crown Coins</p>
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                </div>
+                <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-extrabold">
+                  1.00 SC Ready
+                </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 rounded-xl border border-emerald-800/30 bg-[#122018]/80 p-3 backdrop-blur">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
-                <Coins size={16} />
+            {/* Stake.us */}
+            <div className="flex items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-900/80 p-2.5 shadow-sm backdrop-blur opacity-85">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400 font-black text-xs">
+                ST
               </div>
-              <div>
-                <p className="text-xs font-semibold text-emerald-200">Pulsz</p>
-                <p className="text-[11px] text-emerald-400 font-medium">0.30 SC Ready</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-white truncate">Stake.us</p>
+                <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-semibold">
+                  Reset in 4h
+                </span>
+              </div>
+            </div>
+
+            {/* Pulsz */}
+            <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-zinc-900/80 p-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.4)] backdrop-blur">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400 font-black text-xs">
+                PZ
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-xs font-bold text-white truncate">Pulsz</p>
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                </div>
+                <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-extrabold">
+                  0.30 SC Ready
+                </span>
               </div>
             </div>
           </div>
 
           {/* Feature Highlights */}
-          <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-xs font-medium text-[#8ea893]">
+          <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-zinc-400">
             <span className="flex items-center gap-1.5">
-              <Check size={14} className="text-[#78ae7e]" /> One-tap bonus claim links
+              <Check size={14} className="text-emerald-400 stroke-[2.5]" /> One-tap bonus claim links
             </span>
             <span className="flex items-center gap-1.5">
-              <Check size={14} className="text-[#78ae7e]" /> Built-in countdown timers
+              <Check size={14} className="text-emerald-400 stroke-[2.5]" /> Built-in countdown timers
             </span>
             <span className="flex items-center gap-1.5">
-              <Check size={14} className="text-[#78ae7e]" /> AI bonus offer parser
+              <Check size={14} className="text-emerald-400 stroke-[2.5]" /> AI bonus offer parser
             </span>
-          </div>
-
-          {/* Mobile Quick Jump */}
-          <div className="mt-8 lg:hidden">
-            <a
-              href="#sign-in-box"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#79b77f] px-6 text-sm font-semibold text-[#0d1c12] shadow-md transition hover:bg-[#8ec893]"
-            >
-              Sign In or Register <ArrowRight size={15} />
-            </a>
           </div>
         </div>
 
-        {/* Right Form Column */}
-        <div id="sign-in-box" className="relative mx-auto w-full max-w-[430px]">
-          <div className="absolute -inset-2 rounded-3xl bg-emerald-700/10 blur-xl" />
-          <div className="relative rounded-2xl border border-emerald-800/30 bg-[#14221a]/95 p-6 shadow-2xl backdrop-blur sm:p-7">
+        {/* Right Column (Interactive Auth Card) */}
+        <div className="w-full max-w-md shrink-0 mx-auto lg:mx-0 my-auto">
+          <div className="relative rounded-2xl border border-emerald-500/25 bg-zinc-900/90 p-5 sm:p-7 shadow-[0_8px_32px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(16,185,129,0.15)] backdrop-blur-md">
             <SignInForm />
           </div>
         </div>
-      </section>
+      </div>
+
+      {/* Footer / Legal Notice */}
+      <footer className="w-full py-3.5 border-t border-zinc-800/40 bg-zinc-950/60 shrink-0">
+        <div className="max-w-2xl mx-auto px-4 space-y-1 text-center text-[10px] text-zinc-500 leading-normal">
+          <p>
+            <span className="font-semibold text-zinc-400">Affiliate Disclosure:</span> Daily Roll is an informational tracking tool and may receive compensation from affiliate links.
+          </p>
+          <p>
+            <span className="font-semibold text-zinc-400">Responsible Gaming:</span> 21+ only (or 18+ where legally permitted). Daily Roll does not offer real-money gambling. Gambling problem? Call 1-800-GAMBLER.
+          </p>
+        </div>
+      </footer>
     </main>
   );
 }

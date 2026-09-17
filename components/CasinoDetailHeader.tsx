@@ -46,7 +46,7 @@ export function CasinoDetailHeader({
       </div>
 
       {/* Main identity & Action section */}
-      <div className="mt-4 sm:mt-5 flex flex-col md:flex-row md:items-center justify-between gap-5">
+      <div className="mt-4 sm:mt-5 flex flex-col gap-4">
         {/* Left: Casino Logo + Title + Provider + Rating */}
         <div className="flex items-start sm:items-center gap-3.5 sm:gap-4">
           <div className="grid h-14 w-14 sm:h-16 sm:w-16 shrink-0 place-items-center rounded-2xl border border-emerald-800/60 bg-[#1a2f23] p-2 shadow-inner">
@@ -80,13 +80,6 @@ export function CasinoDetailHeader({
                 )}
               </div>
 
-              {casino.dailyBonus && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-950/80 px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-400 border border-emerald-800/40">
-                  <Sparkles size={11} className="shrink-0" />
-                  <BonusLabelBadge label={casino.dailyBonus} />
-                </span>
-              )}
-
               {typeof casino.currentBalance === "number" && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-950/40 border border-blue-500/30 text-blue-400 font-mono text-[11px] font-bold shrink-0 shadow-sm">
                   <Wallet className="w-3 h-3 text-blue-400/70 shrink-0" />
@@ -97,17 +90,17 @@ export function CasinoDetailHeader({
           </div>
         </div>
 
-        {/* Right: Primary Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2.5 sm:self-center">
+        {/* Full-width Primary Action Buttons */}
+        <div className="w-full flex flex-col gap-2.5 mt-1">
           {rawUrl && (
             <a
               href={visitUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-emerald-500/10 border border-emerald-500 text-emerald-400 hover:bg-emerald-500 hover:text-zinc-950 font-bold px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm cursor-pointer shadow-sm"
+              className="w-full h-12 rounded-xl inline-flex items-center justify-center gap-2 font-black text-sm tracking-wide text-white bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 border-t border-emerald-300/50 border-x border-b border-emerald-900 shadow-[0_4px_14px_rgba(16,185,129,0.35),inset_0_1px_0_rgba(255,255,255,0.35),0_2px_0_rgba(6,78,59,1)] hover:brightness-110 active:translate-y-0.5 active:shadow-[0_1px_4px_rgba(16,185,129,0.25)] transition-all select-none cursor-pointer"
             >
-              <span>Visit Casino</span>
-              <ExternalLink className="w-4 h-4" />
+              <ExternalLink className="w-4 h-4 text-white stroke-[2.5] shrink-0" />
+              <span>Visit {casino.name}</span>
             </a>
           )}
 
@@ -115,7 +108,7 @@ export function CasinoDetailHeader({
             <button
               type="button"
               onClick={onAddToRollcall}
-              className="flex items-center gap-2 rounded-xl border border-emerald-600/70 bg-[#193323] px-4 py-2 text-xs sm:text-sm font-bold text-emerald-200 hover:bg-[#22442f] hover:text-white transition shadow-[0_4px_16px_rgba(0,0,0,0.3)] cursor-pointer"
+              className="w-full h-11 rounded-xl flex items-center justify-center gap-2 border border-emerald-600/70 bg-[#193323] text-xs sm:text-sm font-bold text-emerald-200 hover:bg-[#22442f] hover:text-white transition shadow-[0_4px_16px_rgba(0,0,0,0.3)] cursor-pointer"
             >
               <Plus size={16} />
               <span>Add to My Rollcall</span>

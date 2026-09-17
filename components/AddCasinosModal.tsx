@@ -17,6 +17,7 @@ export interface AddCasinosModalProps {
   casinos: Casino[];
   onAddCasino: (casinoName: string) => void;
   onClaimCasino?: (casino: Casino) => void;
+  onOpenDetails?: (casinoId: string) => void;
   directoryData?: DirectoryData | null;
   isAdmin?: boolean;
 }
@@ -27,6 +28,7 @@ export function AddCasinosModal({
   casinos,
   onAddCasino,
   onClaimCasino,
+  onOpenDetails,
   directoryData,
   isAdmin = false,
 }: AddCasinosModalProps) {
@@ -260,13 +262,18 @@ export function AddCasinosModal({
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <Link
-                          href={`/casinos/${encodeURIComponent(casinoName)}`}
-                          onClick={onClose}
-                          className="font-bold text-white text-sm sm:text-base hover:text-emerald-300 transition truncate"
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClose();
+                            if (onOpenDetails) {
+                              onOpenDetails(casinoName);
+                            }
+                          }}
+                          className="font-bold text-white text-sm sm:text-base hover:text-emerald-300 transition truncate text-left cursor-pointer"
                         >
                           {casinoName}
-                        </Link>
+                        </button>
                       </div>
 
                       {/* Badges: Trustpilot */}

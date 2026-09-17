@@ -77,9 +77,18 @@ export async function apiSaveCasinos(key: string | undefined | null, casinos: Ca
   const res = await fetch("/api/casinos", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ key: key || "admin", casinos }),
+    body: JSON.stringify({ ...(key ? { key } : {}), casinos }),
   });
   await readApiResponse<{ casinos: Casino[] }>(res);
+}
+
+export async function apiUpdateCasinoBalance(casinoId: string, currentBalance: number): Promise<{ success: boolean; currentBalance: number }> {
+  const res = await fetch(`/api/casinos/${encodeURIComponent(casinoId)}/balance`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ currentBalance }),
+  });
+  return readApiResponse<{ success: boolean; currentBalance: number }>(res);
 }
 
 export async function apiDeleteCasinos(key: string): Promise<void> {
@@ -106,6 +115,7 @@ export type DirectoryData = {
   resetTimes?: Record<string, string | null>;
   details?: Record<string, string>;
   providers?: Record<string, string>;
+  claimTips?: Record<string, string>;
   hasStreak?: Record<string, boolean>;
 };
 
@@ -133,6 +143,7 @@ export async function apiSaveDirectory(update: {
   resetTimes?: Record<string, string | null>;
   details?: Record<string, string>;
   providers?: Record<string, string>;
+  claimTips?: Record<string, string>;
   hasStreak?: Record<string, boolean>;
 }): Promise<DirectoryData> {
   const res = await fetch("/api/directory", {
@@ -156,6 +167,8 @@ export async function apiUpdateAdminCasino(data: {
   resetAtTime?: string | null;
   intervalHours?: number | null;
   provider?: string | null;
+  claimTip?: string | null;
+  claimInstructions?: string | null;
   dailyBonusSc?: string | null;
   dailyBonusGc?: string | null;
   minRedemption?: string | null;

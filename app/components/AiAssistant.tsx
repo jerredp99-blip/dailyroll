@@ -183,7 +183,7 @@ export function AiAssistant() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-5 left-5 z-40 flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-gradient-to-b from-[#131d27]/95 via-[#0d161d]/95 to-[#080d12]/95 border border-cyan-500/40 hover:border-cyan-300 active:scale-95 shadow-xl shadow-black/80 backdrop-blur-md transition-all duration-300 cursor-pointer hover:shadow-[0_0_22px_rgba(56,189,248,0.45)] group"
+        className="fixed bottom-6 left-4 z-40 pointer-events-auto flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-gradient-to-b from-[#131d27]/95 via-[#0d161d]/95 to-[#080d12]/95 border border-cyan-500/40 hover:border-cyan-300 active:scale-95 shadow-xl shadow-black/80 backdrop-blur-md transition-all duration-300 cursor-pointer hover:shadow-[0_0_22px_rgba(56,189,248,0.45)] group"
         aria-label="Open Dailyroll Gemini AI Assistant"
         title="Dailyroll Gemini AI Assistant"
       >

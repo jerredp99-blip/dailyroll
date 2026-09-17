@@ -6,28 +6,28 @@ import { SignInForm } from "@/app/components/SignInForm";
 
 export function AuthCard() {
   return (
-    <div className="relative w-full max-w-[430px] min-w-[300px] px-2 sm:px-0">
+    <div className="relative w-full max-w-[430px] min-w-[290px] mx-auto">
       {/* Background atmospheric glow */}
-      <div className="absolute -inset-2 rounded-3xl bg-emerald-700/10 blur-xl pointer-events-none" />
+      <div className="absolute -inset-2 rounded-3xl bg-emerald-500/10 blur-xl pointer-events-none" />
 
       {/* Main card container */}
-      <div className="relative rounded-2xl border border-emerald-800/30 bg-[#14221a]/95 p-5 shadow-2xl backdrop-blur sm:p-8">
+      <div className="relative rounded-2xl border border-emerald-500/25 bg-zinc-900/90 p-5 sm:p-6 shadow-[0_8px_32px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(16,185,129,0.15)] backdrop-blur-md">
         {/* Card Header */}
-        <div className="mb-6 text-center">
+        <div className="mb-5 text-center">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 mb-3 transition hover:opacity-90"
-            aria-label="dailyroll home"
+            className="inline-flex items-center gap-2 mb-2.5 transition hover:opacity-90 cursor-pointer"
+            aria-label="Daily Roll home"
           >
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[#a9dba9] to-[#4f8f5b] text-[#0e1f14] shadow-[0_8px_20px_rgba(83,151,96,0.28)]">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-zinc-950 shadow-[0_4px_14px_rgba(16,185,129,0.4)]">
               <Dices size={22} strokeWidth={2.3} />
             </span>
-            <span className="font-bold text-2xl tracking-[-0.06em] text-[#e1ece0]">
-              daily<span className="text-[#9bcf9c]">roll</span>
+            <span className="font-bold text-2xl tracking-tight text-white">
+              Daily <span className="text-emerald-400">Roll</span>
             </span>
           </Link>
 
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-800/40 bg-[#122018] px-3 py-1 text-[11px] font-semibold text-emerald-300">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-zinc-950/80 px-3 py-1 text-[11px] font-semibold text-emerald-300">
             <Sparkles size={12} className="text-amber-400" />
             <span>Daily bonus tracker & feed</span>
           </div>

@@ -53,6 +53,8 @@ export async function updateCasinoMetadata(data: {
   resetAtTime?: string | null;
   intervalHours?: number | string | null;
   provider?: string | null;
+  claimTip?: string | null;
+  claimInstructions?: string | null;
   hasStreak?: boolean | string | null;
 }) {
   const trimmedName = data.name.trim();
@@ -147,6 +149,17 @@ export async function updateCasinoMetadata(data: {
         store.directoryProviders = {
           ...(store.directoryProviders || {}),
           [trimmedName]: data.provider,
+        };
+      }
+    }
+    if ("claimTip" in data || "claimInstructions" in data) {
+      const tipVal = data.claimTip ?? data.claimInstructions;
+      if (tipVal === "" || tipVal === null || tipVal === undefined) {
+        delete store.directoryClaimTips?.[trimmedName];
+      } else {
+        store.directoryClaimTips = {
+          ...(store.directoryClaimTips || {}),
+          [trimmedName]: tipVal,
         };
       }
     }
@@ -270,6 +283,10 @@ export async function updateCasinoMetadata(data: {
             : Number(data.intervalHours);
         }
         if ("provider" in data) updated.provider = data.provider || undefined;
+        if ("claimTip" in data) updated.claimTip = data.claimTip || undefined;
+        if ("claimInstructions" in data || "claimTip" in data) {
+          updated.claimInstructions = data.claimInstructions || data.claimTip || undefined;
+        }
         if ("dailyBonusSc" in data) updated.dailyBonusSc = data.dailyBonusSc || null;
         if ("dailyBonusGc" in data) updated.dailyBonusGc = data.dailyBonusGc || null;
         if ("minRedemption" in data) updated.minRedemption = data.minRedemption || null;
@@ -302,6 +319,7 @@ export async function updateCasinoMetadata(data: {
       resetTimes: store.directoryResetTimes || {},
       details: store.directoryDetails || {},
       providers: store.directoryProviders || {},
+      claimTips: store.directoryClaimTips || {},
       hasStreak: store.directoryHasStreak || {},
     };
   });

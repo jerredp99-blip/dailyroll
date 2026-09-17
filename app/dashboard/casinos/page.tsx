@@ -42,6 +42,7 @@ export default function AdminCasinosPage() {
   const [affiliateUrl, setAffiliateUrl] = useState("");
   const [claimUrl, setClaimUrl] = useState("");
   const [bonusUrl, setBonusUrl] = useState("");
+  const [claimTip, setClaimTip] = useState("");
   const [bonus, setBonus] = useState("");
   const [details, setDetails] = useState("");
   const [rating, setRating] = useState("");
@@ -54,6 +55,7 @@ export default function AdminCasinosPage() {
   const [directoryAffiliateUrls, setDirectoryAffiliateUrls] = useState<Record<string, string | undefined>>({});
   const [directoryClaimUrls, setDirectoryClaimUrls] = useState<Record<string, string | undefined>>({});
   const [directoryBonusUrls, setDirectoryBonusUrls] = useState<Record<string, string | undefined>>({});
+  const [directoryClaimTips, setDirectoryClaimTips] = useState<Record<string, string | undefined>>({});
   const [directoryRatings, setDirectoryRatings] = useState<Record<string, number>>({});
   const [directoryEditing, setDirectoryEditing] = useState<{ name: string; isNew: boolean } | null>(null);
   const [directoryName, setDirectoryName] = useState("");
@@ -62,6 +64,7 @@ export default function AdminCasinosPage() {
   const [directoryAffiliateUrl, setDirectoryAffiliateUrl] = useState("");
   const [directoryClaimUrl, setDirectoryClaimUrl] = useState("");
   const [directoryBonusUrl, setDirectoryBonusUrl] = useState("");
+  const [directoryClaimTip, setDirectoryClaimTip] = useState("");
   const [directoryRating, setDirectoryRating] = useState("");
   const [directoryError, setDirectoryError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -87,6 +90,7 @@ export default function AdminCasinosPage() {
         setDirectoryAffiliateUrls(directory.affiliateUrls ?? {});
         setDirectoryClaimUrls(directory.claimUrls ?? {});
         setDirectoryBonusUrls(directory.bonusUrls ?? {});
+        setDirectoryClaimTips(directory.claimTips ?? {});
         setDirectoryRatings(directory.ratings);
         setLoaded(true);
       } catch {
@@ -104,6 +108,7 @@ export default function AdminCasinosPage() {
     setDirectoryAffiliateUrl(directoryAffiliateUrls[name] || "");
     setDirectoryClaimUrl(directoryClaimUrls[name] || "");
     setDirectoryBonusUrl(directoryBonusUrls[name] || "");
+    setDirectoryClaimTip(directoryClaimTips[name] || "");
     setDirectoryRating(typeof directoryRatings[name] === "number" ? String(directoryRatings[name]) : "");
     setDirectoryError("");
   }
@@ -116,6 +121,7 @@ export default function AdminCasinosPage() {
     setDirectoryAffiliateUrl("");
     setDirectoryClaimUrl("");
     setDirectoryBonusUrl("");
+    setDirectoryClaimTip("");
     setDirectoryRating("");
     setDirectoryError("");
   }
@@ -156,6 +162,10 @@ export default function AdminCasinosPage() {
     if (directoryBonusUrl.trim()) updatedBonusUrls[trimmedName] = directoryBonusUrl.trim();
     else delete updatedBonusUrls[trimmedName];
 
+    const updatedClaimTips = { ...directoryClaimTips };
+    if (directoryClaimTip.trim()) updatedClaimTips[trimmedName] = directoryClaimTip.trim();
+    else delete updatedClaimTips[trimmedName];
+
     const updatedRatings = { ...directoryRatings };
     if (parsedRating !== undefined) updatedRatings[trimmedName] = parsedRating;
     else delete updatedRatings[trimmedName];
@@ -166,6 +176,7 @@ export default function AdminCasinosPage() {
     setDirectoryAffiliateUrls(updatedAffiliateUrls);
     setDirectoryClaimUrls(updatedClaimUrls);
     setDirectoryBonusUrls(updatedBonusUrls);
+    setDirectoryClaimTips(updatedClaimTips);
     setDirectoryRatings(updatedRatings);
     try {
       await apiUpdateAdminCasino({
@@ -175,6 +186,8 @@ export default function AdminCasinosPage() {
         affiliateUrl: directoryAffiliateUrl.trim() || null,
         claimUrl: directoryClaimUrl.trim() || null,
         bonusUrl: directoryBonusUrl.trim() || null,
+        claimTip: directoryClaimTip.trim() || null,
+        claimInstructions: directoryClaimTip.trim() || null,
         trustpilotRating: parsedRating ?? null,
       });
       if (directoryEditing.isNew) {
@@ -200,6 +213,7 @@ export default function AdminCasinosPage() {
     setAffiliateUrl(casino.affiliateUrl ?? "");
     setClaimUrl(casino.claimUrl ?? "");
     setBonusUrl(casino.bonusUrl ?? "");
+    setClaimTip(casino.claimTip || casino.claimInstructions || directoryClaimTips[casino.name] || "");
     setBonus(casino.dailyBonus);
     setDetails(casino.details || "");
     setRating(typeof casino.trustpilotRating === "number" ? String(casino.trustpilotRating) : "");
@@ -226,6 +240,8 @@ export default function AdminCasinosPage() {
       affiliateUrl: normalizedAffiliateUrl || null,
       claimUrl: normalizedClaimUrl || null,
       bonusUrl: normalizedBonusUrl || null,
+      claimTip: claimTip.trim() || null,
+      claimInstructions: claimTip.trim() || null,
       dailyBonus: bonus.trim() || "Free daily",
       details: details.trim() || null,
       trustpilotRating: parsedRating ?? null,
@@ -243,6 +259,8 @@ export default function AdminCasinosPage() {
         affiliateUrl: normalizedAffiliateUrl || null,
         claimUrl: normalizedClaimUrl || null,
         bonusUrl: normalizedBonusUrl || null,
+        claimTip: claimTip.trim() || null,
+        claimInstructions: claimTip.trim() || null,
         trustpilotRating: parsedRating ?? null,
         dailyBonus: bonus.trim() || "Free daily",
         details: details.trim() || null,
@@ -278,7 +296,7 @@ export default function AdminCasinosPage() {
           <h1 className="mt-3 font-serif text-4xl font-semibold tracking-[-0.05em] text-[#edf4ea] sm:text-5xl">Every profile, every casino.</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#9aa99c]">Review and edit casino cards for every user without changing their sign-in or claim history.</p>
         </section>
-        <section className="mt-8 rounded-2xl border border-[#2b4434] bg-[#19251f] p-5 sm:p-6">
+        <section className="mt-8 w-full max-w-full overflow-hidden rounded-2xl border border-[#2b4434] bg-[#19251f] p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-[#e5eee3]">Master casino list</h2>
@@ -294,24 +312,26 @@ export default function AdminCasinosPage() {
               <button type="button" onClick={openNewDirectoryEntry} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[#79b77f] px-3 py-2 text-xs font-semibold text-[#122519] hover:bg-[#91c991]"><Plus size={14} /> Add casino</button>
             </div>
           </div>
-          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+          <div className="mt-5 grid w-full gap-3 lg:grid-cols-2">
             {filteredDirectoryList.map((name) => (
-              <article key={name} className="flex items-center justify-between gap-4 rounded-xl border border-[#304638] bg-[#1f3027] p-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="truncate font-semibold text-[#e5eee3]">{name}</h3>
+              <article key={name} className="w-full max-w-full min-w-0 flex items-center justify-between gap-3 sm:gap-4 rounded-xl border border-[#304638] bg-[#1f3027] p-3.5 sm:p-4 box-border">
+                <div className="flex-1 min-w-0 mr-3">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <h3 className="truncate font-bold text-sm text-[#e5eee3]">{name}</h3>
                     {directoryProviders[name] && (
-                      <span className="rounded bg-teal-950/80 border border-teal-600/40 px-1.5 py-0.2 text-[9px] font-bold text-teal-300">
+                      <span className="shrink-0 rounded bg-teal-950/80 border border-teal-600/40 px-1.5 py-0.5 text-[9px] font-bold text-teal-300">
                         {directoryProviders[name]}
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 truncate text-xs text-[#a9bbaa]">{directoryUrls[name] || "No URL set"}</p>
-                  <Stars rating={directoryRatings[name]} />
+                  <p className="mt-1 truncate block w-full text-xs text-[#a9bbaa]">{directoryUrls[name] || "No URL set"}</p>
+                  <div className="flex items-center text-amber-400 text-xs mt-1">
+                    <Stars rating={directoryRatings[name]} />
+                  </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <button type="button" onClick={() => openDirectoryEditor(name)} className="inline-flex items-center gap-2 rounded-lg border border-[#4c6d50] px-3 py-2 text-xs font-semibold text-[#b7d5b5] hover:bg-[#2a4230]"><Pencil size={14} /> Edit</button>
-                  <button type="button" onClick={() => removeDirectoryCasino(name)} aria-label={`Remove ${name}`} className="text-[#718275] hover:text-[#e69b91]"><Trash2 size={15} /></button>
+                <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                  <button type="button" onClick={() => openDirectoryEditor(name)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#4c6d50] px-2.5 py-1.5 text-xs font-semibold text-[#b7d5b5] hover:bg-[#2a4230] transition"><Pencil size={13} /> Edit</button>
+                  <button type="button" onClick={() => removeDirectoryCasino(name)} aria-label={`Remove ${name}`} className="p-1 text-[#718275] hover:text-[#e69b91] transition"><Trash2 size={15} /></button>
                 </div>
               </article>
             ))}
@@ -324,29 +344,31 @@ export default function AdminCasinosPage() {
             )}
           </div>
         </section>
-        <div className="mt-8 space-y-5">
+        <div className="mt-8 space-y-5 w-full max-w-full overflow-hidden">
           {records.map((record) => (
-            <section key={record.user.email} className="rounded-2xl border border-[#2b4434] bg-[#19251f] p-5 sm:p-6">
+            <section key={record.user.email} className="w-full max-w-full overflow-hidden rounded-2xl border border-[#2b4434] bg-[#19251f] p-4 sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><h2 className="text-lg font-semibold text-[#e5eee3]">{record.user.name}</h2><p className="mt-1 text-sm text-[#93a495]">{record.user.email}</p></div>
                 <span className="rounded-full border border-[#355b3d] bg-[#1b3625] px-3 py-1 text-xs font-semibold text-[#9bcf9c]">{record.casinos.length} casinos</span>
               </div>
-              <div className="mt-5 grid gap-3 lg:grid-cols-2">
+              <div className="mt-5 grid w-full gap-3 lg:grid-cols-2">
                 {record.casinos.map((casino) => (
-                  <article key={casino.id} className="flex items-center justify-between gap-4 rounded-xl border border-[#304638] bg-[#1f3027] p-4">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="truncate font-semibold text-[#e5eee3]">{casino.name}</h3>
+                  <article key={casino.id} className="w-full max-w-full min-w-0 flex items-center justify-between gap-3 sm:gap-4 rounded-xl border border-[#304638] bg-[#1f3027] p-3.5 sm:p-4 box-border">
+                    <div className="flex-1 min-w-0 mr-3">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <h3 className="truncate font-bold text-sm text-[#e5eee3]">{casino.name}</h3>
                         {(casino.provider || directoryProviders[casino.name]) && (
-                          <span className="rounded bg-teal-950/80 border border-teal-600/40 px-1.5 py-0.2 text-[9px] font-bold text-teal-300">
+                          <span className="shrink-0 rounded bg-teal-950/80 border border-teal-600/40 px-1.5 py-0.5 text-[9px] font-bold text-teal-300">
                             {casino.provider || directoryProviders[casino.name]}
                           </span>
                         )}
                       </div>
-                      <p className="mt-1 text-xs text-[#a9bbaa]">{casino.dailyBonus}</p>
-                      <Stars rating={casino.trustpilotRating} />
+                      <p className="mt-1 truncate block w-full text-xs text-[#a9bbaa]">{casino.dailyBonus}</p>
+                      <div className="flex items-center text-amber-400 text-xs mt-1">
+                        <Stars rating={casino.trustpilotRating} />
+                      </div>
                     </div>
-                    <button type="button" onClick={() => openEditor(record.user, casino)} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[#4c6d50] px-3 py-2 text-xs font-semibold text-[#b7d5b5] hover:bg-[#2a4230]"><Pencil size={14} /> Edit</button>
+                    <button type="button" onClick={() => openEditor(record.user, casino)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#4c6d50] px-2.5 py-1.5 text-xs font-semibold text-[#b7d5b5] hover:bg-[#2a4230] transition"><Pencil size={13} /> Edit</button>
                   </article>
                 ))}
                 {record.casinos.length === 0 && <p className="text-sm text-[#819487]">No casinos saved for this profile.</p>}
@@ -365,6 +387,16 @@ export default function AdminCasinosPage() {
               <label className="text-xs font-semibold text-[#a9bbaa]">Affiliate URL (Sign up link)<input value={affiliateUrl} onChange={(event) => setAffiliateUrl(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
               <label className="text-xs font-semibold text-[#a9bbaa]">Claim URL (Claim Now link)<input value={claimUrl} onChange={(event) => setClaimUrl(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
               <label className="text-xs font-semibold text-[#a9bbaa]">Bonus URL (bonus details link)<input value={bonusUrl} onChange={(event) => setBonusUrl(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+              <label className="text-xs font-semibold text-[#a9bbaa]">
+                Claim Tip (Shows in Speed Run &amp; Cheat Sheet)
+                <textarea
+                  rows={3}
+                  value={claimTip}
+                  onChange={(event) => setClaimTip(event.target.value)}
+                  placeholder="e.g. Click the daily bonus gift box on the top right header."
+                  className="mt-2 w-full rounded-xl border border-emerald-500/30 bg-[#111b16] p-2.5 text-xs text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                />
+              </label>
               <label className="text-xs font-semibold text-[#a9bbaa]">Trustpilot rating<input type="number" min="0" max="5" step="0.1" value={rating} onChange={(event) => setRating(event.target.value)} placeholder="0 to 5" className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
               <label className="text-xs font-semibold text-[#a9bbaa]">Bonus label<input value={bonus} onChange={(event) => setBonus(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
               <label className="text-xs font-semibold text-[#a9bbaa]">Details<textarea value={details} onChange={(event) => setDetails(event.target.value)} rows={3} className="mt-2 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 py-2 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
@@ -394,6 +426,16 @@ export default function AdminCasinosPage() {
               <label className="text-xs font-semibold text-[#a9bbaa]">Affiliate URL (Sign up link)<input value={directoryAffiliateUrl} onChange={(event) => setDirectoryAffiliateUrl(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
               <label className="text-xs font-semibold text-[#a9bbaa]">Claim URL (Claim Now link)<input value={directoryClaimUrl} onChange={(event) => setDirectoryClaimUrl(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
               <label className="text-xs font-semibold text-[#a9bbaa]">Bonus URL (bonus details link)<input value={directoryBonusUrl} onChange={(event) => setDirectoryBonusUrl(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+              <label className="text-xs font-semibold text-[#a9bbaa]">
+                Claim Tip (Shows in Speed Run &amp; Cheat Sheet)
+                <textarea
+                  rows={3}
+                  value={directoryClaimTip}
+                  onChange={(event) => setDirectoryClaimTip(event.target.value)}
+                  placeholder="e.g. Click the daily bonus gift box on the top right header."
+                  className="mt-2 w-full rounded-xl border border-emerald-500/30 bg-[#111b16] p-2.5 text-xs text-[#e0ece0] outline-none focus:border-[#78ae7e]"
+                />
+              </label>
               <label className="text-xs font-semibold text-[#a9bbaa]">Trustpilot rating<input type="number" min="0" max="5" step="0.1" value={directoryRating} onChange={(event) => setDirectoryRating(event.target.value)} placeholder="0 to 5" className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
             </div>
             {directoryError && <p role="alert" className="mt-3 text-sm text-[#e69b91]">{directoryError}</p>}

@@ -96,61 +96,60 @@ function createIco(images) {
   return Buffer.concat([header, ...entries, ...datas]);
 }
 
-// Render Daily Roll Icon (Emerald dark background with dice & coin golden/emerald motifs)
+// Render Daily Roll Icon (Dark squircle container with neon cyan/emerald die, 5 pips & pushpin)
 function renderDailyRollIcon(x, y, w, h) {
   const nx = (x / w) * 2 - 1; // -1 to 1
   const ny = (y / h) * 2 - 1;
-  const dist = Math.sqrt(nx * nx + ny * ny);
+  const dist = Math.hypot(nx, ny);
 
-  // Background: Deep dark emerald radial gradient
-  let r = Math.round(7 + 10 * (1 - dist));
-  let g = Math.round(20 + 25 * (1 - dist));
-  let b = Math.round(14 + 15 * (1 - dist));
+  // Background: Deep dark emerald radial container
+  let r = Math.round(9 + 8 * (1 - Math.min(1, dist)));
+  let g = Math.round(20 + 15 * (1 - Math.min(1, dist)));
+  let b = Math.round(15 + 10 * (1 - Math.min(1, dist)));
   let a = 255;
 
-  // Outer rounded border glow
+  // Outer squircle border glow
   const cornerDist = Math.max(Math.abs(nx), Math.abs(ny));
   if (cornerDist > 0.88 && cornerDist < 0.96) {
-    const glow = Math.sin((cornerDist - 0.88) / 0.08 * Math.PI);
-    r = Math.min(255, r + Math.round(glow * 16));
-    g = Math.min(255, g + Math.round(glow * 185));
-    b = Math.min(255, b + Math.round(glow * 129));
+    const glow = Math.sin(((cornerDist - 0.88) / 0.08) * Math.PI);
+    r = Math.min(255, r + Math.round(glow * 22));
+    g = Math.min(255, g + Math.round(glow * 190));
+    b = Math.min(255, b + Math.round(glow * 135));
   }
 
-  // Central Die (Rounded 3D Die in emerald/teal)
-  const angle = -0.15;
+  // Tilted Central Die (~ -6 deg)
+  const angle = -0.10;
   const cosA = Math.cos(angle);
   const sinA = Math.sin(angle);
   const rx = nx * cosA - ny * sinA;
   const ry = nx * sinA + ny * cosA;
 
-  const dieSize = 0.52;
-  const dieCorner = 0.12;
+  const dieSize = 0.58;
+  const dieCorner = 0.14;
 
-  // Box SDF
   const dx = Math.abs(rx) - dieSize + dieCorner;
   const dy = Math.abs(ry) - dieSize + dieCorner;
   const dieDist = Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) + Math.min(Math.max(dx, dy), 0) - dieCorner;
 
   if (dieDist <= 0) {
-    // Inside the die face: Emerald 3D gradient with high contrast
+    // Inside the die face: Vibrant cyan-mint emerald gradient
     const t = (rx + ry + dieSize) / (dieSize * 2);
-    r = Math.round(16 + t * 36);
-    g = Math.round(185 + t * 65); // Vibrant emerald-teal
-    b = Math.round(129 + t * 80);
+    r = Math.round(40 + t * 30);
+    g = Math.round(220 - t * 95);
+    b = Math.round(190 - t * 85);
 
-    // Die border highlight
-    if (dieDist > -0.04) {
-      r = Math.min(255, r + 40);
-      g = Math.min(255, g + 40);
-      b = Math.min(255, b + 50);
+    // Neon edge highlight
+    if (dieDist > -0.05) {
+      r = Math.min(255, r + 80);
+      g = Math.min(255, g + 35);
+      b = Math.min(255, b + 45);
     }
 
-    // Pips on the die face (5-pip pattern: center + 4 corners)
-    const pipOffset = dieSize * 0.55;
+    // 5 Pips
+    const pipOffset = dieSize * 0.52;
     const pipRadius = dieSize * 0.14;
     const pips = [
-      [0, 0], // Center pip
+      [0, 0],
       [-pipOffset, -pipOffset],
       [pipOffset, -pipOffset],
       [-pipOffset, pipOffset],
@@ -160,19 +159,34 @@ function renderDailyRollIcon(x, y, w, h) {
     for (const [px, py] of pips) {
       const pDist = Math.hypot(rx - px, ry - py);
       if (pDist <= pipRadius) {
-        // Crisp dark emerald-zinc recessed pip
         const shadow = pDist / pipRadius;
-        r = Math.round(8 + shadow * 10);
-        g = Math.round(24 + shadow * 20);
-        b = Math.round(16 + shadow * 15);
+        r = Math.round(8 + shadow * 8);
+        g = Math.round(18 + shadow * 12);
+        b = Math.round(13 + shadow * 10);
       }
     }
-  } else if (dieDist < 0.08) {
-    // Die drop shadow / ambient glow
-    const shadowIntensity = (1 - dieDist / 0.08);
-    r = Math.min(255, r + Math.round(shadowIntensity * 10));
-    g = Math.min(255, g + Math.round(shadowIntensity * 90));
-    b = Math.min(255, b + Math.round(shadowIntensity * 60));
+
+    // Bottom-right dark corner overlay
+    if (rx + ry > dieSize * 0.55) {
+      r = Math.round(8);
+      g = Math.round(35);
+      b = Math.round(22);
+    }
+
+    // Pushpin at bottom right corner (rx ~ 0.35, ry ~ 0.30)
+    const pinDist = Math.hypot(rx - 0.35, ry - 0.30);
+    if (pinDist < 0.16) {
+      const pT = pinDist / 0.16;
+      r = Math.round(30 + (1 - pT) * 70);
+      g = Math.round(180 + (1 - pT) * 75);
+      b = Math.round(100 + (1 - pT) * 60);
+    }
+  } else if (dieDist < 0.1) {
+    // Outer cyan-emerald ambient glow
+    const glow = 1 - dieDist / 0.1;
+    r = Math.min(255, r + Math.round(glow * 35));
+    g = Math.min(255, g + Math.round(glow * 190));
+    b = Math.min(255, b + Math.round(glow * 140));
   }
 
   return [r, g, b, a];

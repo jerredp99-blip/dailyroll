@@ -15,6 +15,8 @@ import {
   AlertCircle,
   Wallet,
   Loader2,
+  MoreVertical,
+  Lightbulb,
 } from "lucide-react";
 import type { Casino, SpeedRunSessionState, SpeedRunStep } from "@/types/casino";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
@@ -31,6 +33,8 @@ import {
   parseGcReward,
 } from "@/lib/speedRunStorage";
 import { CustomTimerModal } from "@/components/CustomTimerModal";
+import { CasinoDetailsModal } from "@/components/CasinoDetailsModal";
+import { calculateCasinoStatus } from "@/lib/timerUtils";
 
 interface SpeedRunModalProps {
   isOpen: boolean;
@@ -63,6 +67,7 @@ export function SpeedRunModal({
   const [noteInput, setNoteInput] = useState<string>("");
   const [claimScInput, setClaimScInput] = useState<string>("");
   const [isSpeedRunCustomTimerOpen, setIsSpeedRunCustomTimerOpen] = useState(false);
+  const [cheatSheetCasinoId, setCheatSheetCasinoId] = useState<string | null>(null);
 
   // Animation state for gamified Session Loot counter
   const [animatingLoot, setAnimatingLoot] = useState(false);
@@ -92,6 +97,77 @@ export function SpeedRunModal({
   allCasinosRef.current = allCasinos;
   const casinoMapRef = useRef(casinoMap);
   casinoMapRef.current = casinoMap;
+
+  // Transient state for dynamic queue ingestion & +1 badge callouts
+  const [pendingNewlyAddedIds, setPendingNewlyAddedIds] = useState<string[]>([]);
+  const [showPlusOneBadge, setShowPlusOneBadge] = useState(false);
+  const [addedCount, setAddedCount] = useState(0);
+  const badgeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
+
+  // Dynamic Queue Ingestion: check every 1.5s while open and session active
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const interval = setInterval(() => {
+      const currentSession = sessionRef.current;
+      if (!currentSession || currentSession.completed) return;
+
+      const now = Date.now();
+      const candidateCasinos =
+        allCasinosRef.current.length > 0 ? allCasinosRef.current : readyCasinosRef.current;
+
+      const existingQueueSet = new Set(currentSession.queueIds);
+      const claimedSet = new Set(currentSession.claimedIds);
+      const skippedSet = new Set(currentSession.skippedIds);
+      const snoozedSet = new Set(Object.keys(currentSession.snoozedIds || {}));
+
+      const newlyUnlockedIds: string[] = [];
+
+      candidateCasinos.forEach((c) => {
+        if (!c || c.hidden) return;
+        if (
+          !existingQueueSet.has(c.id) &&
+          !claimedSet.has(c.id) &&
+          !skippedSet.has(c.id) &&
+          !snoozedSet.has(c.id)
+        ) {
+          const status = calculateCasinoStatus(c, now);
+          if (status.ready) {
+            newlyUnlockedIds.push(c.id);
+          }
+        }
+      });
+
+      if (newlyUnlockedIds.length > 0) {
+        setSession((prev) => {
+          if (!prev) return null;
+          const updatedQueueIds = [...prev.queueIds, ...newlyUnlockedIds];
+          const updatedSession: SpeedRunSessionState = {
+            ...prev,
+            queueIds: updatedQueueIds,
+            completed: false,
+          };
+          saveSpeedRunSession(updatedSession);
+          return updatedSession;
+        });
+
+        setPendingNewlyAddedIds((prev) => Array.from(new Set([...prev, ...newlyUnlockedIds])));
+        setAddedCount(newlyUnlockedIds.length);
+        setShowPlusOneBadge(true);
+
+        if (badgeTimeoutRef.current) clearTimeout(badgeTimeoutRef.current);
+        badgeTimeoutRef.current = setTimeout(() => {
+          setShowPlusOneBadge(false);
+        }, 2500);
+      }
+    }, 1500);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [isOpen]);
 
   function handleCloseModal() {
     wasOpenRef.current = false;
@@ -293,6 +369,17 @@ export function SpeedRunModal({
       allCasinos.find((c) => c?.id === currentCasinoId)
     : undefined;
 
+  const isNewlyAdded = Boolean(
+    currentCasinoId && pendingNewlyAddedIds.includes(currentCasinoId)
+  );
+
+  // Clear viewed card from pending newly added set
+  useEffect(() => {
+    if (currentCasinoId && pendingNewlyAddedIds.includes(currentCasinoId)) {
+      setPendingNewlyAddedIds((prev) => prev.filter((id) => id !== currentCasinoId));
+    }
+  }, [currentCasinoId, pendingNewlyAddedIds]);
+
   // Sync inputs when current casino changes
   useEffect(() => {
     if (currentCasino) {
@@ -339,6 +426,9 @@ export function SpeedRunModal({
   }
 
   function advanceQueue(options: AdvanceQueueOptions = {}) {
+    if (badgeTimeoutRef.current) clearTimeout(badgeTimeoutRef.current);
+    setShowPlusOneBadge(false);
+
     setSession((prev) => {
       if (!prev) return null;
 
@@ -736,9 +826,6 @@ export function SpeedRunModal({
                 <h2 id="speed-run-title" className="text-base sm:text-lg font-bold text-white tracking-tight">
                   Speed Run V2
                 </h2>
-                <span className="rounded-full bg-emerald-950/80 border border-emerald-600/40 px-2 py-0.5 text-[10px] font-mono font-bold text-emerald-300 uppercase tracking-wide">
-                  Step {currentStep} of 3
-                </span>
               </div>
               <p className="text-[11px] text-[#8ca892]">
                 State-aware daily bonus speed runner
@@ -882,7 +969,15 @@ export function SpeedRunModal({
             <div>
               <div className="flex items-center justify-between text-xs font-mono text-[#8ca892] mb-1.5">
                 <span className="font-semibold text-emerald-300 flex items-center gap-1.5">
-                  <span>Queue {currentIndex + 1} of {totalInQueue}</span>
+                  <span>Queue {currentIndex + 1} of</span>
+                  <span className="relative inline-flex items-center ml-1">
+                    <span>{totalInQueue}</span>
+                    {showPlusOneBadge && (
+                      <span className="absolute -top-3 -right-6 text-[10px] font-black text-emerald-400 bg-emerald-950/90 border border-emerald-500/40 px-1.5 py-0.5 rounded-full animate-bounce">
+                        +{addedCount}
+                      </span>
+                    )}
+                  </span>
                   {currentCasino?.resetAtTime && (
                     <span className="rounded bg-teal-950/80 border border-teal-600/40 px-1.5 py-0.2 text-[9px] font-bold text-teal-300">
                       Fixed Reset
@@ -904,13 +999,31 @@ export function SpeedRunModal({
             {/* Current Casino Header Card */}
             {currentCasino ? (
               <div className="relative rounded-2xl border border-emerald-700/50 bg-gradient-to-b from-[#15271d] to-[#0f1c15] p-4 sm:p-5 shadow-inner text-center">
-                {/* Provider Pill Badge */}
-                {showProviderBadge && (
-                  <div className="mb-3 flex justify-center">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-600/40 bg-[#12281e] px-3 py-0.5 text-[11px] font-bold text-teal-300 shadow-sm">
-                      <span>Provider Group:</span>
-                      <strong className="text-white">{currentProvider}</strong>
-                    </span>
+                {/* Top-Right Kebab Trigger for Cheat Sheet */}
+                <button
+                  type="button"
+                  onClick={() => setCheatSheetCasinoId(currentCasino.id)}
+                  className="absolute top-3.5 right-3.5 p-2 rounded-lg text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800/80 transition-colors cursor-pointer"
+                  title="View Casino Cheat Sheet"
+                  aria-label="Open cheat sheet"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+
+                {/* Provider Pill Badge / Just Unlocked Callout */}
+                {(showProviderBadge || isNewlyAdded) && (
+                  <div className="mb-3 flex justify-center gap-2 items-center flex-wrap">
+                    {isNewlyAdded && (
+                      <span className="inline-flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full animate-fadeIn">
+                        ✨ Just Unlocked
+                      </span>
+                    )}
+                    {showProviderBadge && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-600/40 bg-[#12281e] px-3 py-0.5 text-[11px] font-bold text-teal-300 shadow-sm">
+                        <span>Provider Group:</span>
+                        <strong className="text-white">{currentProvider}</strong>
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -938,20 +1051,19 @@ export function SpeedRunModal({
                     <button
                       type="button"
                       onClick={handleLaunch}
-                      className="flex h-13 w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#79b77f] to-[#39ff6a] px-4 text-sm sm:text-base font-bold text-[#0d1712] shadow-[0_4px_20px_rgba(57,255,106,0.4)] transition hover:scale-[1.02] active:scale-[0.98]"
+                      className="w-full h-14 rounded-2xl inline-flex items-center justify-center gap-2.5 text-base font-black text-white bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 border-t border-emerald-300/60 border-x border-b border-emerald-900 shadow-[0_6px_20px_rgba(16,185,129,0.45),inset_0_1px_0_rgba(255,255,255,0.4),0_3px_0_rgba(6,78,59,1)] hover:brightness-110 active:translate-y-1 active:shadow-[0_2px_8px_rgba(16,185,129,0.3)] transition-all cursor-pointer select-none"
                     >
-                      <ExternalLink size={18} strokeWidth={2.5} />
+                      <ExternalLink className="w-5 h-5 text-white stroke-[2.5]" />
                       <span>Launch {currentCasino?.name ?? "Casino"}</span>
                     </button>
 
-                    {/* Micro-Instructions (Cheat Codes) Tip Callout */}
-                    {microInstruction && (
-                      <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5 text-left text-xs text-amber-200 animate-fadeIn">
-                        <span className="shrink-0 text-base leading-none">💡</span>
-                        <div>
-                          <span className="font-semibold text-amber-300">Tip: </span>
-                          <span>{microInstruction}</span>
-                        </div>
+                    {/* Unified Claim Tip Callout */}
+                    {(currentCasino?.claimTip || microInstruction) && (
+                      <div className="w-full p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-2 text-left">
+                        <Lightbulb className="w-4 h-4 text-amber-400 shrink-0" />
+                        <p className="text-[11px] text-amber-200/90 leading-tight">
+                          <strong className="text-amber-300">Tip:</strong> {currentCasino?.claimTip || microInstruction}
+                        </p>
                       </div>
                     )}
 
@@ -969,43 +1081,18 @@ export function SpeedRunModal({
                 )}
 
                 {/* ------------------------------------------------------------- */}
-                {/* STATE 2: "Verification" View ("Did you claim it?") */}
+                {/* STATE 2: "Verification" View ("Claimed?") */}
                 {/* ------------------------------------------------------------- */}
                 {currentStep === 2 && (
-                  <div className="mt-5 space-y-3.5 animate-fadeIn">
-                    <div className="rounded-xl border border-teal-700/50 bg-[#12281e] p-3 text-center">
-                      <p className="text-sm sm:text-base font-bold text-white">
-                        Did you claim it?
-                      </p>
-                      <p className="text-xs text-[#8ca892] mt-0.5">
-                        Confirm claim status before updating timers and balance.
-                      </p>
+                  <div className="mt-4 animate-fadeIn">
+                    {/* Centered Section Label */}
+                    <div className="w-full flex items-center justify-center my-3">
+                      <span className="text-xs font-bold tracking-wider uppercase text-zinc-400">
+                        Claimed?
+                      </span>
                     </div>
 
-                    {/* Dedicated Optional Value Tracking Input for Sweeps Coins (SC) */}
-                    <div className="flex items-center justify-between rounded-xl border border-emerald-700/40 bg-[#12281e] px-3.5 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <Coins size={16} className="text-emerald-400 shrink-0" />
-                        <div className="text-left">
-                          <p className="text-xs font-bold text-white">Current Casino SC Balance (Optional)</p>
-                          <p className="text-[10px] text-[#8ca892]">Track your live balance for this casino.</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 bg-[#091510] border border-emerald-900/80 rounded-lg px-2.5 py-1 shrink-0">
-                        <span className="text-xs font-bold text-emerald-400">$</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={claimScInput}
-                          onChange={(e) => setClaimScInput(e.target.value)}
-                          className="w-16 bg-transparent text-right text-xs font-bold text-white outline-none font-mono placeholder:text-zinc-500"
-                          placeholder="e.g. 1.00"
-                        />
-                        <span className="text-[10px] font-semibold text-emerald-400">SC</span>
-                      </div>
-                    </div>
-
+                    {/* Action Buttons Row */}
                     <div className="grid grid-cols-3 gap-2 items-center">
                       {/* Left: Failed / Skip */}
                       <button
@@ -1054,6 +1141,29 @@ export function SpeedRunModal({
                         <CheckCircle2 size={16} />
                         <span>Yes, Claimed</span>
                       </button>
+                    </div>
+
+                    {/* Simplified Balance Input Row underneath buttons */}
+                    <div className="w-full mt-4 pt-3 border-t border-emerald-500/10 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium text-zinc-300">Track balance:</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/50">
+                          optional
+                        </span>
+                      </div>
+
+                      <div className="relative flex items-center">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={claimScInput}
+                          onChange={(e) => setClaimScInput(e.target.value)}
+                          placeholder="0.00"
+                          className="w-24 h-8 px-2 text-right bg-zinc-950/80 border border-emerald-500/25 rounded-lg text-xs font-bold text-emerald-400 placeholder-zinc-600 focus:outline-none focus:border-emerald-400"
+                        />
+                        <span className="text-[10px] font-semibold text-zinc-500 ml-1.5">SC</span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1164,6 +1274,13 @@ export function SpeedRunModal({
           }}
         />
       )}
+
+      {/* Casino Details Modal (Cheat Sheet Overlay) */}
+      <CasinoDetailsModal
+        casinoId={cheatSheetCasinoId}
+        isOpen={Boolean(cheatSheetCasinoId)}
+        onClose={() => setCheatSheetCasinoId(null)}
+      />
     </div>
   );
 }

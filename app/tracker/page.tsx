@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   Clock,
@@ -19,6 +19,7 @@ import {
   Flame,
   Sparkles,
   Pencil,
+  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -32,7 +33,9 @@ import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { SpeedRunModal } from "@/app/components/SpeedRunModal";
 import { SpeedRunErrorBoundary } from "@/components/SpeedRunErrorBoundary";
 import { AddCasinosModal } from "@/components/AddCasinosModal";
+import { BalancesIntroTooltip } from "@/components/BalancesIntroTooltip";
 import { CustomTimerModal } from "@/components/CustomTimerModal";
+import { CasinoDetailsModal } from "@/components/CasinoDetailsModal";
 import { getCasinoDefaultMetadata, MASTER_CASINOS_DATA } from "@/lib/casinosData";
 // import { BankrollSummary } from "@/app/components/BankrollSummary";
 import {
@@ -321,6 +324,7 @@ export default function TrackerPage() {
   const [directoryResetRules, setDirectoryResetRules] = useState<Record<string, string>>({});
   const [directoryHasStreak, setDirectoryHasStreak] = useState<Record<string, boolean>>({});
   const [isAddCasinosModalOpen, setIsAddCasinosModalOpen] = useState(false);
+  const [selectedCasinoId, setSelectedCasinoId] = useState<string | null>(null);
   const [directorySnapshot, setDirectorySnapshot] = useState<DirectoryData | null>(null);
   const [editingCasino, setEditingCasino] = useState<Casino | null>(null);
   const [editUrl, setEditUrl] = useState("");
@@ -482,6 +486,22 @@ export default function TrackerPage() {
       }
     }
   }
+
+  useEffect(() => {
+    const handleOpenFeed = () => {
+      setActiveDrawer("feed");
+    };
+    window.addEventListener("dailyroll_open_feed", handleOpenFeed);
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("feed") === "open") {
+        setActiveDrawer("feed");
+      }
+    }
+    return () => {
+      window.removeEventListener("dailyroll_open_feed", handleOpenFeed);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1509,6 +1529,40 @@ export default function TrackerPage() {
     }
   }, [dailyTotals.available, dailyTotals.claimedToday]);
 
+  const totalPortfolioBalance = useMemo(() => {
+    return casinos.reduce((sum, c) => {
+      if (c.hidden) return sum;
+      const bal = typeof c.currentBalance === "number" ? c.currentBalance : Number(c.currentBalance);
+      return sum + (!isNaN(bal) ? bal : 0);
+    }, 0);
+  }, [casinos]);
+
+  const [isBalancesTooltipOpen, setIsBalancesTooltipOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const dismissed = localStorage.getItem("dailyroll_balances_tooltip_dismissed");
+      if (dismissed === "true") {
+        setIsBalancesTooltipOpen(false);
+        return;
+      }
+      if (totalPortfolioBalance >= 3.0) {
+        setIsBalancesTooltipOpen(true);
+      }
+    } catch {
+      // Ignore
+    }
+  }, [totalPortfolioBalance]);
+
+  const handleDismissBalancesTooltip = useCallback(() => {
+    setIsBalancesTooltipOpen(false);
+    try {
+      localStorage.setItem("dailyroll_balances_tooltip_dismissed", "true");
+    } catch {
+      // Ignore
+    }
+  }, []);
+
   const readyCasinos = casinos.filter((c) => !c.hidden && statusFor(c).ready);
   // User's active Rollcall casinos (filtered strictly by non-hidden and active custom list)
   const activeCustomList = customLists.find((l) => l.id === activeListId) || customLists[0];
@@ -1630,12 +1684,13 @@ export default function TrackerPage() {
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <Link
-                                href={`/casinos/${encodeURIComponent(casinoName)}`}
-                                className="truncate hover:text-[#9bcf9c] text-white font-bold"
+                              <button
+                                type="button"
+                                onClick={() => setSelectedCasinoId(casinoName)}
+                                className="truncate hover:text-[#9bcf9c] text-white font-bold text-left cursor-pointer"
                               >
                                 {casinoName}
-                              </Link>
+                              </button>
                             </div>
                             <div className="mt-1 flex flex-wrap items-center gap-2">
                               {hasStreak && (
@@ -1890,71 +1945,48 @@ export default function TrackerPage() {
               )}
 
               {/* Primary Action Buttons Row (Embedded Inside Controls Card) */}
-              <div className="flex items-center justify-between gap-3 w-full pt-2 border-t border-zinc-800/50">
-                <div className="flex items-center gap-2 shrink-0">
+              <div className="w-full flex items-center justify-between gap-1.5 sm:gap-2 pt-2 border-t border-zinc-800/50 min-w-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
                   {/* Add Casinos */}
                   <button
                     type="button"
                     onClick={() => setIsAddCasinosModalOpen(true)}
                     title="Add casinos to your rollcall"
-                    className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl bg-gradient-to-b from-zinc-800 to-zinc-900 hover:from-zinc-750 hover:to-zinc-850 text-zinc-100 font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1.5 shadow-md shadow-black/40 border border-zinc-700 hover:border-emerald-500/60 active:translate-y-[1px] active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
+                    className="flex-1 min-w-0 h-10 px-2.5 sm:px-3 rounded-xl inline-flex items-center justify-center gap-1.5 font-bold text-xs text-emerald-400 bg-gradient-to-b from-zinc-800 to-zinc-900 border-t border-zinc-700/60 border-x border-b border-zinc-950 shadow-[0_3px_8px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08),0_2px_0_rgba(15,15,15,1)] hover:text-emerald-300 hover:border-emerald-500/40 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer select-none"
                   >
-                    <Plus size={13} strokeWidth={2.5} className="text-emerald-400 shrink-0" />
+                    <Plus className="w-4 h-4 text-emerald-400 shrink-0 stroke-[2.5]" />
                     <span className="truncate">Add Casinos</span>
                   </button>
 
-                  {/* Speed Run (X) */}
+                  {/* Speed Run Hero (Primary Tactile Anchor) */}
                   <button
                     type="button"
                     onClick={handleOpenSpeedRun}
                     disabled={readyCount === 0}
                     title={readyCount > 0 ? `Start Speed Run session (${readyCount} ready)` : "No casinos currently ready to claim"}
-                    className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl text-[11px] sm:text-xs flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${
+                    className={`relative flex-[1.3] min-w-0 h-10 px-2.5 sm:px-3 rounded-xl inline-flex items-center justify-center gap-1.5 font-black text-xs uppercase tracking-wider text-white transition-all cursor-pointer select-none ${
                       readyCount > 0
-                        ? "bg-gradient-to-b from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-zinc-950 font-extrabold shadow-md shadow-amber-950/60 border border-amber-300/60 active:translate-y-[1px] active:scale-[0.98] cursor-pointer"
+                        ? "bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 border-t border-emerald-300/60 border-x border-b border-emerald-800/80 shadow-[0_4px_14px_rgba(16,185,129,0.45),inset_0_1px_0_rgba(255,255,255,0.4),0_2px_0_rgba(6,78,59,1)] active:translate-y-0.5 active:shadow-[0_1px_4px_rgba(16,185,129,0.3),inset_0_1px_0_rgba(0,0,0,0.2)]"
                         : "bg-zinc-950/60 border border-zinc-800/80 text-zinc-600 font-medium opacity-50 cursor-not-allowed shadow-none"
                     }`}
                   >
-                    <Zap size={12} fill={readyCount > 0 ? "currentColor" : "none"} strokeWidth={readyCount > 0 ? 2.5 : 2} className="shrink-0" />
-                    <span className="truncate">Speed Run ({readyCount})</span>
+                    {/* Yellow Lightning Bolt */}
+                    <Zap className="w-4 h-4 text-amber-300 fill-amber-300 drop-shadow-[0_0_6px_rgba(252,211,77,0.8)] -rotate-6 shrink-0" />
+                    <span className="truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
+                      Speed Run ({readyCount})
+                    </span>
                   </button>
                 </div>
 
-                <div className="ml-auto flex items-center gap-2 shrink-0">
-                  {/* Community Feed / Chat Button */}
-                  <button
-                    type="button"
-                    onClick={() => setActiveDrawer((prev) => (prev === "feed" ? null : "feed"))}
-                    aria-label="Open Community Feed"
-                    title="Open Community Feed"
-                    className="px-2.5 h-8 flex items-center gap-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-900/60 hover:border-emerald-400/50 active:scale-95 transition-all text-xs font-semibold cursor-pointer shadow-sm shadow-emerald-950/40"
-                  >
-                    <MessageSquare size={14} className="text-emerald-400 shrink-0" />
-                    <span className="hidden sm:inline">Feed</span>
-                    {feedUnreadCount > 0 && (
-                      <span className="min-w-[16px] h-4 px-1 bg-gradient-to-r from-emerald-400 to-teal-400 text-zinc-950 text-[10px] font-black rounded-full flex items-center justify-center shadow-sm">
-                        {feedUnreadCount}
-                      </span>
-                    )}
-                  </button>
-
-                  {/* Bonus Drops Button */}
-                  <button
-                    type="button"
-                    onClick={() => setActiveDrawer((prev) => (prev === "drops" ? null : "drops"))}
-                    aria-label="Open Bonus Drops"
-                    title="Open Bonus Drops"
-                    className="px-2.5 h-8 flex items-center gap-1.5 rounded-lg bg-amber-950/60 border border-amber-500/30 text-amber-400 hover:bg-amber-900/60 hover:border-amber-400/50 active:scale-95 transition-all text-xs font-semibold cursor-pointer shadow-sm shadow-amber-950/40"
-                  >
-                    <Gift size={14} className="text-amber-400 shrink-0" />
-                    <span className="hidden sm:inline">Drops</span>
-                    {activeDropsCount > 0 && (
-                      <span className="min-w-[16px] h-4 px-1 bg-gradient-to-r from-amber-400 to-amber-500 text-zinc-950 text-[10px] font-black rounded-full flex items-center justify-center shadow-sm">
-                        {activeDropsCount}
-                      </span>
-                    )}
-                  </button>
-                </div>
+                {/* Tactile Gift Drops Button */}
+                <button
+                  type="button"
+                  onClick={() => setActiveDrawer((prev) => (prev === "drops" ? null : "drops"))}
+                  className="w-10 h-10 rounded-xl inline-flex items-center justify-center bg-gradient-to-b from-zinc-800 to-zinc-900 border-t border-amber-500/30 border-x border-b border-zinc-950 shadow-[0_3px_8px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(251,191,36,0.15),0_2px_0_rgba(15,15,15,1)] hover:border-amber-400/60 text-amber-400 active:translate-y-0.5 active:shadow-none transition-all shrink-0 cursor-pointer"
+                  title="Active Bonus Drops"
+                >
+                  <Gift className="w-4 h-4 fill-amber-400/20" />
+                </button>
               </div>
             </div>
 
@@ -1980,6 +2012,7 @@ export default function TrackerPage() {
                   onUpdateCasino={handleUpdateCasino}
                   onOpenCasino={openCasino}
                   onOpenBonus={casino.bonusUrl ? openBonus : undefined}
+                  onOpenDetails={(id) => setSelectedCasinoId(id)}
                   pendingInfo={pendingClaims[casino.id]}
                 />
               ))}
@@ -2019,23 +2052,23 @@ export default function TrackerPage() {
       </div>
         {actionCasino && (
           <div
-            className="fixed inset-0 z-20 grid place-items-center bg-black/65 p-5"
+            className="fixed inset-0 z-50 grid place-items-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200"
             role="presentation"
             onMouseDown={() => setOpenActionMenu(null)}
           >
             <div
-              className="w-full max-w-sm rounded-2xl border border-[#38503d] bg-[#19251f] p-6 shadow-2xl"
+              className="w-full max-w-sm rounded-2xl border border-emerald-500/25 bg-zinc-950/95 p-5 shadow-[0_8px_32px_rgba(0,0,0,0.8)] backdrop-blur-md"
               role="dialog"
               aria-modal="true"
               aria-labelledby="casino-actions-title"
               onMouseDown={(event) => event.stopPropagation()}
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-zinc-800/80">
                 <div>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">
-                    Casino actions
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-500/80">
+                    Casino Actions
                   </p>
-                  <h2 id="casino-actions-title" className="mt-2 font-serif text-2xl font-semibold text-[#e5eee3]">
+                  <h2 id="casino-actions-title" className="text-lg font-black tracking-tight text-white leading-snug">
                     {actionCasino.name}
                   </h2>
                 </div>
@@ -2043,32 +2076,27 @@ export default function TrackerPage() {
                   type="button"
                   onClick={() => setOpenActionMenu(null)}
                   aria-label="Close casino actions"
-                  className="text-[#91a595] hover:text-white"
+                  className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-800/60 hover:text-white transition cursor-pointer"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
-              <div className="mt-6 grid gap-2">
+
+              <div className="flex flex-col gap-2">
+                {/* Top Action: Mark as Ready */}
                 <button
                   type="button"
                   onClick={() => {
                     setOpenActionMenu(null);
-                    toggleHiddenCasino(actionCasino);
+                    handleResetToReady(actionCasino);
                   }}
-                  className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-[#d4e4d2] hover:bg-[#2a4230]"
+                  className="flex w-full items-center gap-3 rounded-xl border border-emerald-500/25 bg-emerald-950/40 px-3.5 py-2.5 text-left text-sm font-bold text-emerald-400 hover:bg-emerald-900/40 hover:border-emerald-500/40 active:scale-[0.99] transition-all cursor-pointer"
                 >
-                  <EyeOff size={16} /> {actionCasino.hidden ? "Unhide casino" : "Hide casino"}
+                  <RotateCcw size={16} className="text-emerald-400" />
+                  <span>Mark as Ready to Claim</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenActionMenu(null);
-                    openCasinoEditor(actionCasino);
-                  }}
-                  className="w-full rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-[#d4e4d2] hover:bg-[#2a4230]"
-                >
-                  Edit casino
-                </button>
+
+                {/* General Actions */}
                 <button
                   type="button"
                   onClick={() => {
@@ -2086,20 +2114,24 @@ export default function TrackerPage() {
                     }
                     setOpenActionMenu(null);
                   }}
-                  className="flex w-full items-center gap-2 rounded-xl border border-blue-800/50 px-4 py-3 text-left text-sm font-semibold text-blue-400 hover:bg-blue-950/40 cursor-pointer"
+                  className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold text-sky-400 hover:text-sky-300 hover:bg-sky-500/10 active:scale-[0.99] transition-all cursor-pointer"
                 >
-                  <Pencil size={16} /> Edit SC Balance
+                  <Pencil size={16} className="text-sky-400 shrink-0" />
+                  <span>Edit SC Balance</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => {
                     setOpenActionMenu(null);
-                    handleResetToReady(actionCasino);
+                    openCasinoEditor(actionCasino);
                   }}
-                  className="flex w-full items-center gap-2 rounded-xl border border-[#4c6d50] px-4 py-3 text-left text-sm font-semibold text-emerald-400 hover:bg-[#2a4230]"
+                  className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold text-zinc-200 hover:bg-zinc-800/60 active:scale-[0.99] transition-all cursor-pointer"
                 >
-                  <RotateCcw size={16} /> Mark as Ready to Claim
+                  <Settings size={16} className="text-zinc-400" />
+                  <span>Edit casino</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -2107,12 +2139,15 @@ export default function TrackerPage() {
                     setOpenActionMenu(null);
                     setCustomTimerCasino(target);
                   }}
-                  className="flex w-full items-center gap-2 rounded-xl border border-zinc-700/80 px-4 py-3 text-left text-sm font-semibold text-zinc-200 hover:bg-zinc-800 cursor-pointer"
+                  className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold text-zinc-200 hover:bg-zinc-800/60 active:scale-[0.99] transition-all cursor-pointer"
                 >
-                  <Clock size={16} className="text-[#f0a03c]" /> Set Custom Timer
+                  <Clock size={16} className="text-amber-400/80" />
+                  <span>Set Custom Timer</span>
                 </button>
-                <div className="flex items-center gap-2 rounded-xl border border-amber-800/50 bg-amber-950/20 px-4 py-2.5">
-                  <span className="text-xs font-semibold text-amber-300 shrink-0">Snooze:</span>
+
+                {/* Snooze Row */}
+                <div className="flex items-center gap-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800 px-3.5 py-2.5">
+                  <span className="text-xs font-bold text-amber-400 shrink-0">Snooze:</span>
                   <select
                     value=""
                     onChange={(e) => {
@@ -2123,16 +2158,17 @@ export default function TrackerPage() {
                       }
                     }}
                     aria-label="Snooze casino"
-                    className="flex-1 rounded-lg border border-amber-700/60 bg-[#16130b] px-2 py-1 text-xs font-medium text-amber-200 outline-none hover:border-amber-500 cursor-pointer"
+                    className="flex-1 rounded-lg border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-xs font-medium text-amber-200 outline-none focus:border-amber-500 cursor-pointer"
                   >
                     <option value="">Select duration...</option>
                     {SNOOZE_PRESETS.map((p) => (
-                      <option key={p.ms} value={p.ms} className="bg-[#101b15] text-white">
+                      <option key={p.ms} value={p.ms} className="bg-zinc-900 text-white">
                         {p.label}
                       </option>
                     ))}
                   </select>
                 </div>
+
                 {actionCasino.snoozedUntil && (
                   <button
                     type="button"
@@ -2140,20 +2176,39 @@ export default function TrackerPage() {
                       setOpenActionMenu(null);
                       handleCancelSnooze(actionCasino);
                     }}
-                    className="flex w-full items-center gap-2 rounded-xl border border-amber-800/60 px-4 py-3 text-left text-sm font-semibold text-amber-300 hover:bg-amber-950/40 cursor-pointer"
+                    className="flex w-full items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-950/20 px-3.5 py-2.5 text-left text-sm font-semibold text-amber-300 hover:bg-amber-900/30 active:scale-[0.99] transition-all cursor-pointer"
                   >
-                    <X size={16} /> Cancel Snooze
+                    <X size={16} className="text-amber-400" />
+                    <span>Cancel Snooze</span>
                   </button>
                 )}
+
+                {/* Divider */}
+                <div className="my-1 border-t border-zinc-800/80" />
+
+                {/* Danger / Visibility Section */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenActionMenu(null);
+                    toggleHiddenCasino(actionCasino);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold text-amber-400 hover:bg-amber-500/10 active:scale-[0.99] transition-all cursor-pointer"
+                >
+                  <EyeOff size={16} className="text-amber-400" />
+                  <span>{actionCasino.hidden ? "Unhide casino" : "Hide casino"}</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => {
                     setOpenActionMenu(null);
                     saveCasinos(casinos.filter((item) => item.id !== actionCasino.id));
                   }}
-                  className="flex w-full items-center gap-2 rounded-xl border border-[#633c3d] px-4 py-3 text-left text-sm font-semibold text-[#e69b91] hover:bg-[#422c2b]"
+                  className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold text-rose-500 hover:bg-rose-500/10 active:scale-[0.99] transition-all cursor-pointer"
                 >
-                  <Trash2 size={16} /> Delete casino
+                  <Trash2 size={16} className="text-rose-500" />
+                  <span>Delete casino</span>
                 </button>
               </div>
             </div>
@@ -2761,6 +2816,12 @@ export default function TrackerPage() {
           </button>
         </div>
       )}
+      {/* Casino Details Modal Overlay */}
+      <CasinoDetailsModal
+        casinoId={selectedCasinoId}
+        isOpen={Boolean(selectedCasinoId)}
+        onClose={() => setSelectedCasinoId(null)}
+      />
     </main>
   );
 }

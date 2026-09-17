@@ -25,6 +25,8 @@ export interface Casino {
 
   /** Casino operator / provider group (e.g. VGW, B2Services, Blazesoft, etc.). */
   provider?: string | null;
+  /** Speed Run Tip / Micro-instructions for claiming daily bonuses. */
+  claimTip?: string | null;
   /** Micro-instructions / cheat-code tip for claiming daily bonuses (e.g. "Click the green gift box"). */
   claimInstructions?: string | null;
   /** User's current tracked Sweeps Coins (SC) bankroll balance. */
@@ -37,6 +39,7 @@ export interface Casino {
   targetResetTimestamp?: number | string | null;
 
   /** Operational cheat sheet specifications */
+  dailySc?: string | null;
   dailyBonusSc?: string | null;
   dailyBonusGc?: string | null;
   minRedemption?: string | null;

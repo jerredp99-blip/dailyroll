@@ -147,26 +147,15 @@ export default function CasinoDetailPage() {
 
           {/* Metric Grid (4-6 key metrics) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {/* Daily SC Loot */}
+            {/* Daily SC Bonus */}
             <div className="rounded-xl border border-emerald-800/40 bg-[#14231b] p-3.5 transition hover:border-emerald-600/60">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
                 <Coins size={15} className="text-emerald-400" />
-                <span>Daily SC Loot</span>
+                <span>Daily SC Bonus</span>
               </div>
               <div className="text-base font-extrabold text-emerald-300 flex items-center flex-wrap gap-1">
                 <BonusLabelBadge label={casino.dailyBonusSc || casino.dailyBonus || "1.00 SC"} />
               </div>
-            </div>
-
-            {/* Daily GC Loot */}
-            <div className="rounded-xl border border-emerald-800/40 bg-[#14231b] p-3.5 transition hover:border-emerald-600/60">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
-                <Sparkles size={15} className="text-amber-400" />
-                <span>Daily GC Loot</span>
-              </div>
-              <p className="text-base font-extrabold text-amber-200">
-                {casino.dailyBonusGc || "10,000 GC"}
-              </p>
             </div>
 
             {/* Minimum Redemption */}

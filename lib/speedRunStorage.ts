@@ -111,6 +111,9 @@ export function getCasinoProvider(casino: Casino): string {
  * Precedence: casino.claimInstructions -> KNOWN_MICRO_INSTRUCTIONS -> null
  */
 export function getCasinoMicroInstruction(casino: Casino): string | null {
+  if (casino.claimTip && casino.claimTip.trim()) {
+    return casino.claimTip.trim();
+  }
   if (casino.claimInstructions && casino.claimInstructions.trim()) {
     return casino.claimInstructions.trim();
   }

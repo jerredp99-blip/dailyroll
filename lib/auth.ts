@@ -17,7 +17,13 @@ import {
 
 export const ADMIN_EMAILS = [
   "adminjerredp99@gmail.com",
+  "mykayla.mann1222@gmail.com",
 ];
+
+export const ADMIN_USERNAMES = [
+  "Mkia",
+];
+
 export const ADMIN_EMAIL = "AdminJerredp99@gmail.com";
 export const SESSION_COOKIE = "dailyroll_session";
 export const MAGIC_LINK_TTL_MS = 15 * 60 * 1000; // 15 minutes
@@ -37,6 +43,16 @@ export function isAdminEmail(email?: string | null): boolean {
   return ADMIN_EMAILS.some((admin) => admin.toLowerCase() === normalized);
 }
 
+export function isAdminUsername(username?: string | null): boolean {
+  if (!username) return false;
+  const normalized = username.trim().toLowerCase();
+  return ADMIN_USERNAMES.some((admin) => admin.toLowerCase() === normalized);
+}
+
+export function isAdminUser(email?: string | null, username?: string | null): boolean {
+  return isAdminEmail(email) || isAdminUsername(username);
+}
+
 export async function getCurrentSession(): Promise<Session | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
@@ -47,15 +63,27 @@ export async function getCurrentSession(): Promise<Session | null> {
     await deleteSession(token);
     return null;
   }
+  if (isAdminEmail(session.email) || isAdminUsername(session.email.split("@")[0])) {
+    session.role = "admin";
+  } else {
+    try {
+      const users = await getUsers();
+      const profile = users.find((u) => u.email.toLowerCase() === session.email.toLowerCase());
+      if (profile?.role === "admin" || profile?.isAdmin || (profile?.name && isAdminUsername(profile.name))) {
+        session.role = "admin";
+      }
+    } catch {}
+  }
   return session;
 }
 
 export async function createSessionForEmail(email: string): Promise<Session> {
   const normalized = email.trim().toLowerCase();
+  const isEmailOrUserAdmin = isAdminEmail(normalized) || isAdminUsername(normalized.split("@")[0]);
   const session: Session = {
     token: generateToken(),
     email: normalized,
-    role: isAdminEmail(normalized) ? "admin" : "user",
+    role: isEmailOrUserAdmin ? "admin" : "user",
     createdAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + SESSION_TTL_MS).toISOString(),
   };

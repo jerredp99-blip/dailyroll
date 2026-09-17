@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentSession, isAdminEmail } from "@/lib/auth";
+import { getCurrentSession, isAdminEmail, isAdminUsername } from "@/lib/auth";
 import { getUsers } from "@/lib/store";
 
 export async function GET() {
@@ -13,7 +13,13 @@ export async function GET() {
     (user) => user.email.toLowerCase() === session.email.toLowerCase(),
   );
 
-  const isAdmin = session.role === "admin" || isAdminEmail(session.email);
+  const isAdmin =
+    session.role === "admin" ||
+    isAdminEmail(session.email) ||
+    isAdminUsername(session.email.split("@")[0]) ||
+    Boolean(profile?.isAdmin) ||
+    profile?.role === "admin" ||
+    Boolean(profile?.name && isAdminUsername(profile.name));
 
   return NextResponse.json({
     user: profile

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/app/components/Logo";
-import { Settings, ShieldCheck, LogOut, Compass } from "lucide-react";
+import { Settings, ShieldCheck, LogOut, Compass, Wallet, MessageSquare } from "lucide-react";
+import { BalancesIntroTooltip } from "@/components/BalancesIntroTooltip";
 
 type SignedInUser = {
   name: string;
@@ -18,7 +19,8 @@ export function TopBar() {
   const [signedInUser, setSignedInUser] = useState<SignedInUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
-  const [scTotals, setScTotals] = useState<{ available: number; claimedToday: number } | null>(null);
+  const [scTotals, setScTotals] = useState<{ available: number; claimedToday: number; totalPortfolioBalance?: number } | null>(null);
+  const [isBalancesTooltipOpen, setIsBalancesTooltipOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
@@ -88,6 +90,31 @@ export function TopBar() {
     };
   }, [pathname]);
 
+  // Check onboarding tooltip eligibility for Balances button
+  useEffect(() => {
+    try {
+      const dismissed = localStorage.getItem("dailyroll_balances_tooltip_dismissed");
+      if (dismissed === "true") {
+        setIsBalancesTooltipOpen(false);
+        return;
+      }
+      if (typeof scTotals?.totalPortfolioBalance === "number" && scTotals.totalPortfolioBalance >= 3.0) {
+        setIsBalancesTooltipOpen(true);
+      }
+    } catch {
+      // Ignore
+    }
+  }, [scTotals?.totalPortfolioBalance]);
+
+  const handleDismissBalancesTooltip = useCallback(() => {
+    setIsBalancesTooltipOpen(false);
+    try {
+      localStorage.setItem("dailyroll_balances_tooltip_dismissed", "true");
+    } catch {
+      // Ignore
+    }
+  }, []);
+
   // Re-sync session state whenever navigation happens, since this bar stays
   // mounted across route changes in the shared layout.
   useEffect(() => {
@@ -127,39 +154,51 @@ export function TopBar() {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 sm:gap-4 px-3 py-2.5 sm:px-8 sm:py-4 lg:px-16 min-w-0">
         <Logo className="shrink-0" />
 
-        {/* Centered Available & Claimed SC Motivation Badge */}
+        {/* Centered Available & Claimed SC Motivation Badge (Acts as button to /balances) */}
         {pathname === "/tracker" && scTotals && (
-          <div className="flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl bg-zinc-900/90 border border-zinc-800 shadow-lg shadow-black/40 backdrop-blur-md shrink-0 select-none">
-            {/* Available SC (The Reward / Call-to-Action) */}
-            <div className="flex flex-col items-center leading-tight">
-              <span
-                className={`font-mono text-sm sm:text-base tracking-tight ${
-                  scTotals.available > 0
-                    ? "text-emerald-400 font-black drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]"
-                    : "text-zinc-400 font-extrabold"
-                }`}
-              >
-                {scTotals.available.toFixed(2)} SC
-              </span>
-              <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-emerald-400/80 mt-0.5">
-                <span className="hidden sm:inline">READY TO CLAIM</span>
-                <span className="sm:hidden">AVAIL</span>
-              </span>
-            </div>
+          <div className="relative flex flex-col items-center shrink-0">
+            <Link
+              href="/balances"
+              onClick={handleDismissBalancesTooltip}
+              title="Click to view Casino Balances & Cashout Manager"
+              className="flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl bg-zinc-900/90 border border-zinc-800 hover:border-emerald-500/60 hover:bg-zinc-850/90 shadow-lg shadow-black/40 backdrop-blur-md shrink-0 select-none cursor-pointer transition-all active:scale-[0.98] group"
+            >
+              {/* Available SC (The Reward / Call-to-Action) */}
+              <div className="flex flex-col items-center leading-tight">
+                <span
+                  className={`font-mono text-xs sm:text-base tracking-tight ${
+                    scTotals.available > 0
+                      ? "text-emerald-400 font-black drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]"
+                      : "text-zinc-400 font-extrabold"
+                  }`}
+                >
+                  {scTotals.available.toFixed(2)} SC
+                </span>
+                <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-emerald-400/80 mt-0.5 group-hover:text-emerald-300">
+                  <span className="hidden sm:inline">READY TO CLAIM</span>
+                  <span className="sm:hidden">AVAIL</span>
+                </span>
+              </div>
 
-            {/* Vertical Divider */}
-            <div className="h-6 w-px bg-zinc-700/60 mx-0.5 shrink-0" />
+              {/* Vertical Divider */}
+              <div className="h-6 w-px bg-zinc-700/60 mx-0.5 shrink-0" />
 
-            {/* Claimed SC (The Daily Streak / Score) */}
-            <div className="flex flex-col items-center leading-tight">
-              <span className="text-zinc-100 font-extrabold font-mono text-sm sm:text-base tracking-tight">
-                {scTotals.claimedToday.toFixed(2)} SC
-              </span>
-              <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-zinc-400 mt-0.5">
-                <span className="hidden sm:inline">CLAIMED TODAY</span>
-                <span className="sm:hidden">SECURED</span>
-              </span>
-            </div>
+              {/* Claimed SC (The Daily Streak / Score) */}
+              <div className="flex flex-col items-center leading-tight">
+                <span className="text-zinc-100 font-extrabold font-mono text-xs sm:text-base tracking-tight">
+                  {scTotals.claimedToday.toFixed(2)} SC
+                </span>
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-zinc-400 mt-0.5 group-hover:text-zinc-300">
+                  <span className="hidden sm:inline">CLAIMED TODAY</span>
+                  <span className="sm:hidden">SECURED</span>
+                </span>
+              </div>
+            </Link>
+
+            <BalancesIntroTooltip
+              isOpen={isBalancesTooltipOpen}
+              onDismiss={handleDismissBalancesTooltip}
+            />
           </div>
         )}
 
@@ -231,6 +270,20 @@ export function TopBar() {
 
                   <div className="py-1.5 space-y-0.5 text-xs font-medium">
                     <Link
+                      href="/balances"
+                      onClick={() => setIsAccountMenuOpen(false)}
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 transition-colors ${
+                        pathname === "/balances"
+                          ? "bg-emerald-950/60 text-emerald-300 font-bold"
+                          : "text-zinc-300 hover:bg-emerald-950/40 hover:text-white"
+                      }`}
+                      role="menuitem"
+                    >
+                      <Wallet className="w-4 h-4 text-emerald-400" />
+                      <span>Casino Balances</span>
+                    </Link>
+
+                    <Link
                       href="/profile"
                       onClick={() => setIsAccountMenuOpen(false)}
                       className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-zinc-300 hover:bg-emerald-950/40 hover:text-white transition-colors"
@@ -251,6 +304,23 @@ export function TopBar() {
                         <span>Admin Workspace</span>
                       </Link>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        if (pathname === "/tracker") {
+                          window.dispatchEvent(new CustomEvent("dailyroll_open_feed"));
+                        } else {
+                          router.push("/tracker?feed=open");
+                        }
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-zinc-300 hover:bg-emerald-950/40 hover:text-emerald-400 transition-colors cursor-pointer"
+                      role="menuitem"
+                    >
+                      <MessageSquare className="w-4 h-4 text-emerald-400" />
+                      <span>Feed & Chat</span>
+                    </button>
 
                     <Link
                       href="/tracker"
@@ -278,7 +348,7 @@ export function TopBar() {
               )}
             </div>
           ) : (
-            pathname !== "/sign-in" && (
+            pathname !== "/sign-in" && pathname !== "/" && pathname !== "/login" && (
               <Link
                 href="/sign-in"
                 className="text-sm font-semibold text-[#9bcf9c] hover:text-[#c2e4bd]"

@@ -278,7 +278,7 @@ export default function ProfilePage() {
             href="/tracker"
             className="flex items-center gap-1.5 rounded-xl border border-emerald-600/40 bg-emerald-950/40 px-4 py-2 text-xs font-bold text-emerald-300 transition hover:bg-emerald-900/60"
           >
-            <span>Go to Feed & Tracker</span>
+            <span>Go to Rollcall</span>
             <ExternalLink size={13} />
           </Link>
         </div>

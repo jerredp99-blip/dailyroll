@@ -129,6 +129,7 @@ type Store = {
   directoryResetTimes?: Record<string, string | null>;
   directoryDetails?: Record<string, string>;
   directoryProviders?: Record<string, string>;
+  directoryClaimTips?: Record<string, string>;
   directoryHasStreak?: Record<string, boolean>;
   sessions: Record<string, Session>;
   magicLinks: Record<string, MagicLink>;
@@ -268,33 +269,68 @@ const EMPTY_STORE: Store = {
   comments: INITIAL_COMMENTS,
 };
 
-export function ensureAdminUsers(users: UserProfile[]): { users: UserProfile[]; changed: boolean } {
-  const adminUser = getEnvAdminUser();
-  if (!adminUser) return { users: Array.isArray(users) ? users : [], changed: false };
+export const STATIC_ADMIN_EMAILS = [
+  "adminjerredp99@gmail.com",
+  "mykayla.mann1222@gmail.com",
+];
 
+export function ensureAdminUsers(users: UserProfile[]): { users: UserProfile[]; changed: boolean } {
   let changed = false;
   const list = Array.isArray(users) ? [...users] : [];
-  const targetEmail = adminUser.email.toLowerCase();
-  const existingIdx = list.findIndex((u) => u.email.toLowerCase() === targetEmail);
 
-  if (existingIdx === -1) {
-    list.push({ ...adminUser });
-    changed = true;
-  } else {
-    const existing = list[existingIdx];
-    if (
-      existing.role !== "admin" ||
-      !existing.isAdmin
-    ) {
-      list[existingIdx] = {
-        ...existing,
-        name: existing.name || adminUser.name,
+  for (const adminEmail of STATIC_ADMIN_EMAILS) {
+    const targetEmail = adminEmail.toLowerCase();
+    const existingIdx = list.findIndex(
+      (u) => u.email.toLowerCase() === targetEmail || (u.name && u.name.toLowerCase() === "mkia" && targetEmail.includes("mykayla"))
+    );
+
+    if (existingIdx === -1) {
+      list.push({
+        id: `user-admin-${targetEmail.split("@")[0]}`,
+        name: targetEmail.includes("mykayla") ? "Mkia" : "Admin",
+        email: targetEmail,
+        createdAt: new Date().toISOString(),
+        signInMethod: "passwordless email",
         role: "admin",
         isAdmin: true,
-      };
+      });
       changed = true;
+    } else {
+      const existing = list[existingIdx];
+      if (existing.role !== "admin" || !existing.isAdmin) {
+        list[existingIdx] = {
+          ...existing,
+          role: "admin",
+          isAdmin: true,
+          ...(targetEmail.includes("mykayla") && (!existing.name || existing.name === "Player") ? { name: "Mkia" } : {}),
+        };
+        changed = true;
+      }
     }
   }
+
+  const adminUser = getEnvAdminUser();
+  if (adminUser) {
+    const targetEmail = adminUser.email.toLowerCase();
+    const existingIdx = list.findIndex((u) => u.email.toLowerCase() === targetEmail);
+
+    if (existingIdx === -1) {
+      list.push({ ...adminUser });
+      changed = true;
+    } else {
+      const existing = list[existingIdx];
+      if (existing.role !== "admin" || !existing.isAdmin) {
+        list[existingIdx] = {
+          ...existing,
+          name: existing.name || adminUser.name,
+          role: "admin",
+          isAdmin: true,
+        };
+        changed = true;
+      }
+    }
+  }
+
   return { users: list, changed };
 }
 

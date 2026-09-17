@@ -72,6 +72,7 @@ export interface RollcallCardProps {
   onUpdateCasino?: (casino: Casino, updates: Partial<Casino>) => void;
   onOpenCasino: (casino: Casino) => void;
   onOpenBonus?: (casino: Casino) => void;
+  onOpenDetails?: (casinoId: string) => void;
   renderLogo?: () => React.ReactNode;
   renderTrustpilot?: () => React.ReactNode;
   pendingInfo?: { expiresAt: number; isDefocused?: boolean };
@@ -97,15 +98,12 @@ function RollcallCardComponent({
   onUpdateCasino,
   onOpenCasino,
   onOpenBonus,
+  onOpenDetails,
   renderLogo,
   renderTrustpilot,
   pendingInfo,
 }: RollcallCardProps) {
   const [isCustomTimerOpen, setIsCustomTimerOpen] = useState(false);
-  const [isEditingBalance, setIsEditingBalance] = useState(false);
-  const [newBalanceValue, setNewBalanceValue] = useState("");
-  const balanceInputRef = useRef<HTMLInputElement>(null);
-  const editContainerRef = useRef<HTMLDivElement>(null);
 
   const contextNow = useCurrentTimeContext();
   const currentNow = now ?? contextNow;
@@ -113,82 +111,6 @@ function RollcallCardComponent({
 
   const styles = STATUS_STYLES[currentStatus.state];
   const formattedCountdown = formatRemainingTimer(currentStatus.remainingMs);
-
-  const rawBalance =
-    userBalance ??
-    balance ??
-    casino.currentBalance ??
-    (casino as { balance?: number | string | null }).balance;
-  const numericBalance = typeof rawBalance === "number" ? rawBalance : Number(rawBalance);
-  const showBalanceBadge =
-    rawBalance !== null &&
-    rawBalance !== undefined &&
-    rawBalance !== "" &&
-    !isNaN(numericBalance) &&
-    numericBalance > 0.99;
-
-  useEffect(() => {
-    if (isEditingBalance) {
-      balanceInputRef.current?.focus();
-      balanceInputRef.current?.select();
-    }
-  }, [isEditingBalance]);
-
-  useEffect(() => {
-    if (!isEditingBalance) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (editContainerRef.current && !editContainerRef.current.contains(e.target as Node)) {
-        setIsEditingBalance(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isEditingBalance]);
-
-  const handleStartEditBalance = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setNewBalanceValue(
-      rawBalance !== null && rawBalance !== undefined && !isNaN(numericBalance)
-        ? numericBalance.toString()
-        : ""
-    );
-    setIsEditingBalance(true);
-  };
-
-  const handleSaveBalance = async (e?: React.MouseEvent | React.FormEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    const trimmed = newBalanceValue.trim();
-    const parsed = parseFloat(trimmed);
-    const validBalance = trimmed !== "" && !isNaN(parsed) && parsed >= 0 ? parsed : null;
-
-    setIsEditingBalance(false);
-
-    if (onUpdateCasino) {
-      onUpdateCasino(casino, { currentBalance: validBalance });
-    } else {
-      try {
-        const res = await fetch("/api/casinos");
-        if (res.ok) {
-          const data = await res.json();
-          const currentList = (data.casinos || []) as Casino[];
-          const updatedList = currentList.map((c) =>
-            c.id === casino.id || c.name.toLowerCase() === casino.name.toLowerCase()
-              ? { ...c, currentBalance: validBalance }
-              : c
-          );
-          await fetch("/api/casinos", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ casinos: updatedList }),
-          });
-        }
-      } catch (err) {
-        console.error("Failed to update casino balance:", err);
-      }
-    }
-  };
 
   const isPending = Boolean(pendingInfo);
   const isDefocused = Boolean(pendingInfo?.isDefocused);
@@ -215,12 +137,19 @@ function RollcallCardComponent({
       onClick={(event) => {
         if ((event.target as HTMLElement).closest("button, a, input, select, textarea, [role='button']")) return;
         if (isPending) return;
-        onOpenCasino(casino);
+        if (onOpenDetails) {
+          onOpenDetails(casino.id);
+        } else {
+          onOpenCasino(casino);
+        }
       }}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          if (!isPending) onOpenCasino(casino);
+          if (!isPending) {
+            if (onOpenDetails) onOpenDetails(casino.id);
+            else onOpenCasino(casino);
+          }
         }
       }}
       role="article"
@@ -236,10 +165,18 @@ function RollcallCardComponent({
     >
       {/* Left Column (Identity): Logo + Name & Stars */}
       <div className={`flex items-center gap-2 sm:gap-2.5 min-w-0 ${isPending ? "justify-between w-full sm:w-auto flex-1" : "shrink"}`}>
-        <Link
-          href={`/casinos/${encodeURIComponent(casino.id)}`}
-          onClick={(e) => e.stopPropagation()}
-          className="group/link flex items-center gap-2 sm:gap-2.5 min-w-0 hover:opacity-85 transition cursor-pointer"
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (onOpenDetails) {
+              onOpenDetails(casino.id);
+            } else {
+              onOpenCasino(casino);
+            }
+          }}
+          className="group/link flex items-center gap-2 sm:gap-2.5 min-w-0 hover:opacity-85 transition cursor-pointer text-left"
         >
           <div className="grid h-8 w-8 sm:h-[38px] sm:w-[38px] shrink-0 place-items-center rounded-lg border border-[#1b3d2f] bg-[#07130e] text-sm font-bold text-emerald-400 transition group-hover/link:border-emerald-500/50 overflow-hidden">
             {renderLogo ? renderLogo() : <CasinoLogo name={casino.name} siteUrl={siteUrl} />}
@@ -257,24 +194,35 @@ function RollcallCardComponent({
               {renderTrustpilot ? (
                 renderTrustpilot()
               ) : (
-                <a
-                  href={`https://www.trustpilot.com/search?query=${encodeURIComponent(casino.name)}`}
-                  target="_blank"
-                  rel="noreferrer"
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    openInExternalBrowser(`https://www.trustpilot.com/search?query=${encodeURIComponent(casino.name)}`);
+                    if (onOpenDetails) {
+                      onOpenDetails(casino.id);
+                    }
                   }}
-                  aria-label={`View Trustpilot reviews for ${casino.name}`}
-                  className="inline-flex items-center flex-nowrap whitespace-nowrap gap-0.5 text-amber-400 text-xs tracking-tight min-h-[24px] py-0.5"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (onOpenDetails) {
+                        onOpenDetails(casino.id);
+                      }
+                    }
+                  }}
+                  title="View Casino Cheat Sheet"
+                  aria-label={`View details for ${casino.name}`}
+                  className="inline-flex items-center flex-nowrap whitespace-nowrap gap-0.5 text-amber-400 text-xs tracking-tight min-h-[24px] py-0.5 cursor-pointer hover:opacity-80 transition-opacity"
                 >
                   <TrustpilotStars rating={rating ?? casino.trustpilotRating} />
-                </a>
+                </div>
               )}
             </div>
           </div>
-        </Link>
+        </button>
 
         {/* Live Countdown Status Chip on Mobile (Pinned to top-right of identity row) */}
         {isPending && (
@@ -290,80 +238,7 @@ function RollcallCardComponent({
         )}
       </div>
 
-      {/* Center Column (Tracked Balance): Centered horizontally across the card */}
-      {!isPending && (
-        <div className="flex-1 flex justify-center items-center px-2 min-w-0">
-          {(showBalanceBadge || isEditingBalance) && (
-            isEditingBalance ? (
-              <div
-                ref={editContainerRef}
-                onClick={(e) => e.stopPropagation()}
-                className="flex items-center gap-1.5 bg-zinc-950 border border-blue-500/80 rounded-xl px-2.5 py-1 shadow-lg ring-1 ring-blue-500/40 z-20 shrink-0"
-              >
-                <span className="text-xs font-bold text-blue-400 font-mono">$</span>
-                <input
-                  ref={balanceInputRef}
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={newBalanceValue}
-                  onChange={(e) => setNewBalanceValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleSaveBalance();
-                    } else if (e.key === "Escape") {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setIsEditingBalance(false);
-                    }
-                  }}
-                  placeholder="0.00"
-                  className="w-16 bg-transparent text-right text-xs font-bold text-blue-100 outline-none font-mono placeholder:text-zinc-600"
-                />
-                <span className="text-[10px] font-bold text-blue-400/80 font-mono">SC</span>
-                <button
-                  type="button"
-                  onClick={handleSaveBalance}
-                  title="Save balance"
-                  aria-label="Save balance"
-                  className="h-6 w-6 flex items-center justify-center rounded-lg bg-blue-500 hover:bg-blue-400 text-zinc-950 font-bold transition active:scale-95 cursor-pointer shrink-0 ml-0.5"
-                >
-                  <Check size={12} strokeWidth={3} />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsEditingBalance(false);
-                  }}
-                  title="Cancel"
-                  aria-label="Cancel editing"
-                  className="h-6 w-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white transition active:scale-95 cursor-pointer shrink-0"
-                >
-                  <X size={12} strokeWidth={2.5} />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={handleStartEditBalance}
-                title={`Click to edit tracked SC balance for ${casino.name}`}
-                aria-label={`Edit ${numericBalance.toFixed(2)} SC balance`}
-                className="group/bal inline-flex items-center gap-1 px-2.5 h-6 min-h-[24px] min-w-[24px] rounded-md bg-blue-950/40 hover:bg-blue-900/50 border border-blue-500/30 hover:border-blue-400 text-blue-400 font-mono text-[11px] font-bold shrink-0 shadow-sm transition-all active:scale-95 cursor-pointer whitespace-nowrap"
-              >
-                <Wallet className="w-3 h-3 text-blue-400/70 shrink-0" />
-                <span>
-                  {numericBalance.toFixed(2)} SC
-                </span>
-                <Pencil className="w-3 h-3 text-blue-400/70 group-hover/bal:text-blue-300 transition-colors shrink-0" />
-              </button>
-            )
-          )}
-        </div>
-      )}
+
 
       {/* Action / Countdown / Pending Controls + Inline Kebab */}
       {isPending ? (
@@ -379,20 +254,8 @@ function RollcallCardComponent({
             </span>
           </div>
 
-          {/* Secondary Action Group: Didn't Claim / Undo, Snooze (with Custom Timer), and Kebab */}
+          {/* Secondary Action Group: Snooze (with Custom Timer), and Kebab */}
           <div className="flex items-center gap-1.5 w-full sm:w-auto">
-            {/* [Didn't Claim / Undo] Button */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onUndoClaim?.(casino);
-              }}
-              className="h-8 flex-1 sm:flex-initial flex items-center justify-center rounded-lg border border-zinc-700 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white px-2.5 text-xs font-semibold transition active:scale-95 cursor-pointer whitespace-nowrap"
-            >
-              Didn't Claim / Undo
-            </button>
 
             {/* [Snooze ⌵] Select (Includes Custom Timer as top option) */}
             <select

@@ -1,10 +1,20 @@
-import { Dices } from "lucide-react";
 import Link from "next/link";
 
 const SIZE_STYLES = {
-  sm: { badge: "h-9 w-9 rounded-lg", icon: 17, text: "text-base" },
-  md: { badge: "h-9 w-9 sm:h-12 sm:w-12 rounded-xl", icon: 20, text: "text-2xl sm:text-4xl" },
+  sm: { badge: "h-9 w-9 rounded-xl", text: "text-base sm:text-lg" },
+  md: { badge: "h-10 w-10 sm:h-12 sm:w-12 rounded-2xl", text: "text-2xl sm:text-3xl" },
+  lg: { badge: "h-16 w-16 sm:h-20 sm:w-20 rounded-3xl", text: "text-3xl sm:text-5xl" },
 } as const;
+
+export function DailyRollIcon({ className = "w-full h-full" }: { className?: string }) {
+  return (
+    <img
+      src="/logo.png"
+      alt="Daily Roll Logo"
+      className={`object-cover w-full h-full ${className}`}
+    />
+  );
+}
 
 export function Logo({
   size = "md",
@@ -23,12 +33,12 @@ export function Logo({
       aria-label="dailyroll home"
     >
       <span
-        className={`grid shrink-0 place-items-center bg-gradient-to-br from-[#a9dba9] to-[#4f8f5b] text-[#0e1f14] shadow-[0_8px_20px_rgba(83,151,96,0.28)] ${styles.badge}`}
+        className={`shrink-0 overflow-hidden grid place-items-center ${styles.badge} shadow-[0_4px_20px_rgba(16,185,129,0.25)] transition-transform hover:scale-105`}
       >
-        <Dices size={styles.icon} strokeWidth={2.3} className="w-5 h-5 sm:w-6 sm:h-6" />
+        <DailyRollIcon />
       </span>
-      <span className={`font-bold tracking-[-0.06em] text-[#e1ece0] ${styles.text}`}>
-        daily<span className="text-[#9bcf9c]">roll</span>
+      <span className={`font-black tracking-[-0.05em] text-[#e1ece0] ${styles.text}`}>
+        daily<span className="text-[#34d399] drop-shadow-[0_0_12px_rgba(52,211,153,0.4)]">roll</span>
       </span>
     </Link>
   );

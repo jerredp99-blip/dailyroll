@@ -30,6 +30,7 @@ export function AdminCasinoDataForm({
     restrictedStates: casino.restrictedStates || "",
     provider: casino.provider || "",
     trustpilotRating: casino.trustpilotRating ? String(casino.trustpilotRating) : "",
+    claimTip: casino.claimTip ?? casino.claimInstructions ?? casino.details ?? "",
     details: casino.details || "",
   });
 
@@ -66,6 +67,8 @@ export function AdminCasinoDataForm({
           restrictedStates: formData.restrictedStates.trim() || null,
           provider: formData.provider.trim() || null,
           trustpilotRating: formData.trustpilotRating.trim() ? Number(formData.trustpilotRating.trim()) : null,
+          claimTip: formData.claimTip.trim() || null,
+          claimInstructions: formData.claimTip.trim() || null,
           details: formData.details.trim() || null,
         }),
       });
@@ -311,16 +314,16 @@ export function AdminCasinoDataForm({
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">
-                  Claim Tip / Micro-Instructions
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                  Claim Tip (Shows in Speed Run & Cheat Sheet)
                 </label>
-                <input
-                  type="text"
-                  value={formData.details}
-                  onChange={(e) => handleChange("details", e.target.value)}
-                  className="w-full rounded-lg border border-emerald-800/60 bg-[#14261d] px-3 py-2 text-xs font-medium text-white focus:outline-none focus:border-emerald-400"
-                  placeholder="e.g. Click Get Coins -> Daily Bonus tab"
+                <textarea
+                  rows={3}
+                  value={formData.claimTip ?? ""}
+                  onChange={(e) => handleChange("claimTip", e.target.value)}
+                  placeholder="e.g. Click the daily bonus gift box on the top right header."
+                  className="w-full bg-zinc-950 border border-emerald-500/30 rounded-xl p-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400"
                 />
               </div>
             </div>

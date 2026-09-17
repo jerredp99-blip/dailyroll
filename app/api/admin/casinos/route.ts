@@ -49,6 +49,8 @@ export async function POST(request: NextRequest) {
       resetAtTime?: string | null;
       intervalHours?: number | string | null;
       provider?: string | null;
+      claimTip?: string | null;
+      claimInstructions?: string | null;
       dailyBonusSc?: string | null;
       dailyBonusGc?: string | null;
       minRedemption?: string | null;
@@ -75,6 +77,8 @@ export async function POST(request: NextRequest) {
     if ("resetAtTime" in body) updateData.resetAtTime = body.resetAtTime === "" ? null : body.resetAtTime;
     if ("intervalHours" in body) updateData.intervalHours = (body.intervalHours === "" || body.intervalHours === null) ? 24 : Number(body.intervalHours);
     if ("provider" in body) updateData.provider = body.provider === "" ? null : body.provider;
+    if ("claimTip" in body) updateData.claimTip = body.claimTip === "" ? null : body.claimTip;
+    if ("claimInstructions" in body) updateData.claimInstructions = body.claimInstructions === "" ? null : body.claimInstructions;
     if ("dailyBonusSc" in body) updateData.dailyBonusSc = body.dailyBonusSc === "" ? null : body.dailyBonusSc;
     if ("dailyBonusGc" in body) updateData.dailyBonusGc = body.dailyBonusGc === "" ? null : body.dailyBonusGc;
     if ("minRedemption" in body) updateData.minRedemption = body.minRedemption === "" ? null : body.minRedemption;
