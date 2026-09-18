@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { PostCard } from "@/app/components/feed/PostCard";
 import { PostComposer } from "@/app/components/feed/PostComposer";
@@ -39,6 +40,8 @@ export function SocialFeed({
   setIsBonusDropsOpen,
   setIsAddCasinosOpen,
   onOpenAddCasinos,
+  showActiveDropsCasinos: controlledShowActiveDropsCasinos,
+  setShowActiveDropsCasinos: controlledSetShowActiveDropsCasinos,
 }: {
   currentUserEmail?: string;
   currentUserName?: string;
@@ -53,7 +56,14 @@ export function SocialFeed({
   setIsBonusDropsOpen?: (open: boolean) => void;
   setIsAddCasinosOpen?: (open: boolean) => void;
   onOpenAddCasinos?: () => void;
+  showActiveDropsCasinos?: boolean;
+  setShowActiveDropsCasinos?: (show: boolean) => void;
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentType, setCurrentType] = useState<PostType | "all">(initialType);
@@ -348,7 +358,13 @@ export function SocialFeed({
     [casinos]
   );
 
-  const [showActiveDropsCasinos, setShowActiveDropsCasinos] = useState(false);
+  const [internalShowActiveDropsCasinos, setInternalShowActiveDropsCasinos] = useState(false);
+  const showActiveDropsCasinos =
+    controlledShowActiveDropsCasinos !== undefined
+      ? controlledShowActiveDropsCasinos
+      : internalShowActiveDropsCasinos;
+  const setShowActiveDropsCasinos =
+    controlledSetShowActiveDropsCasinos || setInternalShowActiveDropsCasinos;
   const [showActiveCodesModal, setShowActiveCodesModal] = useState(false);
   const [modalTab, setModalTab] = useState<"locked" | "all">("locked");
 
@@ -639,7 +655,11 @@ export function SocialFeed({
             <span>🎁 {activeCasinosCount} casinos with active bonus codes</span>
             <button
               type="button"
-              onClick={() => setShowActiveDropsCasinos(true)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowActiveDropsCasinos(true);
+              }}
               className="text-amber-400 hover:text-amber-300 font-bold underline underline-offset-2 hover:brightness-110 transition-all cursor-pointer"
             >
               Explore ↗
@@ -688,77 +708,91 @@ export function SocialFeed({
         </main>
   );
 
+  const modalElement = showActiveDropsCasinos ? (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
+      onClick={() => setShowActiveDropsCasinos(false)}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="active-drops-casinos-title"
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl bg-zinc-950 border border-emerald-500/30 p-5 shadow-2xl flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🎁</span>
+            <h3 id="active-drops-casinos-title" className="text-sm font-black text-white tracking-wide">
+              Casinos With Active Drops
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowActiveDropsCasinos(false)}
+            aria-label="Close dialog"
+            className="text-zinc-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Clear Instructions */}
+        <div className="my-3 p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/20 text-center">
+          <p className="text-xs font-semibold text-emerald-300">
+            Add casinos to your Rollcall to view and claim bonus codes.
+          </p>
+        </div>
+
+        {/* Casino List */}
+        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+          {activeCasinosWithDrops.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-900/90 border border-zinc-800"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white">{item.name}</span>
+                {item.isAdded && (
+                  <span className="text-[9px] font-semibold text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">
+                    On Rollcall
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
+                {item.count} {item.count === 1 ? "drop" : "drops"}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Quick Navigation Button */}
+        <div className="pt-4 mt-2 border-t border-zinc-800">
+          <button
+            type="button"
+            onClick={() => {
+              setShowActiveDropsCasinos(false);
+              setIsBonusDropsOpen?.(false);
+              setIsAddCasinosOpen?.(true);
+              onClose?.();
+              onOpenAddCasinos?.();
+              window.dispatchEvent(new CustomEvent("dailyroll_open_add_casinos"));
+            }}
+            className="w-full h-10 rounded-xl bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 hover:brightness-110 text-white text-xs font-bold shadow-[0_2px_10px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <span>+ Open Add Casinos</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   const activeDropsModal = (
     <>
-      {showActiveDropsCasinos && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="w-full max-w-sm rounded-2xl bg-zinc-950 border border-emerald-500/30 p-5 shadow-2xl flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-              <div className="flex items-center gap-2">
-                <span className="text-base">🎁</span>
-                <h3 className="text-sm font-black text-white tracking-wide">
-                  Casinos With Active Drops
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowActiveDropsCasinos(false)}
-                className="text-zinc-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Clear Instructions */}
-            <div className="my-3 p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/20 text-center">
-              <p className="text-xs font-semibold text-emerald-300">
-                Add casinos to your Rollcall to view and claim bonus codes.
-              </p>
-            </div>
-
-            {/* Casino List */}
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              {activeCasinosWithDrops.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-900/90 border border-zinc-800"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-white">{item.name}</span>
-                    {item.isAdded && (
-                      <span className="text-[9px] font-semibold text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">
-                        On Rollcall
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
-                    {item.count} {item.count === 1 ? "drop" : "drops"}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Quick Navigation Button */}
-            <div className="pt-4 mt-2 border-t border-zinc-800">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowActiveDropsCasinos(false);
-                  setIsBonusDropsOpen?.(false);
-                  setIsAddCasinosOpen?.(true);
-                  onClose?.();
-                  onOpenAddCasinos?.();
-                  window.dispatchEvent(new CustomEvent("dailyroll_open_add_casinos"));
-                }}
-                className="w-full h-10 rounded-xl bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 hover:brightness-110 text-white text-xs font-bold shadow-[0_2px_10px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span>+ Open Add Casinos</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {modalElement && mounted && typeof document !== "undefined"
+        ? createPortal(modalElement, document.body)
+        : modalElement}
     </>
   );
 

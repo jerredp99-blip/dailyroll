@@ -36,6 +36,7 @@ export function FeedModal({
   setIsAddCasinosOpen,
   onOpenAddCasinos,
 }: FeedModalProps) {
+  const [showActiveDropsCasinos, setShowActiveDropsCasinos] = useState(false);
   const effectiveIsOpen = isOpen ?? false;
   if (!effectiveIsOpen) return null;
 
@@ -85,6 +86,8 @@ export function FeedModal({
             setIsBonusDropsOpen={setIsBonusDropsOpen || ((open) => { if (!open) onClose(); })}
             setIsAddCasinosOpen={setIsAddCasinosOpen}
             onOpenAddCasinos={onOpenAddCasinos}
+            showActiveDropsCasinos={showActiveDropsCasinos}
+            setShowActiveDropsCasinos={setShowActiveDropsCasinos}
           />
         </div>
       </div>
