@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUsers, saveUsers, UserProfile } from "@/lib/store";
 import { getCurrentSession } from "@/lib/auth";
+import { redis } from "@/lib/redis";
 
 export async function GET() {
   try {
@@ -12,7 +13,32 @@ export async function GET() {
       return NextResponse.json({ error: "Not authorized." }, { status: 403 });
     }
     const users = await getUsers();
-    return NextResponse.json({ users });
+
+    const hydratedUsers = await Promise.all(
+      users.map(async (u) => {
+        try {
+          const normalizedEmail = u.email.trim().toLowerCase();
+          const onlineTimestamp = await redis.get(`user:${normalizedEmail}:online`);
+          let lastActiveAt: number | null = onlineTimestamp ? Number(onlineTimestamp) : null;
+
+          if (!lastActiveAt) {
+            const summary = await redis.hgetall(`user:${normalizedEmail}:activity_summary`);
+            if (summary?.last_active) {
+              lastActiveAt = Number(summary.last_active);
+            }
+          }
+
+          return {
+            ...u,
+            lastActiveAt: lastActiveAt || undefined,
+          };
+        } catch {
+          return u;
+        }
+      })
+    );
+
+    return NextResponse.json({ users: hydratedUsers });
   } catch (error) {
     console.error("Unable to load user profiles", error);
     return NextResponse.json({ error: "Unable to load user profiles." }, { status: 503 });

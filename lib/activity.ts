@@ -57,8 +57,13 @@ export async function touchUserLastActive(userId: string) {
   if (!userId || !userId.trim()) return;
   const normalizedId = userId.trim().toLowerCase();
   try {
+    const now = Date.now();
+    // Set Redis online status key with 5-minute automatic expiration (ex: 300)
+    await redis.set(`user:${normalizedId}:online`, now, { ex: 300 });
+
+    // Update user activity summary last_active timestamp
     await redis.hset(`user:${normalizedId}:activity_summary`, {
-      last_active: Date.now(),
+      last_active: now,
     });
   } catch (err) {
     console.error("Failed to update last_active timestamp:", err);
