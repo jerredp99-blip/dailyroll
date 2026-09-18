@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { apiDeleteCasinos, apiGetUsers, apiSaveUsers } from "@/lib/api-client";
 import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
 import { UserActivityInspectorModal } from "@/components/UserActivityInspectorModal";
+import { ActiveBadge } from "@/components/ActiveBadge";
 
 type AdminProfile = {
   email: string;
@@ -19,6 +20,7 @@ type UserProfile = {
   createdAt: string;
   signInMethod: "password" | "passwordless email";
   passwordHash?: string;
+  lastActiveAt?: string | number | Date;
 };
 
 export default function Dashboard() {
@@ -172,16 +174,46 @@ export default function Dashboard() {
               <p className="rounded-xl border border-dashed border-[#38503d] px-4 py-6 text-center text-sm text-[#819487]">No users yet. Add one above to create a profile.</p>
             ) : users.map((user) => (
               <div key={user.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#304638] bg-[#1f3027] p-4">
-                <div><p className="font-semibold text-[#e5eee3]">{user.name}</p><p className="mt-1 text-sm text-[#93a495]">{user.email}</p></div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-semibold text-white tracking-wide">
+                      {user.name}
+                    </h3>
+                    <ActiveBadge lastActiveAt={user.lastActiveAt} thresholdMinutes={5} />
+                  </div>
+                  <p className="text-sm text-neutral-400">{user.email}</p>
+                </div>
+
                 <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => router.push(`/tracker?user=${encodeURIComponent(user.email)}`)} className="flex items-center gap-1.5 rounded-lg border border-teal-500/40 bg-teal-950/60 px-3 py-2 text-xs font-bold text-teal-300 transition hover:bg-teal-900/60 cursor-pointer">
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/tracker?user=${encodeURIComponent(user.email)}`)}
+                    className="flex items-center gap-1.5 rounded-lg border border-teal-500/40 bg-teal-950/60 px-3 py-1.5 text-xs font-bold text-teal-300 transition hover:bg-teal-900/60 cursor-pointer"
+                  >
                     <Compass size={14} /> View Rollcall
                   </button>
-                  <button type="button" onClick={() => setTelemetryUser(user)} className="flex items-center gap-1.5 rounded-lg border border-emerald-600/50 bg-[#172c1f] px-3 py-2 text-xs font-bold text-emerald-300 transition hover:bg-[#1f3b2a] cursor-pointer">
+                  <button
+                    type="button"
+                    onClick={() => setTelemetryUser(user)}
+                    className="flex items-center gap-1.5 rounded-lg border border-emerald-600/50 bg-[#172c1f] px-3 py-1.5 text-xs font-bold text-emerald-300 transition hover:bg-[#1f3b2a] cursor-pointer"
+                  >
                     <Activity size={14} /> Telemetry
                   </button>
-                  <button type="button" onClick={() => setSelectedUser(user)} className="flex items-center gap-2 rounded-lg border border-[#4c6d50] px-3 py-2 text-xs font-semibold text-[#b7d5b5] transition hover:bg-[#2a4230]"><Eye size={15} /> View profile</button>
-                  <button type="button" onClick={() => deleteUser(user)} aria-label={`Remove ${user.name}`} className="rounded-lg p-2 text-[#718275] transition hover:bg-[#422c2b] hover:text-[#e69b91]"><Trash2 size={15} /></button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedUser(user)}
+                    className="flex items-center gap-2 rounded-lg border border-[#4c6d50] px-3 py-1.5 text-xs font-semibold text-[#b7d5b5] transition hover:bg-[#2a4230] cursor-pointer"
+                  >
+                    <Eye size={15} /> View profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteUser(user)}
+                    aria-label={`Remove ${user.name}`}
+                    className="rounded-lg p-2 text-[#718275] transition hover:bg-[#422c2b] hover:text-[#e69b91] cursor-pointer"
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </div>
               </div>
             ))}
