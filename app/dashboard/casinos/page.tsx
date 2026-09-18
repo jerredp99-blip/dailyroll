@@ -95,6 +95,7 @@ export default function AdminCasinosPage() {
         dailyGcAmount?: string;
         resetHours?: number;
         intervalHours?: number;
+        resetAtTime?: string;
         claimTip?: string;
         minRedemptionText?: string;
         minRedemption?: string;
@@ -632,7 +633,7 @@ export default function AdminCasinosPage() {
                             />
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
                           <div>
                             <label className="text-[10px] font-bold text-gray-400 block mb-1">
                               Timer Cycle (Hours)
@@ -645,13 +646,25 @@ export default function AdminCasinosPage() {
                             />
                           </div>
                           <div>
+                            <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                              Fixed Reset Time
+                            </label>
+                            <input
+                              type="text"
+                              value={form.resetAtTime !== undefined ? form.resetAtTime : casino.resetAtTime || ""}
+                              placeholder="e.g. 19:00 or 00:00 (EST)"
+                              onChange={(e) => handlePendingInputChange(casino.name, "resetAtTime", e.target.value)}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                            />
+                          </div>
+                          <div>
                             <label className="text-[10px] font-bold text-gray-400 block mb-1">
                               Claim Tip
                             </label>
                             <input
                               type="text"
                               value={form.claimTip !== undefined ? form.claimTip : casino.claimTip || ""}
-                              placeholder="e.g. Click the store popup then claim tab"
+                              placeholder="e.g. Click store popup"
                               onChange={(e) => handlePendingInputChange(casino.name, "claimTip", e.target.value)}
                               className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
                             />
