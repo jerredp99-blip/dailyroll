@@ -1,4 +1,5 @@
 import { Check, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth";
 import { SignInForm } from "@/app/components/SignInForm";
@@ -21,9 +22,18 @@ export default async function Home() {
       <div className="relative mx-auto flex-1 w-full max-w-6xl min-h-[calc(100vh-4rem)] flex flex-col lg:flex-row items-center justify-between gap-8 px-4 sm:px-8 py-6">
         {/* Left Column (Hero & Preview) */}
         <div className="flex flex-col justify-center max-w-xl mx-auto lg:mx-0 flex-1">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-zinc-900/80 px-3.5 py-1 text-xs font-semibold text-emerald-300 shadow-sm backdrop-blur w-fit">
-            <Sparkles size={13} className="text-amber-400" />
-            <span>Your daily wins, organized</span>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-zinc-900/80 px-3.5 py-1 text-xs font-semibold text-emerald-300 shadow-sm backdrop-blur w-fit">
+              <Sparkles size={13} className="text-amber-400" />
+              <span>Your daily wins, organized</span>
+            </div>
+
+            <Link
+              href="/demo"
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1 text-xs font-bold text-amber-300 shadow-sm backdrop-blur transition-all"
+            >
+              <span>🎮 Live Demo Preview ↗</span>
+            </Link>
           </div>
 
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-none">
@@ -80,6 +90,16 @@ export default async function Home() {
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* Interactive Demo Link */}
+          <div className="mt-3.5">
+            <Link
+              href="/demo"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors"
+            >
+              <span>Test live interactive dashboard demo with ticking reset timers ↗</span>
+            </Link>
           </div>
 
           {/* Feature Highlights */}
