@@ -637,10 +637,92 @@ export function SocialFeed({
               <p className="text-xs text-[#7d9985]">Loading social feed...</p>
             </div>
           ) : sortedPosts.length === 0 ? (
-            <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-8 text-center text-xs text-zinc-400">
-              <p className="text-sm font-semibold text-zinc-200 mb-1">No posts found</p>
-              <p>Be the first to post a bonus drop, win flex, or discussion!</p>
-            </div>
+            casinosWithActiveCodes.length > 0 ? (
+              <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-b from-zinc-900/90 to-zinc-950 p-4 sm:p-5 shadow-xl space-y-4 animate-in fade-in duration-200">
+                <div className="flex items-center gap-2.5 pb-2.5 border-b border-zinc-800/80">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-400">
+                    <Lock size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white tracking-wide">
+                      {lockedCasinos.length > 0
+                        ? `${lockedCasinos.length} Casinos Have Active Locked Bonus Drops`
+                        : "Active Bonus Drops Available"}
+                    </h3>
+                    <p className="text-xs text-zinc-400 font-medium">
+                      Add these casinos to your Rollcall to unlock their active promo codes and claim bonuses:
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {(lockedCasinos.length > 0 ? lockedCasinos : casinosWithActiveCodes).map((item) => {
+                    const deepLink = getCasinoDeepLink({ name: item.name, siteUrl: item.siteUrl });
+
+                    const handleAddAndClaim = (e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      openInExternalBrowser(deepLink);
+                      window.dispatchEvent(
+                        new CustomEvent("dailyroll_add_casino", {
+                          detail: { casinoName: item.name, affiliateUrl: deepLink },
+                        })
+                      );
+                      setSelectedTag(item.name.replace(/\s+/g, "").toUpperCase());
+                      setCurrentType("drop_code");
+                    };
+
+                    return (
+                      <div
+                        key={item.name}
+                        className="flex items-center justify-between p-3 rounded-xl bg-zinc-950 border border-zinc-800/80 hover:border-emerald-500/40 transition-all shadow-sm"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0 overflow-hidden">
+                            <CasinoLogo name={item.name} siteUrl={item.siteUrl} width={28} height={28} className="h-7 w-7 object-contain" />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs sm:text-sm font-bold text-white truncate">
+                              {item.name}
+                            </span>
+                            <span className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
+                              <Lock size={10} className="text-amber-400" />
+                              {item.count} active bonus {item.count === 1 ? "drop" : "drops"} available
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleAddAndClaim}
+                          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 border border-emerald-400/50 text-xs font-black text-zinc-950 shadow-[0_2px_8px_rgba(16,185,129,0.3)] transition cursor-pointer flex items-center gap-1.5 shrink-0"
+                        >
+                          <span>+ Add Casino</span>
+                          <ExternalLink size={12} strokeWidth={2.5} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="pt-2 border-t border-zinc-800/80 flex justify-between items-center text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAllCasinoDrops(true);
+                      setCurrentType("drop_code");
+                    }}
+                    className="text-emerald-400 hover:text-emerald-300 font-bold underline underline-offset-2 transition cursor-pointer"
+                  >
+                    Or view all community drops without filtering
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-8 text-center text-xs text-zinc-400">
+                <p className="text-sm font-semibold text-zinc-200 mb-1">No posts found</p>
+                <p>Be the first to post a bonus drop, win flex, or discussion!</p>
+              </div>
+            )
           ) : (
             <div className="space-y-2.5">
               {sortedPosts.map((post) => (
