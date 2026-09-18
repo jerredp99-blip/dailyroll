@@ -167,7 +167,7 @@ export function SignInFormComponent() {
         {isCreatingProfile && (
           <div>
             <label htmlFor="name-input" className="mb-1 block text-xs font-semibold text-zinc-300">
-              Your Name
+              Username
             </label>
             <input
               id="name-input"
@@ -176,15 +176,20 @@ export function SignInFormComponent() {
               disabled={isSubmitting}
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Your name"
+              placeholder="Choose a username"
               className="h-10 w-full bg-zinc-950/80 border border-emerald-500/20 rounded-xl px-3 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-all disabled:opacity-50"
             />
           </div>
         )}
-        <div>
-          <label htmlFor="email-input" className="mb-1 block text-xs font-semibold text-zinc-300">
-            Email Address
-          </label>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <label htmlFor="email-input" className="block text-xs font-semibold text-zinc-300">
+              Email Address
+            </label>
+            <span className="text-[10px] text-emerald-400/90 font-medium">
+              Login purposes only • Zero spam
+            </span>
+          </div>
           <input
             id="email-input"
             type="email"
@@ -195,6 +200,9 @@ export function SignInFormComponent() {
             placeholder="you@example.com"
             className="h-10 w-full bg-zinc-950/80 border border-emerald-500/20 rounded-xl px-3 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-all disabled:opacity-50"
           />
+          <p className="text-[10px] text-zinc-500 leading-tight">
+            Used strictly to secure your account and sync your saved roll. We will never sell your email or send marketing spam.
+          </p>
         </div>
         <div>
           <label htmlFor="password-input" className="mb-1 block text-xs font-semibold text-zinc-300">
