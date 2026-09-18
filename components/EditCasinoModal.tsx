@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { X, ShieldCheck, ExternalLink, HelpCircle } from "lucide-react";
 import type { Casino } from "@/types/casino";
+import { PACIFIC_TIME_OPTIONS } from "@/lib/timerUtils";
 
 interface EditCasinoModalProps {
   isOpen: boolean;
@@ -333,19 +334,24 @@ export function EditCasinoModal({
                 onChange={(e) => setUseSpecificReset(e.target.checked)}
                 className="h-4 w-4 accent-[#79b77f]"
               />
-              <span>Fixed daily reset time (e.g. Midnight UTC)</span>
+              <span>Fixed daily reset time (PST)</span>
             </label>
             {useSpecificReset && (
               <div className="pt-1">
                 <label className="block text-[11px] font-medium text-[#789580] mb-1">
-                  Daily Reset Time (Local 24h)
+                  Daily Reset Time (PST)
                 </label>
-                <input
-                  type="time"
+                <select
                   value={resetTime}
                   onChange={(e) => setResetTime(e.target.value)}
-                  className="h-9 rounded-lg border border-[#344d3b] bg-[#14231b] px-2 text-xs text-white"
-                />
+                  className="h-9 w-full rounded-lg border border-[#344d3b] bg-[#14231b] px-2.5 text-xs text-white cursor-pointer outline-none focus:border-[#78ae7e]"
+                >
+                  {PACIFIC_TIME_OPTIONS.filter((o) => o.value !== "").map((opt) => (
+                    <option key={opt.value} value={opt.value} className="bg-[#14231b] text-white">
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
           </fieldset>

@@ -15,6 +15,7 @@ import {
 } from "@/lib/api-client";
 import { casinoDirectory, casinoDirectoryUrls } from "@/lib/casino-directory";
 import { ALL_PENDING_CASINOS, PENDING_CASINOS_BATCH, type PendingCasinoData } from "@/lib/pendingCasinos";
+import { PACIFIC_TIME_OPTIONS } from "@/lib/timerUtils";
 import { ExpandableSearch } from "@/app/components/ExpandableSearch";
 
 import type { Casino } from "@/types/casino";
@@ -647,15 +648,19 @@ export default function AdminCasinosPage() {
                           </div>
                           <div>
                             <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
-                              Fixed Reset Time
+                              Fixed Reset Time (PST)
                             </label>
-                            <input
-                              type="text"
+                            <select
                               value={form.resetAtTime !== undefined ? form.resetAtTime : casino.resetAtTime || ""}
-                              placeholder="e.g. 19:00 or 00:00 (EST)"
                               onChange={(e) => handlePendingInputChange(casino.name, "resetAtTime", e.target.value)}
-                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
-                            />
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-2.5 text-xs text-white focus:border-emerald-400 outline-none cursor-pointer"
+                            >
+                              {PACIFIC_TIME_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value} className="bg-[#121d17] text-white">
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                           <div>
                             <label className="text-[10px] font-bold text-gray-400 block mb-1">
@@ -811,7 +816,20 @@ export default function AdminCasinosPage() {
               <label className="text-xs font-semibold text-[#a9bbaa]">Trustpilot rating<input type="number" min="0" max="5" step="0.1" value={rating} onChange={(event) => setRating(event.target.value)} placeholder="0 to 5" className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
               <label className="text-xs font-semibold text-[#a9bbaa]">Bonus label<input value={bonus} onChange={(event) => setBonus(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
               <label className="text-xs font-semibold text-[#a9bbaa]">Details<textarea value={details} onChange={(event) => setDetails(event.target.value)} rows={3} className="mt-2 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 py-2 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
-              <label className="text-xs font-semibold text-[#a9bbaa]">Daily reset time<input type="time" value={resetTime} onChange={(event) => setResetTime(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e]" /></label>
+              <label className="text-xs font-semibold text-[#a9bbaa]">
+                Daily reset time (PST)
+                <select
+                  value={resetTime}
+                  onChange={(event) => setResetTime(event.target.value)}
+                  className="mt-2 h-11 w-full rounded-xl border border-[#344d3b] bg-[#111b16] px-3 text-sm text-[#e0ece0] outline-none focus:border-[#78ae7e] cursor-pointer"
+                >
+                  {PACIFIC_TIME_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value} className="bg-[#111b16] text-[#e0ece0]">
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
             {error && <p role="alert" className="mt-3 text-sm text-[#e69b91]">{error}</p>}
             <button type="submit" className="mt-6 flex h-11 w-full items-center justify-center rounded-xl bg-[#79b77f] text-sm font-semibold text-[#122519] hover:bg-[#91c991]">Save changes</button>
