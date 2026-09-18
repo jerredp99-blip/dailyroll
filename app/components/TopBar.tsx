@@ -6,8 +6,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/app/components/Logo";
 import { Settings, ShieldCheck, LogOut, Compass, Wallet, MessageSquare } from "lucide-react";
 import { BalancesIntroTooltip } from "@/components/BalancesIntroTooltip";
-import { ActionNav } from "@/components/ActionNav";
-import { useActiveDropsCount } from "@/lib/dropsStore";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 
 type SignedInUser = {
@@ -19,7 +17,6 @@ type SignedInUser = {
 export function TopBar() {
   const pathname = usePathname();
   const router = useRouter();
-  const unclaimedBonusDropsCount = useActiveDropsCount();
   const [signedInUser, setSignedInUser] = useState<SignedInUser | null>(null);
   useHeartbeat(signedInUser?.email);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -208,11 +205,6 @@ export function TopBar() {
         )}
 
         <div className="flex items-center gap-2 sm:gap-3.5 transition-all shrink-0">
-          {(signedInUser || isAdmin) && (
-            <div className="flex items-center">
-              <ActionNav unclaimedBonusDropsCount={unclaimedBonusDropsCount} />
-            </div>
-          )}
           {(signedInUser || isAdmin) && pathname !== "/tracker" && (
             <Link
               href="/tracker"
