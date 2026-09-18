@@ -129,88 +129,119 @@ export async function fetchServerNotificationPreferences(): Promise<Record<strin
   return getCasinoNotificationPreferences();
 }
 
+import { playNotificationChime, vibrateDevice, flashTabTitle } from "@/lib/audioAlert";
+
 /**
- * Dispatches a browser/service-worker notification when a casino's timer resets to zero.
+ * Dispatches a multi-channel notification (Audio Chime, In-App Toast, Device Vibration, Tab Flashing, & Native OS Notification)
+ * when a casino's timer resets to zero.
  */
 export async function sendCasinoReadyNotification(
   casinoName: string,
   bonusText?: string,
   url?: string
 ): Promise<boolean> {
-  if (!isNotificationSupported()) {
-    console.warn("[DailyRoll] Notifications not supported in this environment");
-    return false;
-  }
-  if (Notification.permission !== "granted") {
-    console.warn("[DailyRoll] Notification permission not granted:", Notification.permission);
-    return false;
-  }
-
   const title = `${casinoName} — Ready to Claim! 🎁`;
   const bonusSubtext = bonusText ? ` (${bonusText})` : "";
   const body = `Your daily reload bonus for ${casinoName}${bonusSubtext} is ready to claim now!`;
   const targetUrl = url || "/tracker";
   const tag = `casino-ready-${casinoName.toLowerCase().replace(/\s+/g, "-")}`;
 
-  // 1. Try ServiceWorkerRegistration.showNotification first (required on Android Chrome & mobile PWAs)
-  if ("serviceWorker" in navigator) {
-    try {
-      // Ensure registration exists without waiting indefinitely
-      let registration = await navigator.serviceWorker.getRegistration().catch(() => null);
-      if (!registration) {
-        registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => null);
-      }
+  // 1. Multi-channel Immediate Feedback (Guaranteed on all platforms & permissions)
+  playNotificationChime();
+  vibrateDevice([200, 100, 200]);
+  flashTabTitle(`${casinoName} Ready!`);
 
-      // Race navigator.serviceWorker.ready with a 600ms timeout so it NEVER freezes
-      const readyReg = await Promise.race([
-        navigator.serviceWorker.ready,
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 600)),
-      ]);
-
-      const activeReg = readyReg || registration;
-      if (activeReg && typeof activeReg.showNotification === "function") {
-        await activeReg.showNotification(title, {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("dailyroll-alert", {
+        detail: {
+          title,
           body,
-          icon: "/icon-192.png",
-          badge: "/favicon.ico",
-          tag,
-          renotify: true,
-          vibrate: [200, 100, 200],
-          data: { url: targetUrl },
-        } as any);
-        console.log(`[DailyRoll] SW Notification dispatched for ${casinoName}`);
-        return true;
-      }
-    } catch (swErr) {
-      console.warn("[DailyRoll] SW showNotification failed, trying window.Notification:", swErr);
+          actionUrl: targetUrl,
+        },
+      })
+    );
+  }
+
+  // 2. Native OS Notification (if supported and granted)
+  if (!isNotificationSupported() || Notification.permission !== "granted") {
+    return false;
+  }
+
+  const isMobile =
+    typeof navigator !== "undefined" &&
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  let osDispatched = false;
+
+  // On desktop browsers (Windows / macOS / Linux), try direct window.Notification first
+  if (!isMobile && typeof window !== "undefined" && "Notification" in window) {
+    try {
+      const notification = new Notification(title, {
+        body,
+        icon: "/icon-192.png",
+        tag,
+      });
+      notification.onclick = (event) => {
+        event.preventDefault();
+        window.focus();
+        if (targetUrl && targetUrl !== window.location.pathname) {
+          window.location.href = targetUrl;
+        }
+        notification.close();
+      };
+      osDispatched = true;
+      console.log(`[DailyRoll] Native desktop window.Notification dispatched for ${casinoName}`);
+    } catch (desktopErr) {
+      console.warn("[DailyRoll] Desktop window.Notification failed, trying ServiceWorker:", desktopErr);
     }
   }
 
-  // 2. Fallback to native window.Notification (standard on desktop Windows/macOS/Linux)
-  try {
-    const notification = new Notification(title, {
-      body,
-      icon: "/icon-192.png",
-      tag,
-    });
-    notification.onclick = (event) => {
-      event.preventDefault();
-      window.focus();
-      if (targetUrl && targetUrl !== window.location.pathname) {
-        window.location.href = targetUrl;
+  // On mobile (Android Chrome / PWA), or fallback from desktop
+  if (!osDispatched && typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+    try {
+      let reg = await navigator.serviceWorker.getRegistration().catch(() => null);
+      if (!reg) {
+        reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => null);
       }
-      notification.close();
-    };
-    console.log(`[DailyRoll] Window Notification dispatched for ${casinoName}`);
-    return true;
-  } catch (notifErr) {
-    console.error("[DailyRoll] Native window.Notification failed:", notifErr);
-    return false;
+
+      if (reg) {
+        // Wait briefly for active worker if currently installing
+        if (reg.installing) {
+          await new Promise<void>((res) => {
+            const w = reg!.installing;
+            if (!w) return res();
+            w.addEventListener("statechange", () => {
+              if (w.state === "activated") res();
+            });
+            setTimeout(res, 1200);
+          });
+        }
+
+        if (typeof reg.showNotification === "function") {
+          await reg.showNotification(title, {
+            body,
+            icon: "/icon-192.png",
+            badge: "/favicon.ico",
+            tag,
+            renotify: true,
+            vibrate: [200, 100, 200],
+            data: { url: targetUrl },
+          } as any);
+          osDispatched = true;
+          console.log(`[DailyRoll] ServiceWorker showNotification dispatched for ${casinoName}`);
+        }
+      }
+    } catch (swErr) {
+      console.warn("[DailyRoll] ServiceWorker showNotification failed:", swErr);
+    }
   }
+
+  return osDispatched;
 }
 
 /**
- * Dispatches an immediate test notification to verify audio, vibration, and banner on device.
+ * Dispatches an immediate test notification to verify audio chime, vibration, in-app toast, and native OS alert.
  */
 export async function sendTestNotification(casinoName: string = "DailyRoll"): Promise<boolean> {
   return sendCasinoReadyNotification(

@@ -21,6 +21,7 @@ import {
   Pencil,
   Wallet,
   ShieldCheck,
+  Bell,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -463,28 +464,44 @@ export default function TrackerPage() {
       .catch(() => {});
   }, []);
 
+  // In-app interactive alert toast state
+  interface NotificationToastData {
+    title: string;
+    body: string;
+    actionUrl?: string;
+  }
+  const [activeNotificationToast, setActiveNotificationToast] = useState<NotificationToastData | null>(null);
+
+  useEffect(() => {
+    const handleAlert = (e: Event) => {
+      const customEvent = e as CustomEvent<NotificationToastData>;
+      if (customEvent.detail) {
+        setActiveNotificationToast(customEvent.detail);
+      }
+    };
+    window.addEventListener("dailyroll-alert", handleAlert);
+    return () => window.removeEventListener("dailyroll-alert", handleAlert);
+  }, []);
+
+  useEffect(() => {
+    if (!activeNotificationToast) return;
+    const timer = setTimeout(() => {
+      setActiveNotificationToast(null);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [activeNotificationToast]);
+
   const handleToggleNotification = async (casino: Casino) => {
     const currentlyEnabled = Boolean(notificationPreferences[casino.id]);
-    if (!currentlyEnabled) {
+    const nextState = !currentlyEnabled;
+
+    if (nextState) {
       const permission = getNotificationPermission();
-      if (permission === "unsupported") {
-        alert("Browser notifications are not supported in this browser.");
-        return;
-      }
-      if (permission === "denied") {
-        alert("Notifications are blocked in your browser settings. Please allow notifications for Daily Roll to receive reset alerts.");
-        return;
-      }
       if (permission === "default") {
-        const granted = await requestNotificationPermission();
-        if (granted !== "granted") {
-          alert("Notification permission was not granted. Reset alerts cannot be displayed.");
-          return;
-        }
+        await requestNotificationPermission().catch(() => {});
       }
     }
 
-    const nextState = !currentlyEnabled;
     const updated = await setCasinoNotificationPreference(
       casino.id,
       nextState,
@@ -492,11 +509,15 @@ export default function TrackerPage() {
     );
     setNotificationPreferences(updated);
 
-    // If turned ON, dispatch confirmation alert so user can verify audio, vibration & banner on device
+    // If turned ON, dispatch multi-channel alert (chime, toast, vibration, desktop)
     if (nextState) {
+      const perm = getNotificationPermission();
+      const isSystemGranted = perm === "granted";
       sendCasinoReadyNotification(
         casino.name,
-        "Alerts Active — You'll be notified when reset hits 00:00:00!",
+        isSystemGranted
+          ? "Alerts Active — Audio, banner, and desktop notifications will alert you at 00:00:00!"
+          : "In-App Audio & Banner Alerts Active! (Allow notifications in your address bar for desktop popups).",
         "/tracker"
       );
     }
@@ -3080,6 +3101,43 @@ export default function TrackerPage() {
           </button>
         </div>
       )}
+      {/* Interactive Casino Ready & Alert Toast */}
+      {activeNotificationToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 rounded-2xl border border-emerald-500/60 bg-[#0c1a12]/95 px-4 py-3 text-sm text-zinc-100 shadow-[0_10px_40px_rgba(0,0,0,0.8),0_0_20px_rgba(16,185,129,0.25)] backdrop-blur-md animate-in fade-in slide-in-from-top-4 duration-300 max-w-[94vw] sm:max-w-md">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 shrink-0">
+            <Bell className="h-5 w-5 fill-emerald-400/40 animate-bounce" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-bold text-white text-sm truncate flex items-center gap-1.5">
+              <span>{activeNotificationToast.title}</span>
+            </div>
+            <p className="text-xs text-zinc-400 truncate mt-0.5">
+              {activeNotificationToast.body}
+            </p>
+          </div>
+          {activeNotificationToast.actionUrl && (
+            <button
+              onClick={() => {
+                if (activeNotificationToast.actionUrl && activeNotificationToast.actionUrl !== window.location.pathname) {
+                  window.location.href = activeNotificationToast.actionUrl;
+                }
+                setActiveNotificationToast(null);
+              }}
+              className="rounded-lg bg-emerald-500 hover:bg-emerald-400 px-3 py-1.5 text-xs font-bold text-zinc-950 transition shrink-0 cursor-pointer shadow-sm"
+            >
+              Claim
+            </button>
+          )}
+          <button
+            onClick={() => setActiveNotificationToast(null)}
+            className="text-zinc-400 hover:text-white p-1 shrink-0 cursor-pointer"
+            aria-label="Dismiss alert"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Casino Details Modal Overlay */}
       <CasinoDetailsModal
         casinoId={selectedCasinoId}
