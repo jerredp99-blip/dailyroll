@@ -141,27 +141,28 @@ export function AddCasinosModal({
 
         {/* Pro-Tip Email & SSO Banner */}
         {showEmailTip && (
-          <div className="relative mx-3 mt-3 sm:mx-4 sm:mt-4 p-3 rounded-xl bg-emerald-950/80 border border-emerald-500/30 flex items-start gap-3 shadow-md animate-fadeIn">
-            <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 shrink-0 mt-0.5">
-              <Sparkles size={16} />
+          <div className="relative mx-3 mt-3 sm:mx-4 sm:mt-4 p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-xs shadow-lg animate-in fade-in duration-200">
+            <div className="flex items-start gap-3">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5 text-emerald-400">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div className="flex-1 pr-6 space-y-1">
+                <h4 className="font-bold text-white text-xs tracking-wide">
+                  Quick Tip: Keep Your Personal Inbox Clean
+                </h4>
+                <p className="text-[11px] leading-relaxed text-zinc-300">
+                  We recommend making a free Gmail just for social casinos and clicking <strong className="text-emerald-400 font-semibold">"Continue with Google"</strong> across every site. It keeps promotional mail out of your personal inbox, speeds up bonus claims, and makes logging in a 1-tap breeze.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={dismissTip}
+                className="absolute top-3 right-3 text-zinc-400 hover:text-white p-1 rounded-md transition-colors cursor-pointer"
+                aria-label="Dismiss tip"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <div className="flex-1 min-w-0 pr-6">
-              <p className="text-xs font-bold text-emerald-200">
-                Pro-Tip: Use a Dedicated Casino Email & Google Single Sign-On
-              </p>
-              <p className="text-[11px] text-emerald-300/80 mt-0.5 leading-relaxed">
-                For smooth verification and account tracking across social casinos, we recommend using a dedicated email address and consistent Google Single Sign-On (SSO) across all platforms.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={dismissTip}
-              title="Dismiss tip"
-              aria-label="Dismiss tip"
-              className="absolute top-2.5 right-2.5 p-1 text-emerald-400/70 hover:text-white hover:bg-emerald-900/60 rounded-lg transition cursor-pointer"
-            >
-              <X size={14} />
-            </button>
           </div>
         )}
 
