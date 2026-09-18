@@ -550,7 +550,11 @@ export default function TrackerPage() {
     const handleOpenFeed = () => {
       setActiveDrawer("feed");
     };
+    const handleOpenAddCasinos = () => {
+      setIsAddCasinosModalOpen(true);
+    };
     window.addEventListener("dailyroll_open_feed", handleOpenFeed);
+    window.addEventListener("dailyroll_open_add_casinos", handleOpenAddCasinos);
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("feed") === "open") {
@@ -559,6 +563,7 @@ export default function TrackerPage() {
     }
     return () => {
       window.removeEventListener("dailyroll_open_feed", handleOpenFeed);
+      window.removeEventListener("dailyroll_open_add_casinos", handleOpenAddCasinos);
     };
   }, []);
 
