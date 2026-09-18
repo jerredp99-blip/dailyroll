@@ -2685,34 +2685,31 @@ export default function TrackerPage() {
       />
 
 
-      {/* Slide-Over Drawer Overlay for Community Feed & Drops */}
+      {/* Centered Modal Overlay for Bonus Drops & Feed */}
       {activeDrawer && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          {/* Backdrop Blur */}
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setActiveDrawer(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bonus-drops-modal-title"
+        >
+          {/* Centered Modal Container */}
           <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity cursor-pointer"
-            onClick={() => setActiveDrawer(null)}
-            aria-label="Close drawer"
-          />
-
-          {/* Drawer Container */}
-          <div className="relative z-50 flex flex-col w-full sm:w-[500px] lg:w-[560px] h-full bg-[#0c1a13] border-l border-emerald-900/60 shadow-2xl animate-in slide-in-from-right duration-200 overflow-hidden">
-            {/* Drawer Header */}
+            className="relative w-full max-w-xl max-h-[85vh] bg-[#0c1a13] border border-emerald-900/70 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-emerald-950/80 bg-[#0a150f] px-4 py-3 shrink-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="flex items-center gap-2 shrink-0">
+                  <Gift className="w-4 h-4 text-amber-400 shrink-0" />
+                  <h3 id="bonus-drops-modal-title" className="text-sm font-black text-white tracking-wide hidden xs:inline">
+                    Bonus Drops
+                  </h3>
+                </div>
+
                 <div className="flex rounded-lg border border-emerald-900/60 bg-[#07130e] p-0.5 text-xs font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => setActiveDrawer("feed")}
-                    className={`flex items-center gap-1.5 rounded-md px-3 py-1 transition cursor-pointer ${
-                      activeDrawer === "feed"
-                        ? "bg-emerald-500 text-zinc-950 font-bold shadow-sm"
-                        : "text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    <MessageSquare size={13} />
-                    <span>Feed</span>
-                  </button>
                   <button
                     type="button"
                     onClick={() => setActiveDrawer("drops")}
@@ -2723,7 +2720,7 @@ export default function TrackerPage() {
                     }`}
                   >
                     <Gift size={13} />
-                    <span>Drops</span>
+                    <span>Bonus Drops</span>
                     {activeDropsCount > 0 && (
                       <span
                         className={`ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-black ${
@@ -2736,6 +2733,19 @@ export default function TrackerPage() {
                       </span>
                     )}
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveDrawer("feed")}
+                    className={`flex items-center gap-1.5 rounded-md px-3 py-1 transition cursor-pointer ${
+                      activeDrawer === "feed"
+                        ? "bg-emerald-500 text-zinc-950 font-bold shadow-sm"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    <MessageSquare size={13} />
+                    <span>Feed</span>
+                  </button>
                 </div>
               </div>
 
@@ -2743,13 +2753,14 @@ export default function TrackerPage() {
                 type="button"
                 onClick={() => setActiveDrawer(null)}
                 title="Close"
-                className="grid h-8 w-8 place-items-center rounded-lg border border-emerald-900/40 bg-[#07130e] text-zinc-400 hover:text-white hover:border-emerald-500/50 transition cursor-pointer"
+                aria-label="Close Bonus Drops modal"
+                className="grid h-8 w-8 place-items-center rounded-lg border border-emerald-900/40 bg-[#07130e] text-zinc-400 hover:text-white hover:border-emerald-500/50 transition cursor-pointer shrink-0"
               >
                 <X size={16} />
               </button>
             </div>
 
-            {/* Drawer Content */}
+            {/* Modal Body */}
             <div className="flex-1 overflow-y-auto p-3 sm:p-4">
               <SocialFeed
                 compact={true}

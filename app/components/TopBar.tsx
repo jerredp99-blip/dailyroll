@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/app/components/Logo";
-import { Settings, ShieldCheck, LogOut, Compass, Wallet, MessageSquare } from "lucide-react";
+import { Settings, ShieldCheck, LogOut, Compass, Wallet, MessageSquare, Gift } from "lucide-react";
 import { BalancesIntroTooltip } from "@/components/BalancesIntroTooltip";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 
@@ -324,8 +324,8 @@ export function TopBar() {
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold text-white hover:text-emerald-300 hover:bg-emerald-500/15 transition-all text-left cursor-pointer"
                       role="menuitem"
                     >
-                      <MessageSquare className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <span>Chat</span>
+                      <Gift className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>Bonus Drops</span>
                     </button>
 
                     <Link
