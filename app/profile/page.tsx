@@ -12,7 +12,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
-import { apiGetProfile, apiSaveProfile } from "@/lib/api-client";
+import { apiGetProfile, apiSaveProfile, apiGetUsers } from "@/lib/api-client";
 import { PostCard } from "@/app/components/feed/PostCard";
 import type { Post } from "@/lib/store";
 
@@ -55,7 +55,42 @@ export default function ProfilePage() {
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null);
 
+  // Admin active users state
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [activeUsersCount, setActiveUsersCount] = useState<number | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check admin session and fetch total active users count
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        const data = await res.json();
+        if (cancelled) return;
+        if (data.isAdmin) {
+          setIsAdmin(true);
+          try {
+            const users = await apiGetUsers();
+            if (cancelled) return;
+            const now = Date.now();
+            const active = users.filter((u: any) => {
+              if (!u.lastActiveAt) return false;
+              const t = new Date(u.lastActiveAt).getTime();
+              return !isNaN(t) && now - t < 5 * 60 * 1000;
+            }).length;
+            setActiveUsersCount(Math.max(1, active));
+          } catch (err) {
+            console.error("Failed to load active users count:", err);
+          }
+        }
+      } catch {}
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Load preferences: local storage first (instant), then the account when signed in.
   useEffect(() => {
@@ -234,7 +269,19 @@ export default function ProfilePage() {
     <main className="min-h-screen bg-[#0a120d] p-4 font-sans text-gray-300 md:p-8">
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Profile Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#203728] bg-[#111e16]/95 p-6 backdrop-blur">
+        <div className="relative flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#203728] bg-[#111e16]/95 p-6 backdrop-blur">
+          {isAdmin && activeUsersCount !== null && (
+            <div
+              className="absolute top-2.5 right-3 sm:top-3.5 sm:right-4 inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-950/90 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-bold text-emerald-300 shadow-md backdrop-blur"
+              title="Total active users online in last 5m"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span>{activeUsersCount} Active {activeUsersCount === 1 ? "User" : "Users"}</span>
+            </div>
+          )}
           <div className="flex items-center gap-4">
             <div className="relative group">
               {avatarUrl ? (
