@@ -29,6 +29,14 @@ import { RollcallCard } from "@/app/components/RollcallCard";
 import { ExpandableSearch } from "@/app/components/ExpandableSearch";
 import { useActiveDropsCount, notifyDropsUpdated } from "@/lib/dropsStore";
 import { calculateCasinoStatus, resetCasinoTimers, useCurrentTime, SNOOZE_PRESETS, type CasinoStatus } from "@/lib/timerUtils";
+import {
+  getCasinoNotificationPreferences,
+  setCasinoNotificationPreference,
+  fetchServerNotificationPreferences,
+  requestNotificationPermission,
+  getNotificationPermission,
+  sendCasinoReadyNotification,
+} from "@/lib/notifications";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { SpeedRunModal } from "@/app/components/SpeedRunModal";
@@ -437,6 +445,82 @@ export default function TrackerPage() {
   const [newListName, setNewListName] = useState("");
   const [activeDrawer, setActiveDrawer] = useState<"feed" | "drops" | null>(null);
   const [showAllCasinoDrops, setShowAllCasinoDrops] = useState(false);
+
+  // Casino Timer Notification Preferences & Sync
+  const [notificationPreferences, setNotificationPreferences] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const local = getCasinoNotificationPreferences();
+    if (local && Object.keys(local).length > 0) {
+      setNotificationPreferences(local);
+    }
+    fetchServerNotificationPreferences()
+      .then((serverPrefs) => {
+        if (serverPrefs && Object.keys(serverPrefs).length > 0) {
+          setNotificationPreferences(serverPrefs);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleToggleNotification = async (casino: Casino) => {
+    const currentlyEnabled = Boolean(notificationPreferences[casino.id]);
+    if (!currentlyEnabled) {
+      const permission = getNotificationPermission();
+      if (permission === "unsupported") {
+        alert("Browser notifications are not supported in this browser.");
+        return;
+      }
+      if (permission === "denied") {
+        alert("Notifications are blocked in your browser settings. Please allow notifications for Daily Roll to receive reset alerts.");
+        return;
+      }
+      if (permission === "default") {
+        const granted = await requestNotificationPermission();
+        if (granted !== "granted") {
+          alert("Notification permission was not granted. Reset alerts cannot be displayed.");
+          return;
+        }
+      }
+    }
+
+    const nextState = !currentlyEnabled;
+    const updated = await setCasinoNotificationPreference(
+      casino.id,
+      nextState,
+      signedInUser?.email
+    );
+    setNotificationPreferences(updated);
+  };
+
+  // Monitor countdown timers reaching zero and dispatch browser notifications
+  const previousReadinessRef = useRef<Record<string, boolean>>({});
+  const lastNotifiedAtRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!casinos || casinos.length === 0) return;
+    const nowMs = Date.now();
+
+    casinos.forEach((casino) => {
+      if (!casino || !casino.id) return;
+      const isNotifEnabled = Boolean(notificationPreferences[casino.id]);
+      const status = statusFor(casino);
+      const wasReady = previousReadinessRef.current[casino.id];
+
+      // If casino was previously on cooldown/pending and is now ready
+      if (isNotifEnabled && wasReady === false && status.ready) {
+        const lastNotified = lastNotifiedAtRef.current[casino.id] || 0;
+        // Debounce: don't notify more than once every 2 minutes for the same casino
+        if (nowMs - lastNotified > 120000) {
+          lastNotifiedAtRef.current[casino.id] = nowMs;
+          sendCasinoReadyNotification(casino.name, casino.dailyBonus, casino.url);
+        }
+      }
+
+      // Track current state
+      previousReadinessRef.current[casino.id] = status.ready;
+    });
+  }, [now, casinos, notificationPreferences]);
 
   // When feed drawer is opened, mark feed as read
   useEffect(() => {
@@ -2179,6 +2263,8 @@ export default function TrackerPage() {
                     onOpenBonus={casino.bonusUrl ? openBonus : undefined}
                     onOpenDetails={(id) => setSelectedCasinoId(id)}
                     pendingInfo={pendingClaims[casino.id]}
+                    isNotificationEnabled={Boolean(notificationPreferences[casino.id])}
+                    onToggleNotification={handleToggleNotification}
                   />
                 ))
               )}

@@ -11,6 +11,8 @@ import {
   Check,
   X,
   Wallet,
+  Bell,
+  BellRing,
 } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
@@ -78,6 +80,8 @@ export interface RollcallCardProps {
   renderLogo?: () => React.ReactNode;
   renderTrustpilot?: () => React.ReactNode;
   pendingInfo?: { expiresAt: number; isDefocused?: boolean };
+  isNotificationEnabled?: boolean;
+  onToggleNotification?: (casino: Casino) => void;
 }
 
 function RollcallCardComponent({
@@ -106,6 +110,8 @@ function RollcallCardComponent({
   renderLogo,
   renderTrustpilot,
   pendingInfo,
+  isNotificationEnabled = false,
+  onToggleNotification,
 }: RollcallCardProps) {
   const [isCustomTimerOpen, setIsCustomTimerOpen] = useState(false);
 
@@ -118,6 +124,38 @@ function RollcallCardComponent({
 
   const isPending = Boolean(pendingInfo);
   const isDefocused = Boolean(pendingInfo?.isDefocused);
+
+  const renderNotificationBell = () => (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onToggleNotification?.(casino);
+      }}
+      aria-label={
+        isNotificationEnabled
+          ? `Disable timer alert for ${casino.name}`
+          : `Notify me when ${casino.name} resets`
+      }
+      title={
+        isNotificationEnabled
+          ? `Alerts ON for ${casino.name} (click to disable)`
+          : `Notify me when ${casino.name} resets`
+      }
+      className={`h-8.5 w-8.5 sm:h-9 sm:w-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer shrink-0 select-none ${
+        isNotificationEnabled
+          ? "bg-amber-500/15 border-amber-500/50 text-amber-400 hover:bg-amber-500/25 shadow-[0_0_8px_rgba(245,158,11,0.25)]"
+          : "bg-zinc-950/60 border-emerald-900/60 hover:border-emerald-500/50 text-zinc-500 hover:text-zinc-300"
+      }`}
+    >
+      {isNotificationEnabled ? (
+        <BellRing size={16} className="text-amber-400 animate-pulse" />
+      ) : (
+        <Bell size={16} />
+      )}
+    </button>
+  );
 
   const lastClaimClickRef = useRef(0);
 
@@ -355,6 +393,8 @@ function RollcallCardComponent({
               ))}
             </select>
 
+            {renderNotificationBell()}
+
             {/* Inline Kebab Button */}
             <button
               type="button"
@@ -405,6 +445,8 @@ function RollcallCardComponent({
 
           {currentStatus.ready ? (
             <>
+              {renderNotificationBell()}
+
               {/* Inline Kebab Button (placed to the LEFT of the Claim button when ready) */}
               <button
                 type="button"
@@ -485,6 +527,8 @@ function RollcallCardComponent({
                   )}
                 </span>
               </button>
+
+              {renderNotificationBell()}
 
               {/* Inline Kebab Button (kept to the right when on cooldown/timer) */}
               <button
