@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Gift, X } from "lucide-react";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import type { Casino } from "@/types/casino";

@@ -42,6 +42,8 @@ export function SocialFeed({
   onOpenAddCasinos,
   showActiveDropsCasinos: controlledShowActiveDropsCasinos,
   setShowActiveDropsCasinos: controlledSetShowActiveDropsCasinos,
+  showExploreModal: controlledShowExploreModal,
+  setShowExploreModal: controlledSetShowExploreModal,
 }: {
   currentUserEmail?: string;
   currentUserName?: string;
@@ -50,7 +52,7 @@ export function SocialFeed({
   casinos?: Casino[];
   onClaimCasino?: (casino: Casino) => void;
   compact?: boolean;
-  initialType?: PostType | "all";
+  initialType?: "all" | "discussion" | "drop_code" | "big_win";
   hideComposer?: boolean;
   onClose?: () => void;
   setIsBonusDropsOpen?: (open: boolean) => void;
@@ -58,6 +60,8 @@ export function SocialFeed({
   onOpenAddCasinos?: () => void;
   showActiveDropsCasinos?: boolean;
   setShowActiveDropsCasinos?: (show: boolean) => void;
+  showExploreModal?: boolean;
+  setShowExploreModal?: (show: boolean) => void;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -79,23 +83,7 @@ export function SocialFeed({
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null);
   const [claimedDropIds, setClaimedDropIds] = useState<string[]>([]);
-  const [showAllCasinoDrops, setShowAllCasinoDrops] = useState(false);
-  const [isUnaddedBannerDismissed, setIsUnaddedBannerDismissed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return localStorage.getItem("dailyroll_unadded_drops_dismissed") === "true";
-    } catch {
-      return false;
-    }
-  });
   const abortControllerRef = useRef<AbortController | null>(null);
-
-  const handleDismissUnaddedBanner = () => {
-    setIsUnaddedBannerDismissed(true);
-    try {
-      localStorage.setItem("dailyroll_unadded_drops_dismissed", "true");
-    } catch {}
-  };
 
   // Sync claimed bonus drops from localStorage and custom events
   useEffect(() => {
@@ -358,13 +346,19 @@ export function SocialFeed({
     [casinos]
   );
 
-  const [internalShowActiveDropsCasinos, setInternalShowActiveDropsCasinos] = useState(false);
-  const showActiveDropsCasinos =
-    controlledShowActiveDropsCasinos !== undefined
+  const [internalShowExploreModal, setInternalShowExploreModal] = useState(false);
+  const showExploreModal =
+    controlledShowExploreModal !== undefined
+      ? controlledShowExploreModal
+      : controlledShowActiveDropsCasinos !== undefined
       ? controlledShowActiveDropsCasinos
-      : internalShowActiveDropsCasinos;
-  const setShowActiveDropsCasinos =
-    controlledSetShowActiveDropsCasinos || setInternalShowActiveDropsCasinos;
+      : internalShowExploreModal;
+  const setShowExploreModal =
+    controlledSetShowExploreModal ||
+    controlledSetShowActiveDropsCasinos ||
+    setInternalShowExploreModal;
+  const showActiveDropsCasinos = showExploreModal;
+  const setShowActiveDropsCasinos = setShowExploreModal;
   const [showActiveCodesModal, setShowActiveCodesModal] = useState(false);
   const [modalTab, setModalTab] = useState<"locked" | "all">("locked");
 
@@ -379,16 +373,17 @@ export function SocialFeed({
   }, [casinos]);
 
   const activeCasinosWithDrops = useMemo(() => {
-    const counts: Record<string, { id: string; name: string; count: number; isAdded: boolean }> = {};
+    const map = new Map<string, { id: string; name: string; count: number; isEnrolled: boolean; isAdded: boolean }>();
 
     bonusDrops.forEach((drop) => {
-      const dropCasinoId =
+      const casinoId =
         drop.casinoId ||
         drop.casinoName ||
         (drop.casinoTag ? drop.casinoTag.replace(/^[$#]+/, "") : null) ||
         drop.id;
+      if (!casinoId) return;
 
-      const dropCasinoName =
+      const casinoName =
         drop.casinoName ||
         (drop.casinoTag ? drop.casinoTag.replace(/^[$#]+/, "") : null) ||
         drop.tags?.find(
@@ -397,34 +392,37 @@ export function SocialFeed({
               t.toUpperCase()
             )
         )?.replace(/^[$#]+/, "") ||
-        "Casino";
+        "Unknown Casino";
 
-      if (!counts[dropCasinoId]) {
-        const nameLower = dropCasinoName.toLowerCase();
-        const isAdded =
-          userCasinoIds.includes(dropCasinoId) ||
-          userCasinoIds.some((id) => id.toLowerCase() === nameLower) ||
-          (activeRollcallKeys.size > 0 &&
-            Array.from(activeRollcallKeys).some(
-              (key) => key.toLowerCase() === nameLower || nameLower.includes(key.toLowerCase())
-            ));
+      const nameLower = casinoName.toLowerCase();
+      const isEnrolled =
+        userCasinoIds.includes(casinoId) ||
+        userCasinoIds.some((id) => id.toLowerCase() === nameLower) ||
+        (activeRollcallKeys.size > 0 &&
+          Array.from(activeRollcallKeys).some(
+            (key) => key.toLowerCase() === nameLower || nameLower.includes(key.toLowerCase())
+          ));
 
-        counts[dropCasinoId] = {
-          id: dropCasinoId,
-          name: dropCasinoName,
-          count: 0,
-          isAdded,
-        };
+      const existing = map.get(casinoId);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        map.set(casinoId, {
+          id: casinoId,
+          name: casinoName,
+          count: 1,
+          isEnrolled,
+          isAdded: isEnrolled,
+        });
       }
-      counts[dropCasinoId].count += 1;
     });
 
-    const values = Object.values(counts);
-    if (values.length === 0) {
+    const list = Array.from(map.values());
+    if (list.length === 0) {
       const defaultList = ["Stake.us", "Crown Coins", "Pulsz", "High 5 Casino", "McLuck", "ThrillCoins", "Coinsback"];
       return defaultList.map((name) => {
         const nameLower = name.toLowerCase();
-        const isAdded =
+        const isEnrolled =
           userCasinoIds.some((id) => id.toLowerCase() === nameLower) ||
           (activeRollcallKeys.size > 0 &&
             Array.from(activeRollcallKeys).some(
@@ -434,12 +432,13 @@ export function SocialFeed({
           id: name.toLowerCase().replace(/\s+/g, "-"),
           name,
           count: 1,
-          isAdded,
+          isEnrolled,
+          isAdded: isEnrolled,
         };
       });
     }
 
-    return values.sort((a, b) => b.count - a.count);
+    return list.sort((a, b) => b.count - a.count);
   }, [bonusDrops, userCasinoIds, activeRollcallKeys]);
 
   const activeCasinosCount = activeCasinosWithDrops.length;
@@ -648,31 +647,26 @@ export function SocialFeed({
         />
       )}
 
-      {/* Compact Dismissible Active Bonus Drops Banner */}
-      {!isUnaddedBannerDismissed && (currentType === "all" || currentType === "drop_code") && (
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200 shadow-sm animate-in fade-in duration-150">
-          <div className="flex items-center gap-2">
-            <span>🎁 {activeCasinosCount} casinos with active bonus codes</span>
+      {/* Always render when drops exist - persistent guidance */}
+      {(currentType === "all" || currentType === "drop_code") && activeCasinosWithDrops.length > 0 && (
+        <div className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200 mb-3 select-none">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span>🎁 <strong className="text-amber-300 font-bold">{activeCasinosWithDrops.length} casinos</strong> have active bonus drops</span>
             <button
               type="button"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setShowActiveDropsCasinos(true);
+                setShowExploreModal(true);
               }}
-              className="text-amber-400 hover:text-amber-300 font-bold underline underline-offset-2 hover:brightness-110 transition-all cursor-pointer"
+              className="text-amber-400 hover:text-amber-300 font-bold underline underline-offset-2 ml-1 cursor-pointer transition-colors"
             >
               Explore ↗
             </button>
           </div>
-          <button
-            type="button"
-            onClick={handleDismissUnaddedBanner}
-            aria-label="Dismiss banner"
-            className="rounded p-1 text-amber-400 hover:bg-amber-500/20 hover:text-amber-200 transition shrink-0 cursor-pointer"
-          >
-            <X size={14} />
-          </button>
+          <span className="text-[10px] text-amber-400/70 font-mono hidden sm:inline">
+            Persistent Tip
+          </span>
         </div>
       )}
 
@@ -708,10 +702,10 @@ export function SocialFeed({
         </main>
   );
 
-  const modalElement = showActiveDropsCasinos ? (
+  const modalElement = showExploreModal ? (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
-      onClick={() => setShowActiveDropsCasinos(false)}
+      onClick={() => setShowExploreModal(false)}
       role="dialog"
       aria-modal="true"
       aria-labelledby="active-drops-casinos-title"
@@ -730,7 +724,7 @@ export function SocialFeed({
           </div>
           <button
             type="button"
-            onClick={() => setShowActiveDropsCasinos(false)}
+            onClick={() => setShowExploreModal(false)}
             aria-label="Close dialog"
             className="text-zinc-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
           >
@@ -741,7 +735,7 @@ export function SocialFeed({
         {/* Clear Instructions */}
         <div className="my-3 p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/20 text-center">
           <p className="text-xs font-semibold text-emerald-300">
-            Add casinos to your Rollcall to view and claim bonus codes.
+            Add casinos to your rollcall to view and claim bonus codes.
           </p>
         </div>
 
@@ -754,7 +748,7 @@ export function SocialFeed({
             >
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-white">{item.name}</span>
-                {item.isAdded && (
+                {(item.isEnrolled || item.isAdded) && (
                   <span className="text-[9px] font-semibold text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">
                     On Rollcall
                   </span>
@@ -772,7 +766,7 @@ export function SocialFeed({
           <button
             type="button"
             onClick={() => {
-              setShowActiveDropsCasinos(false);
+              setShowExploreModal(false);
               setIsBonusDropsOpen?.(false);
               setIsAddCasinosOpen?.(true);
               onClose?.();
