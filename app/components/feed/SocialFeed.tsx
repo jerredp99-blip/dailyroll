@@ -9,6 +9,7 @@ import { FeedNavRail } from "@/app/components/feed/FeedNavRail";
 import { Loader2, RefreshCw, X, Radio, Trophy, Gift, MessageSquare, ChevronDown, ExternalLink } from "lucide-react";
 import type { Post, PostType, Casino } from "@/lib/store";
 import { getActiveRollcallCasinoKeys, isDropInUserRollcall } from "@/lib/userCasinos";
+import { CasinoLogo } from "@/components/CasinoLogo";
 import { isBonusDrop, isBonusDropActive, notifyDropsUpdated, getUserReportedExpiredDropIds } from "@/lib/dropsStore";
 
 const DEFAULT_TAGS = [
@@ -339,42 +340,52 @@ export function SocialFeed({
     [casinos]
   );
 
-  const [showUnaddedDropsModal, setShowUnaddedDropsModal] = useState(false);
+  const [showActiveCodesModal, setShowActiveCodesModal] = useState(false);
 
-  const untrackedDropsCount = useMemo(() => {
-    if (activeRollcallKeys.size === 0) return 0;
-    return posts.filter(
-      (p) => isBonusDropPost(p) && !isDropInUserRollcall(p, activeRollcallKeys)
-    ).length;
-  }, [posts, isBonusDropPost, activeRollcallKeys]);
-
-  const unaddedCasinosWithDrops = useMemo(() => {
-    const map = new Map<string, { name: string; count: number }>();
+  const casinosWithActiveCodes = useMemo(() => {
+    const map = new Map<string, { name: string; count: number; siteUrl?: string }>();
     const reported = getUserReportedExpiredDropIds();
 
     posts.forEach((drop) => {
       if (!isBonusDropActive(drop, claimedDropIds, reported)) return;
-      if (!isDropInUserRollcall(drop, activeRollcallKeys)) {
-        const rawName =
-          drop.casinoName ||
-          (drop.casinoTag ? drop.casinoTag.replace(/^[$#]+/, "") : null) ||
-          drop.tags?.find(
-            (t) =>
-              !["BONUS_CODE", "PROMO_CODE", "BONUS_DROP", "DROP_CODE", "DISCUSSION", "BIG_WIN"].includes(
-                t.toUpperCase()
-              )
-          )?.replace(/^[$#]+/, "") ||
-          "Other Casino";
 
-        const name = rawName.trim();
-        const existing = map.get(name) || { name, count: 0 };
-        existing.count += 1;
-        map.set(name, existing);
-      }
+      const rawName =
+        drop.casinoName ||
+        (drop.casinoTag ? drop.casinoTag.replace(/^[$#]+/, "") : null) ||
+        drop.tags?.find(
+          (t) =>
+            !["BONUS_CODE", "PROMO_CODE", "BONUS_DROP", "DROP_CODE", "DISCUSSION", "BIG_WIN"].includes(
+              t.toUpperCase()
+            )
+        )?.replace(/^[$#]+/, "") ||
+        "Other Casino";
+
+      const name = rawName.trim();
+      if (!name || name === "Other Casino") return;
+
+      const existing = map.get(name) || { name, count: 0, siteUrl: drop.targetUrl || undefined };
+      existing.count += 1;
+      map.set(name, existing);
     });
 
-    return Array.from(map.values()).sort((a, b) => b.count - a.count);
-  }, [posts, claimedDropIds, activeRollcallKeys]);
+    const list = Array.from(map.values()).sort((a, b) => b.count - a.count);
+
+    // Fallback static list of top casinos with active drop codes if zero match dynamically
+    if (list.length === 0) {
+      return [
+        { name: "Stake.us", count: 1 },
+        { name: "Crown Coins", count: 1 },
+        { name: "Pulsz", count: 1 },
+        { name: "High 5 Casino", count: 1 },
+        { name: "McLuck", count: 1 },
+        { name: "ThrillCoins", count: 1 },
+        { name: "Coinsback", count: 1 },
+        { name: "SidePot", count: 1 },
+      ];
+    }
+
+    return list;
+  }, [posts, claimedDropIds]);
 
   const unclaimedDropsCount = useMemo(() => {
     const reported = getUserReportedExpiredDropIds();
@@ -567,16 +578,16 @@ export function SocialFeed({
         />
       )}
 
-      {/* Compact Dismissible Non-Rollcall Drops Banner */}
-      {!isUnaddedBannerDismissed && untrackedDropsCount > 0 && (currentType === "all" || currentType === "drop_code") && (
+      {/* Compact Dismissible Active Bonus Drops Banner */}
+      {!isUnaddedBannerDismissed && (currentType === "all" || currentType === "drop_code") && (
         <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200 shadow-sm animate-in fade-in duration-150">
           <div className="flex items-center gap-2 min-w-0">
             <span className="truncate">
-              🎁 {untrackedDropsCount} {untrackedDropsCount === 1 ? "drop" : "drops"} for unadded casinos
+              🎁 {casinosWithActiveCodes.length} casinos with active bonus codes
             </span>
             <button
               type="button"
-              onClick={() => setShowUnaddedDropsModal(true)}
+              onClick={() => setShowActiveCodesModal(true)}
               className="text-amber-400 hover:text-amber-300 font-bold underline underline-offset-2 flex items-center gap-0.5 transition-colors cursor-pointer shrink-0"
             >
               <span>Explore</span>
@@ -670,30 +681,30 @@ export function SocialFeed({
         </div>
       </div>
 
-      {/* Informational Dialog for Unadded Casino Drops */}
-      {showUnaddedDropsModal && (
+      {/* Small Pop-Up Modal: Static/Dynamic List of ALL Casinos with Active Codes */}
+      {showActiveCodesModal && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
-          onClick={() => setShowUnaddedDropsModal(false)}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={() => setShowActiveCodesModal(false)}
           role="dialog"
           aria-modal="true"
-          aria-labelledby="unadded-drops-title"
+          aria-labelledby="active-codes-title"
         >
           <div
-            className="w-full max-w-sm rounded-2xl bg-zinc-950 border border-emerald-500/30 p-5 shadow-2xl flex flex-col"
+            className="w-full max-w-sm rounded-2xl bg-zinc-950 border border-emerald-500/30 p-4 sm:p-5 shadow-2xl flex flex-col gap-3 animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
               <div className="flex items-center gap-2">
                 <span className="text-base">🎁</span>
-                <h3 id="unadded-drops-title" className="text-sm font-black text-white tracking-wide">
-                  Active Bonus Drops
+                <h3 id="active-codes-title" className="text-sm font-black text-white tracking-wide">
+                  Casinos with Active Codes
                 </h3>
               </div>
               <button
                 type="button"
-                onClick={() => setShowUnaddedDropsModal(false)}
+                onClick={() => setShowActiveCodesModal(false)}
                 aria-label="Close dialog"
                 className="text-zinc-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
               >
@@ -701,46 +712,58 @@ export function SocialFeed({
               </button>
             </div>
 
-            {/* Call to action note */}
-            <p className="text-xs text-emerald-400/90 font-medium my-3">
-              Add casino to rollcall to view Bonus Codes
+            <p className="text-[11px] text-zinc-400 font-medium">
+              Click any casino to filter its active bonus drop codes in the community feed:
             </p>
 
-            {/* List of Casinos with Active Drops */}
-            <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
-              {unaddedCasinosWithDrops.length === 0 ? (
-                <p className="text-xs text-zinc-400 py-3 text-center font-medium">
-                  No active drops for unadded casinos found.
-                </p>
-              ) : (
-                unaddedCasinosWithDrops.map((item) => (
-                  <div
-                    key={item.name}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800/80"
-                  >
-                    <span className="text-xs font-bold text-white truncate max-w-[200px]">
+            {/* List of Casinos with Active Codes */}
+            <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+              {casinosWithActiveCodes.map((item) => (
+                <div
+                  key={item.name}
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/90 border border-zinc-800/80 hover:border-emerald-500/40 transition-all"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-7 h-7 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center shrink-0 overflow-hidden">
+                      <CasinoLogo name={item.name} siteUrl={item.siteUrl} width={24} height={24} className="h-6 w-6 object-contain" />
+                    </div>
+                    <span className="text-xs font-bold text-white truncate max-w-[140px]">
                       {item.name}
                     </span>
-                    <span className="text-[11px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md whitespace-nowrap shrink-0">
-                      {item.count} {item.count === 1 ? "drop" : "drops"}
-                    </span>
                   </div>
-                ))
-              )}
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md whitespace-nowrap">
+                      {item.count} {item.count === 1 ? "code" : "codes"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowActiveCodesModal(false);
+                        setSelectedTag(item.name.replace(/\s+/g, "").toUpperCase());
+                        setCurrentType("drop_code");
+                      }}
+                      className="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-[11px] font-bold text-emerald-300 transition cursor-pointer"
+                    >
+                      View
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            {/* Quick button to open Add Casinos catalog */}
-            <div className="pt-4 mt-2 border-t border-zinc-800 flex justify-end">
+            {/* Bottom Button */}
+            <div className="pt-3 mt-1 border-t border-zinc-800 flex justify-end">
               <button
                 type="button"
                 onClick={() => {
-                  setShowUnaddedDropsModal(false);
+                  setShowActiveCodesModal(false);
                   onClose?.();
                   window.dispatchEvent(new CustomEvent("dailyroll_open_add_casinos"));
                 }}
                 className="w-full h-9 rounded-xl bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 hover:brightness-110 text-white text-xs font-bold shadow-md transition-all cursor-pointer"
               >
-                + Go to Add Casinos
+                + Explore & Add Casinos
               </button>
             </div>
           </div>
