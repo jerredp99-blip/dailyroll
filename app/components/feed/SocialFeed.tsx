@@ -10,6 +10,8 @@ import { Loader2, RefreshCw, X, Radio, Trophy, Gift, MessageSquare, ChevronDown,
 import type { Post, PostType, Casino } from "@/lib/store";
 import { getActiveRollcallCasinoKeys, isDropInUserRollcall } from "@/lib/userCasinos";
 import { CasinoLogo } from "@/components/CasinoLogo";
+import { getCasinoDeepLink } from "@/lib/casinoLinks";
+import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { isBonusDrop, isBonusDropActive, notifyDropsUpdated, getUserReportedExpiredDropIds } from "@/lib/dropsStore";
 
 const DEFAULT_TAGS = [
@@ -343,7 +345,7 @@ export function SocialFeed({
   const [showActiveCodesModal, setShowActiveCodesModal] = useState(false);
 
   const casinosWithActiveCodes = useMemo(() => {
-    const map = new Map<string, { name: string; count: number; siteUrl?: string }>();
+    const map = new Map<string, { name: string; count: number; siteUrl?: string; isAdded: boolean }>();
     const reported = getUserReportedExpiredDropIds();
 
     posts.forEach((drop) => {
@@ -363,7 +365,19 @@ export function SocialFeed({
       const name = rawName.trim();
       if (!name || name === "Other Casino") return;
 
-      const existing = map.get(name) || { name, count: 0, siteUrl: drop.targetUrl || undefined };
+      const nameLower = name.toLowerCase();
+      const isAdded =
+        activeRollcallKeys.size > 0 &&
+        Array.from(activeRollcallKeys).some(
+          (key) => key.toLowerCase() === nameLower || nameLower.includes(key.toLowerCase())
+        );
+
+      const existing = map.get(name) || {
+        name,
+        count: 0,
+        siteUrl: drop.targetUrl || undefined,
+        isAdded,
+      };
       existing.count += 1;
       map.set(name, existing);
     });
@@ -372,20 +386,20 @@ export function SocialFeed({
 
     // Fallback static list of top casinos with active drop codes if zero match dynamically
     if (list.length === 0) {
-      return [
-        { name: "Stake.us", count: 1 },
-        { name: "Crown Coins", count: 1 },
-        { name: "Pulsz", count: 1 },
-        { name: "High 5 Casino", count: 1 },
-        { name: "McLuck", count: 1 },
-        { name: "ThrillCoins", count: 1 },
-        { name: "Coinsback", count: 1 },
-        { name: "SidePot", count: 1 },
-      ];
+      const defaultList = ["Stake.us", "Crown Coins", "Pulsz", "High 5 Casino", "McLuck", "ThrillCoins", "Coinsback", "SidePot"];
+      return defaultList.map((name) => {
+        const nameLower = name.toLowerCase();
+        const isAdded =
+          activeRollcallKeys.size > 0 &&
+          Array.from(activeRollcallKeys).some(
+            (key) => key.toLowerCase() === nameLower || nameLower.includes(key.toLowerCase())
+          );
+        return { name, count: 1, isAdded, siteUrl: undefined };
+      });
     }
 
     return list;
-  }, [posts, claimedDropIds]);
+  }, [posts, claimedDropIds, activeRollcallKeys]);
 
   const unclaimedDropsCount = useMemo(() => {
     const reported = getUserReportedExpiredDropIds();
@@ -718,38 +732,68 @@ export function SocialFeed({
 
             {/* List of Casinos with Active Codes */}
             <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-              {casinosWithActiveCodes.map((item) => (
-                <div
-                  key={item.name}
-                  className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/90 border border-zinc-800/80 hover:border-emerald-500/40 transition-all"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-7 h-7 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center shrink-0 overflow-hidden">
-                      <CasinoLogo name={item.name} siteUrl={item.siteUrl} width={24} height={24} className="h-6 w-6 object-contain" />
-                    </div>
-                    <span className="text-xs font-bold text-white truncate max-w-[140px]">
-                      {item.name}
-                    </span>
-                  </div>
+              {casinosWithActiveCodes.map((item) => {
+                const deepLink = getCasinoDeepLink({ name: item.name, siteUrl: item.siteUrl });
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md whitespace-nowrap">
-                      {item.count} {item.count === 1 ? "code" : "codes"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowActiveCodesModal(false);
-                        setSelectedTag(item.name.replace(/\s+/g, "").toUpperCase());
-                        setCurrentType("drop_code");
-                      }}
-                      className="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-[11px] font-bold text-emerald-300 transition cursor-pointer"
-                    >
-                      View
-                    </button>
+                const handleAddAndClaim = (e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  openInExternalBrowser(deepLink);
+                  window.dispatchEvent(
+                    new CustomEvent("dailyroll_add_casino", {
+                      detail: { casinoName: item.name, affiliateUrl: deepLink },
+                    })
+                  );
+                  setShowActiveCodesModal(false);
+                  setSelectedTag(item.name.replace(/\s+/g, "").toUpperCase());
+                  setCurrentType("drop_code");
+                };
+
+                return (
+                  <div
+                    key={item.name}
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/90 border border-zinc-800/80 hover:border-emerald-500/40 transition-all"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center shrink-0 overflow-hidden">
+                        <CasinoLogo name={item.name} siteUrl={item.siteUrl} width={24} height={24} className="h-6 w-6 object-contain" />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-white truncate max-w-[120px]">
+                          {item.name}
+                        </span>
+                        <span className="text-[10px] text-emerald-400 font-medium">
+                          {item.count} {item.count === 1 ? "code" : "codes"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {!item.isAdded ? (
+                        <button
+                          type="button"
+                          onClick={handleAddAndClaim}
+                          className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 border border-emerald-400/50 text-[11px] font-black text-zinc-950 shadow-[0_2px_8px_rgba(16,185,129,0.3)] transition cursor-pointer flex items-center gap-1"
+                        >
+                          <span>+ Add Casino</span>
+                          <ExternalLink size={11} strokeWidth={2.5} />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowActiveCodesModal(false);
+                            setSelectedTag(item.name.replace(/\s+/g, "").toUpperCase());
+                            setCurrentType("drop_code");
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-[11px] font-bold text-emerald-300 transition cursor-pointer"
+                        >
+                          View Code
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Bottom Button */}

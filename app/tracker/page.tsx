@@ -553,8 +553,15 @@ export default function TrackerPage() {
     const handleOpenAddCasinos = () => {
       setIsAddCasinosModalOpen(true);
     };
+    const handleAddCasinoEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ casinoName: string; affiliateUrl?: string; targetUrl?: string }>;
+      if (customEvent.detail?.casinoName) {
+        addDirectoryCasino(customEvent.detail.casinoName, true);
+      }
+    };
     window.addEventListener("dailyroll_open_feed", handleOpenFeed);
     window.addEventListener("dailyroll_open_add_casinos", handleOpenAddCasinos);
+    window.addEventListener("dailyroll_add_casino", handleAddCasinoEvent);
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("feed") === "open") {
@@ -564,8 +571,9 @@ export default function TrackerPage() {
     return () => {
       window.removeEventListener("dailyroll_open_feed", handleOpenFeed);
       window.removeEventListener("dailyroll_open_add_casinos", handleOpenAddCasinos);
+      window.removeEventListener("dailyroll_add_casino", handleAddCasinoEvent);
     };
-  }, []);
+  }, [addDirectoryCasino]);
 
   useEffect(() => {
     let cancelled = false;
