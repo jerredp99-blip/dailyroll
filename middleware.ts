@@ -27,7 +27,7 @@ export function middleware(request: NextRequest) {
   // Only allow access to /sign-in and / (landing page showing sign-in screen).
   // Block /tracker, /balances, /dashboard, /profile, /casinos, /speedrun, /user-profile, and protected API routes.
   if (!sessionToken) {
-    if (pathname === "/sign-in" || pathname === "/" || pathname === "/demo" || pathname.startsWith("/demo")) {
+    if (pathname === "/sign-in" || pathname === "/") {
       return NextResponse.next();
     }
 
