@@ -251,45 +251,49 @@ export function TopBar() {
               {/* Account Dropdown Menu */}
               {isAccountMenuOpen && (
                 <div
-                  className="absolute right-0 top-full mt-2 w-60 rounded-2xl border border-emerald-900/60 bg-[#0c1611]/95 p-2 shadow-2xl backdrop-blur-xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                  className="absolute right-0 top-full mt-2 w-60 rounded-2xl border border-emerald-500/40 bg-zinc-950/98 p-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.9)] backdrop-blur-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
                   role="menu"
                 >
-                  <div className="px-3 py-2 border-b border-emerald-950/80">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400/80">
+                  <div className="px-3 py-2.5 rounded-xl bg-emerald-950/50 border border-emerald-500/20 mb-1.5">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
                       {isAdmin ? "Admin Account" : "Signed in as"}
                     </p>
-                    <p className="truncate text-sm font-semibold text-zinc-100 mt-0.5">
+                    <p className="truncate text-sm font-extrabold text-white mt-0.5">
                       {isAdmin ? "Administrator" : signedInUser?.name || "Player"}
                     </p>
                     {signedInUser?.email && !isAdmin && (
-                      <p className="truncate text-xs text-zinc-400 mt-0.5">
+                      <p className="truncate text-xs font-medium text-emerald-200/90 mt-0.5">
                         {signedInUser.email}
                       </p>
                     )}
                   </div>
 
-                  <div className="py-1.5 space-y-0.5 text-xs font-medium">
+                  <div className="py-1 space-y-1 text-xs font-bold">
                     <Link
                       href="/balances"
                       onClick={() => setIsAccountMenuOpen(false)}
-                      className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 transition-colors ${
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 transition-all ${
                         pathname === "/balances"
-                          ? "bg-emerald-950/60 text-emerald-300 font-bold"
-                          : "text-zinc-300 hover:bg-emerald-950/40 hover:text-white"
+                          ? "bg-emerald-500/20 text-emerald-300 font-black border border-emerald-500/40"
+                          : "text-white hover:text-emerald-300 hover:bg-emerald-500/15"
                       }`}
                       role="menuitem"
                     >
-                      <Wallet className="w-4 h-4 text-emerald-400" />
+                      <Wallet className="w-4 h-4 text-emerald-400 shrink-0" />
                       <span>Casino Balances</span>
                     </Link>
 
                     <Link
                       href="/profile"
                       onClick={() => setIsAccountMenuOpen(false)}
-                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-zinc-300 hover:bg-emerald-950/40 hover:text-white transition-colors"
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 transition-all ${
+                        pathname === "/profile"
+                          ? "bg-emerald-500/20 text-emerald-300 font-black border border-emerald-500/40"
+                          : "text-white hover:text-emerald-300 hover:bg-emerald-500/15"
+                      }`}
                       role="menuitem"
                     >
-                      <Settings className="w-4 h-4 text-emerald-400" />
+                      <Settings className="w-4 h-4 text-emerald-400 shrink-0" />
                       <span>Profile & Settings</span>
                     </Link>
 
@@ -297,10 +301,10 @@ export function TopBar() {
                       <Link
                         href="/dashboard"
                         onClick={() => setIsAccountMenuOpen(false)}
-                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-amber-300 hover:bg-amber-950/30 hover:text-amber-200 transition-colors"
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-amber-300 font-extrabold hover:text-amber-100 hover:bg-amber-500/20 border border-amber-500/20 transition-all"
                         role="menuitem"
                       >
-                        <ShieldCheck className="w-4 h-4 text-amber-400" />
+                        <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
                         <span>Admin Workspace</span>
                       </Link>
                     )}
@@ -315,7 +319,7 @@ export function TopBar() {
                           router.push("/tracker?feed=open");
                         }
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-200 hover:text-white hover:bg-emerald-500/10 transition-colors text-left cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold text-white hover:text-emerald-300 hover:bg-emerald-500/15 transition-all text-left cursor-pointer"
                       role="menuitem"
                     >
                       <MessageSquare className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -325,7 +329,11 @@ export function TopBar() {
                     <Link
                       href="/tracker"
                       onClick={() => setIsAccountMenuOpen(false)}
-                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-zinc-200 hover:text-white hover:bg-emerald-500/10 transition-colors text-left cursor-pointer"
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 transition-all ${
+                        pathname === "/tracker"
+                          ? "bg-emerald-500/20 text-emerald-300 font-black border border-emerald-500/40"
+                          : "text-white hover:text-emerald-300 hover:bg-emerald-500/15"
+                      }`}
                       role="menuitem"
                     >
                       <Compass className="w-4 h-4 text-teal-400 shrink-0" />
@@ -333,11 +341,11 @@ export function TopBar() {
                     </Link>
                   </div>
 
-                  <div className="border-t border-zinc-800/80 pt-2.5 mt-1">
+                  <div className="border-t border-emerald-500/20 pt-2 mt-1.5">
                     <button
                       type="button"
                       onClick={handleSignOut}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-300 hover:text-rose-100 hover:bg-rose-500/10 transition-colors text-left cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-extrabold text-rose-300 hover:text-white bg-rose-500/10 hover:bg-rose-500/25 border border-rose-500/30 transition-all text-left cursor-pointer"
                       role="menuitem"
                     >
                       <LogOut className="w-4 h-4 text-rose-400 shrink-0" />
@@ -351,7 +359,7 @@ export function TopBar() {
             pathname !== "/sign-in" && pathname !== "/" && pathname !== "/login" && (
               <Link
                 href="/sign-in"
-                className="text-xs sm:text-sm font-bold text-white hover:text-emerald-300 bg-emerald-600/30 border border-emerald-500/40 rounded-xl px-3.5 py-1.5 transition-all shadow-sm"
+                className="text-xs sm:text-sm font-extrabold text-white hover:text-emerald-300 bg-emerald-600 hover:bg-emerald-500 border border-emerald-400/50 shadow-[0_2px_10px_rgba(16,185,129,0.3)] rounded-xl px-4 py-2 transition-all cursor-pointer"
               >
                 Sign in
               </Link>
