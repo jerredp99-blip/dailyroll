@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Gift, X, Plus, Loader2 } from "lucide-react";
+import { Gift, X, Plus } from "lucide-react";
 import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import type { Casino } from "@/types/casino";
 import { DropsModalProps } from "./DropsModal";
@@ -26,6 +26,7 @@ export function BonusDropsModal({
   onOpenAddCasinos,
 }: DropsModalProps) {
   const [showActiveCasinosModal, setShowActiveCasinosModal] = useState(false);
+  const [showAllCasinoDrops, setShowAllCasinoDrops] = useState(false);
   const [bonusDrops, setBonusDrops] = useState<any[]>(() => {
     return getCachedDrops();
   });
@@ -224,6 +225,8 @@ export function BonusDropsModal({
               setShowActiveCasinosModal={setShowActiveCasinosModal}
               showActiveDropsCasinos={showActiveCasinosModal}
               setShowActiveDropsCasinos={setShowActiveCasinosModal}
+              showAllCasinoDrops={showAllCasinoDrops}
+              setShowAllCasinoDrops={setShowAllCasinoDrops}
             />
           </div>
         </div>

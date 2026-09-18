@@ -24,6 +24,7 @@ export function CommunityFeedModal({
   onOpenAddCasinos,
 }: FeedModalProps) {
   const [showActiveDropsCasinos, setShowActiveDropsCasinos] = useState(false);
+  const [showAllCasinoDrops, setShowAllCasinoDrops] = useState(false);
   const effectiveIsOpen = isOpen ?? false;
   if (!effectiveIsOpen) return null;
 
@@ -72,6 +73,8 @@ export function CommunityFeedModal({
             onOpenAddCasinos={onOpenAddCasinos}
             showActiveDropsCasinos={showActiveDropsCasinos}
             setShowActiveDropsCasinos={setShowActiveDropsCasinos}
+            showAllCasinoDrops={showAllCasinoDrops}
+            setShowAllCasinoDrops={setShowAllCasinoDrops}
           />
         </div>
       </div>

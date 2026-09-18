@@ -436,6 +436,7 @@ export default function TrackerPage() {
   const [isNewListModalOpen, setIsNewListModalOpen] = useState(false);
   const [newListName, setNewListName] = useState("");
   const [activeDrawer, setActiveDrawer] = useState<"feed" | "drops" | null>(null);
+  const [showAllCasinoDrops, setShowAllCasinoDrops] = useState(false);
 
   // When feed drawer is opened, mark feed as read
   useEffect(() => {
@@ -2816,6 +2817,8 @@ export default function TrackerPage() {
                   setActiveDrawer(null);
                   setIsAddCasinosModalOpen(true);
                 }}
+                showAllCasinoDrops={showAllCasinoDrops}
+                setShowAllCasinoDrops={setShowAllCasinoDrops}
               />
             </div>
           </div>

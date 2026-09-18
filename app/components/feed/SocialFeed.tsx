@@ -47,6 +47,8 @@ export function SocialFeed({
   setShowActiveDropsCasinos: controlledSetShowActiveDropsCasinos,
   showExploreModal: controlledShowExploreModal,
   setShowExploreModal: controlledSetShowExploreModal,
+  showAllCasinoDrops: controlledShowAllCasinoDrops,
+  setShowAllCasinoDrops: controlledSetShowAllCasinoDrops,
 }: {
   currentUserEmail?: string;
   currentUserName?: string;
@@ -68,6 +70,8 @@ export function SocialFeed({
   setShowActiveDropsCasinos?: (show: boolean) => void;
   showExploreModal?: boolean;
   setShowExploreModal?: (show: boolean) => void;
+  showAllCasinoDrops?: boolean;
+  setShowAllCasinoDrops?: (show: boolean) => void;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -356,15 +360,27 @@ export function SocialFeed({
   const showExploreModal =
     controlledShowExploreModal !== undefined
       ? controlledShowExploreModal
+      : controlledShowActiveCasinosModal !== undefined
+      ? controlledShowActiveCasinosModal
       : controlledShowActiveDropsCasinos !== undefined
       ? controlledShowActiveDropsCasinos
       : internalShowExploreModal;
   const setShowExploreModal =
     controlledSetShowExploreModal ||
+    controlledSetShowActiveCasinosModal ||
     controlledSetShowActiveDropsCasinos ||
     setInternalShowExploreModal;
   const showActiveDropsCasinos = showExploreModal;
   const setShowActiveDropsCasinos = setShowExploreModal;
+
+  const [internalShowAllCasinoDrops, setInternalShowAllCasinoDrops] = useState(false);
+  const showAllCasinoDrops =
+    controlledShowAllCasinoDrops !== undefined
+      ? controlledShowAllCasinoDrops
+      : internalShowAllCasinoDrops;
+  const setShowAllCasinoDrops =
+    controlledSetShowAllCasinoDrops || setInternalShowAllCasinoDrops;
+
   const [showActiveCodesModal, setShowActiveCodesModal] = useState(false);
   const [modalTab, setModalTab] = useState<"locked" | "all">("locked");
 
@@ -669,7 +685,7 @@ export function SocialFeed({
       {!hideBanner && (currentType === "all" || currentType === "drop_code") && activeCasinosWithDrops.length > 0 && (
         <div className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200 mb-3 select-none">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span>🎁 {activeCasinosWithDrops.length} casinos with active bonus codes</span>
+            <span>🎁 <strong className="text-amber-300 font-bold">{activeCasinosWithDrops.length} casinos</strong> with active bonus codes</span>
             <button
               type="button"
               onClick={(e) => {

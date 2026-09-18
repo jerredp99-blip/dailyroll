@@ -37,6 +37,7 @@ export function DropsModal({
   onOpenAddCasinos,
 }: DropsModalProps) {
   const [showActiveDropsCasinos, setShowActiveDropsCasinos] = useState(false);
+  const [showAllCasinoDrops, setShowAllCasinoDrops] = useState(false);
   const effectiveIsOpen = isOpen ?? isBonusDropsOpen ?? false;
   if (!effectiveIsOpen) return null;
 
@@ -89,6 +90,8 @@ export function DropsModal({
             onOpenAddCasinos={onOpenAddCasinos}
             showActiveDropsCasinos={showActiveDropsCasinos}
             setShowActiveDropsCasinos={setShowActiveDropsCasinos}
+            showAllCasinoDrops={showAllCasinoDrops}
+            setShowAllCasinoDrops={setShowAllCasinoDrops}
           />
         </div>
       </div>

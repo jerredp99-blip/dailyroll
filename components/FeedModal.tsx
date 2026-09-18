@@ -37,6 +37,7 @@ export function FeedModal({
   onOpenAddCasinos,
 }: FeedModalProps) {
   const [showActiveDropsCasinos, setShowActiveDropsCasinos] = useState(false);
+  const [showAllCasinoDrops, setShowAllCasinoDrops] = useState(false);
   const effectiveIsOpen = isOpen ?? false;
   if (!effectiveIsOpen) return null;
 
@@ -88,6 +89,8 @@ export function FeedModal({
             onOpenAddCasinos={onOpenAddCasinos}
             showActiveDropsCasinos={showActiveDropsCasinos}
             setShowActiveDropsCasinos={setShowActiveDropsCasinos}
+            showAllCasinoDrops={showAllCasinoDrops}
+            setShowAllCasinoDrops={setShowAllCasinoDrops}
           />
         </div>
       </div>
