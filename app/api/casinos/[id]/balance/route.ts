@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentSession } from "@/lib/auth";
 import { casinoKey, getCasinos, saveCasinos, Casino } from "@/lib/store";
+import { trackUserActivity } from "@/lib/activity";
 
 export async function PATCH(
   request: Request,
@@ -31,6 +32,11 @@ export async function PATCH(
     });
 
     await saveCasinos(key, updated);
+
+    await trackUserActivity(session.email, "BALANCE_EDIT", {
+      casinoId: id,
+      newBalance: currentBalance,
+    });
 
     return NextResponse.json({ success: true, currentBalance });
   } catch (error) {

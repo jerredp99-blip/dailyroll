@@ -6,6 +6,7 @@ import {
   deleteSpeedRunSessionStore,
 } from "@/lib/store";
 import type { SpeedRunSessionState } from "@/types/casino";
+import { trackUserActivity } from "@/lib/activity";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -47,6 +48,19 @@ export async function POST(request: NextRequest) {
     }
 
     const saved = await saveSpeedRunSessionStore(key, body.session);
+
+    if (userSession?.email) {
+      const isComplete = Boolean(body.session.completed) || body.session.currentIndex >= body.session.queueIds.length;
+      await trackUserActivity(
+        userSession.email,
+        isComplete ? "SPEED_RUN_COMPLETED" : "SPEED_RUN_STARTED",
+        {
+          queueLength: body.session.queueIds.length,
+          currentIndex: body.session.currentIndex,
+        }
+      );
+    }
+
     return NextResponse.json({ ok: true, session: saved }, { headers: NO_CACHE_HEADERS });
   } catch (error) {
     console.error("Failed to persist speed run session:", error);

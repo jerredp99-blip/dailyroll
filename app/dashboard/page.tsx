@@ -1,11 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { ArrowLeft, Eye, ShieldCheck, Trash2, UserPlus, X } from "lucide-react";
+import { Activity, ArrowLeft, Eye, ShieldCheck, Trash2, UserPlus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiDeleteCasinos, apiGetUsers, apiSaveUsers } from "@/lib/api-client";
 import { migrateLegacyLocalStorage } from "@/lib/migrate-legacy";
+import { UserActivityInspectorModal } from "@/components/UserActivityInspectorModal";
 
 type AdminProfile = {
   email: string;
@@ -28,6 +29,7 @@ export default function Dashboard() {
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [telemetryUser, setTelemetryUser] = useState<UserProfile | null>(null);
   const [profileError, setProfileError] = useState("");
 
   async function hashPassword(password: string) {
@@ -171,7 +173,13 @@ export default function Dashboard() {
             ) : users.map((user) => (
               <div key={user.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#304638] bg-[#1f3027] p-4">
                 <div><p className="font-semibold text-[#e5eee3]">{user.name}</p><p className="mt-1 text-sm text-[#93a495]">{user.email}</p></div>
-                <div className="flex items-center gap-2"><button type="button" onClick={() => setSelectedUser(user)} className="flex items-center gap-2 rounded-lg border border-[#4c6d50] px-3 py-2 text-xs font-semibold text-[#b7d5b5] transition hover:bg-[#2a4230]"><Eye size={15} /> View profile</button><button type="button" onClick={() => deleteUser(user)} aria-label={`Remove ${user.name}`} className="rounded-lg p-2 text-[#718275] transition hover:bg-[#422c2b] hover:text-[#e69b91]"><Trash2 size={15} /></button></div>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setTelemetryUser(user)} className="flex items-center gap-1.5 rounded-lg border border-emerald-600/50 bg-[#172c1f] px-3 py-2 text-xs font-bold text-emerald-300 transition hover:bg-[#1f3b2a] cursor-pointer">
+                    <Activity size={14} /> Telemetry
+                  </button>
+                  <button type="button" onClick={() => setSelectedUser(user)} className="flex items-center gap-2 rounded-lg border border-[#4c6d50] px-3 py-2 text-xs font-semibold text-[#b7d5b5] transition hover:bg-[#2a4230]"><Eye size={15} /> View profile</button>
+                  <button type="button" onClick={() => deleteUser(user)} aria-label={`Remove ${user.name}`} className="rounded-lg p-2 text-[#718275] transition hover:bg-[#422c2b] hover:text-[#e69b91]"><Trash2 size={15} /></button>
+                </div>
               </div>
             ))}
           </div>
@@ -179,7 +187,37 @@ export default function Dashboard() {
 
         <Link href="/" className="mt-10 inline-flex items-center gap-2 text-sm font-semibold text-[#9bcf9c] hover:text-[#c2e4bd]"><ArrowLeft size={16} /> Back to landing page</Link>
       </div>
-      {selectedUser && <div className="fixed inset-0 z-10 grid place-items-center bg-black/60 p-5" role="presentation" onMouseDown={() => setSelectedUser(null)}><div className="w-full max-w-md rounded-2xl border border-[#38503d] bg-[#19251f] p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="user-profile-title" onMouseDown={(event) => event.stopPropagation()}><div className="flex items-start justify-between"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">User profile</p><h2 id="user-profile-title" className="mt-2 font-serif text-3xl font-semibold text-[#e5eee3]">{selectedUser.name}</h2></div><button type="button" onClick={() => setSelectedUser(null)} aria-label="Close user profile" className="text-[#91a595] hover:text-white"><X size={20} /></button></div><div className="mt-7 space-y-4 text-sm"><div><p className="text-xs text-[#819487]">Email</p><p className="mt-1 text-[#d4e4d2]">{selectedUser.email}</p></div><div><p className="text-xs text-[#819487]">Sign-in</p><p className="mt-1 text-[#9bcf9c]">{selectedUser.signInMethod === "password" ? "Password" : "Passwordless email"}</p></div><div><p className="text-xs text-[#819487]">Profile ID</p><p className="mt-1 font-mono text-xs text-[#a9bbaa]">{selectedUser.id}</p></div><div><p className="text-xs text-[#819487]">Created</p><p className="mt-1 text-[#a9bbaa]">{new Date(selectedUser.createdAt).toLocaleString()}</p></div></div><button type="button" onClick={() => { router.push("/tracker"); }} className="mt-7 flex h-11 w-full items-center justify-center rounded-xl bg-[#79b77f] text-sm font-semibold text-[#122519] transition hover:bg-[#91c991]">Open user page</button></div></div>}
+      {selectedUser && (
+        <div className="fixed inset-0 z-10 grid place-items-center bg-black/60 p-5" role="presentation" onMouseDown={() => setSelectedUser(null)}>
+          <div className="w-full max-w-md rounded-2xl border border-[#38503d] bg-[#19251f] p-6 shadow-2xl space-y-4" role="dialog" aria-modal="true" aria-labelledby="user-profile-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between">
+              <div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#91b291]">User profile</p><h2 id="user-profile-title" className="mt-2 font-serif text-3xl font-semibold text-[#e5eee3]">{selectedUser.name}</h2></div>
+              <button type="button" onClick={() => setSelectedUser(null)} aria-label="Close user profile" className="text-[#91a595] hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="space-y-4 text-sm">
+              <div><p className="text-xs text-[#819487]">Email</p><p className="mt-1 text-[#d4e4d2]">{selectedUser.email}</p></div>
+              <div><p className="text-xs text-[#819487]">Sign-in</p><p className="mt-1 text-[#9bcf9c]">{selectedUser.signInMethod === "password" ? "Password" : "Passwordless email"}</p></div>
+              <div><p className="text-xs text-[#819487]">Profile ID</p><p className="mt-1 font-mono text-xs text-[#a9bbaa]">{selectedUser.id}</p></div>
+              <div><p className="text-xs text-[#819487]">Created</p><p className="mt-1 text-[#a9bbaa]">{new Date(selectedUser.createdAt).toLocaleString()}</p></div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <button type="button" onClick={() => setTelemetryUser(selectedUser)} className="flex h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-950/60 text-xs font-bold text-emerald-300 transition hover:bg-emerald-900/60">
+                <Activity size={15} /> Telemetry
+              </button>
+              <button type="button" onClick={() => { router.push("/tracker"); }} className="flex h-11 items-center justify-center rounded-xl bg-[#79b77f] text-xs font-bold text-[#122519] transition hover:bg-[#91c991]">
+                Open user page
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Activity Inspector Modal */}
+      <UserActivityInspectorModal
+        user={telemetryUser}
+        isOpen={Boolean(telemetryUser)}
+        onClose={() => setTelemetryUser(null)}
+      />
     </main>
   );
 }

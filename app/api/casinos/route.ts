@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { casinoKey, createCleanDefaultCasinos, deleteCasinos, getCasinos, saveCasinos, Casino } from "@/lib/store";
 import { getCurrentSession } from "@/lib/auth";
+import { trackUserActivity } from "@/lib/activity";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -49,7 +50,33 @@ export async function POST(request: NextRequest) {
     if (session.role !== "admin" && key !== casinoKey(session.email)) {
       return NextResponse.json({ error: "Not authorized." }, { status: 403 });
     }
+    const previousCasinos = (await getCasinos(key)) || [];
     const casinos = await saveCasinos(key, body.casinos);
+
+    // Track addition / removal telemetry
+    try {
+      const prevNames = new Set(previousCasinos.map((c) => c.name.toLowerCase()));
+      const nextNames = new Set((body.casinos || []).map((c) => c.name.toLowerCase()));
+
+      for (const casino of body.casinos || []) {
+        if (!prevNames.has(casino.name.toLowerCase())) {
+          await trackUserActivity(session.email, "CASINO_ADDED", {
+            casinoId: casino.id,
+            name: casino.name,
+          });
+        }
+      }
+      for (const casino of previousCasinos) {
+        if (!nextNames.has(casino.name.toLowerCase())) {
+          await trackUserActivity(session.email, "CASINO_REMOVED", {
+            casinoId: casino.id,
+            name: casino.name,
+          });
+        }
+      }
+    } catch (trackErr) {
+      console.warn("Telemetry tracking warning:", trackErr);
+    }
 
     // Invalidate caches so other devices receive fresh data
     try {

@@ -6,6 +6,7 @@ import {
   setSessionCookie,
   signInWithPassword,
 } from "@/lib/auth";
+import { trackUserActivity } from "@/lib/activity";
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
 
       const session = await createSessionForEmail(email);
       await setSessionCookie(session);
+      await trackUserActivity(email, "SIGNUP", { name });
       return NextResponse.json({ ok: true, redirectTo: session.role === "admin" ? "/dashboard" : "/tracker" });
     }
 
@@ -47,6 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     await setSessionCookie(session);
+    await trackUserActivity(email, "LOGIN", { role: session.role });
     return NextResponse.json({ ok: true, redirectTo: session.role === "admin" ? "/dashboard" : "/tracker" });
   } catch (error) {
     console.error("Unable to sign in with password", error);
