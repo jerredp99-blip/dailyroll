@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Search, X, Plus, ExternalLink, ShieldAlert } from "lucide-react";
+import { Search, X, Plus, ExternalLink, ShieldAlert, Sparkles } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { CasinoLogo } from "@/components/CasinoLogo";
 import { TrustpilotStars } from "@/components/TrustpilotStars";
@@ -33,6 +33,27 @@ export function AddCasinosModal({
 }: AddCasinosModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState<"available" | "added" | "all">("available");
+  const [showEmailTip, setShowEmailTip] = useState(false);
+
+  useEffect(() => {
+    try {
+      const hasDismissed = localStorage.getItem("dailyroll_seen_casino_email_tip");
+      if (!hasDismissed) {
+        setShowEmailTip(true);
+      }
+    } catch {
+      // Fallback if localStorage is unavailable
+    }
+  }, []);
+
+  const dismissTip = () => {
+    setShowEmailTip(false);
+    try {
+      localStorage.setItem("dailyroll_seen_casino_email_tip", "true");
+    } catch {
+      // Fallback
+    }
+  };
 
   // Compile full directory of names (filtering out pending review casinos for standard users)
   const allNames = useMemo(() => {
@@ -117,6 +138,32 @@ export function AddCasinosModal({
             <X size={18} />
           </button>
         </div>
+
+        {/* Pro-Tip Email & SSO Banner */}
+        {showEmailTip && (
+          <div className="relative mx-3 mt-3 sm:mx-4 sm:mt-4 p-3 rounded-xl bg-emerald-950/80 border border-emerald-500/30 flex items-start gap-3 shadow-md animate-fadeIn">
+            <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 shrink-0 mt-0.5">
+              <Sparkles size={16} />
+            </div>
+            <div className="flex-1 min-w-0 pr-6">
+              <p className="text-xs font-bold text-emerald-200">
+                Pro-Tip: Use a Dedicated Casino Email & Google Single Sign-On
+              </p>
+              <p className="text-[11px] text-emerald-300/80 mt-0.5 leading-relaxed">
+                For smooth verification and account tracking across social casinos, we recommend using a dedicated email address and consistent Google Single Sign-On (SSO) across all platforms.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={dismissTip}
+              title="Dismiss tip"
+              aria-label="Dismiss tip"
+              className="absolute top-2.5 right-2.5 p-1 text-emerald-400/70 hover:text-white hover:bg-emerald-900/60 rounded-lg transition cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
         {/* Filter and Search Controls */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4 border-b border-emerald-950/60 bg-[#0d1a12]">
