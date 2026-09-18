@@ -76,6 +76,10 @@ export function CasinoDropsFeed({ casino }: { casino: Casino }) {
     setTimeout(() => setCopiedCodeId(null), 2000);
   };
 
+  const handleClaimDrop = (postId: string) => {
+    markDropClaimed(postId);
+  };
+
   const handleClaimLink = (postId: string, url: string) => {
     markDropClaimed(postId);
     openInExternalBrowser(url);
@@ -88,9 +92,9 @@ export function CasinoDropsFeed({ casino }: { casino: Casino }) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent mb-3" />
-        <p className="text-xs text-gray-400">Loading bonus drops for {casino.name}...</p>
+      <div className="flex flex-col items-center justify-center py-10 space-y-2 text-emerald-400">
+        <Loader2 className="w-5 h-5 animate-spin" />
+        <span className="text-xs text-zinc-400 font-medium">Checking for active bonus codes...</span>
       </div>
     );
   }
@@ -163,23 +167,27 @@ export function CasinoDropsFeed({ casino }: { casino: Casino }) {
               {claimUrl && (
                 <>
                   {isClaimed ? (
-                    <button
-                      type="button"
-                      disabled
-                      className="h-8 px-3 rounded-lg text-xs font-bold text-zinc-500 bg-zinc-950/80 border border-zinc-800/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] cursor-not-allowed whitespace-nowrap shrink-0 flex items-center gap-1.5 select-none opacity-75"
+                    <a
+                      href={claimUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Revisit bonus drop link"
+                      className="h-8 px-3 rounded-lg text-xs font-bold text-zinc-400 hover:text-zinc-200 bg-zinc-950/80 hover:bg-zinc-900 border border-zinc-800 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-colors cursor-pointer select-none"
                     >
                       <span>Claimed</span>
-                      <Check className="w-3.5 h-3.5 text-zinc-600" />
-                    </button>
+                      <Check className="w-3.5 h-3.5 text-zinc-500" />
+                    </a>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleClaimLink(drop.id, claimUrl)}
-                      className="h-8 px-3 rounded-lg text-xs font-bold text-white bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 hover:brightness-110 active:translate-y-0.5 border-t border-emerald-300/40 shadow-[0_2px_8px_rgba(16,185,129,0.35)] whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-all select-none cursor-pointer"
+                    <a
+                      href={claimUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => handleClaimDrop(drop.id)}
+                      className="h-8 px-3 rounded-lg text-xs font-bold text-white bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 hover:brightness-110 active:translate-y-0.5 border-t border-emerald-300/40 shadow-[0_2px_8px_rgba(16,185,129,0.35)] whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-all select-none"
                     >
                       <span>Claim Bonus</span>
                       <ExternalLink className="w-3.5 h-3.5 text-emerald-200 stroke-[2.5]" />
-                    </button>
+                    </a>
                   )}
                 </>
               )}
