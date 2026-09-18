@@ -209,17 +209,8 @@ export function TopBar() {
 
         <div className="flex items-center gap-2 sm:gap-3.5 transition-all shrink-0">
           {(signedInUser || isAdmin) && (
-            <div className="hidden md:flex items-center">
-              <ActionNav
-                unclaimedBonusDropsCount={unclaimedBonusDropsCount}
-                onOpenChat={() => {
-                  if (pathname === "/tracker") {
-                    window.dispatchEvent(new CustomEvent("dailyroll_open_feed"));
-                  } else {
-                    router.push("/tracker?feed=open");
-                  }
-                }}
-              />
+            <div className="flex items-center">
+              <ActionNav unclaimedBonusDropsCount={unclaimedBonusDropsCount} />
             </div>
           )}
           {(signedInUser || isAdmin) && pathname !== "/tracker" && (

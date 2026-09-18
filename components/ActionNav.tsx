@@ -1,12 +1,12 @@
 import Link from 'next/link';
-import { MessageSquare, Gift } from 'lucide-react';
+import { Gift } from 'lucide-react';
 
 interface NavActionsProps {
   unclaimedBonusDropsCount: number;
   onOpenChat?: () => void;
 }
 
-export function ActionNav({ unclaimedBonusDropsCount, onOpenChat }: NavActionsProps) {
+export function ActionNav({ unclaimedBonusDropsCount }: NavActionsProps) {
   return (
     <div className="flex items-center gap-2">
       {/* Bonus Drops Button with Notification Badge */}
@@ -23,16 +23,6 @@ export function ActionNav({ unclaimedBonusDropsCount, onOpenChat }: NavActionsPr
           </span>
         )}
       </Link>
-
-      {/* Community Chat Button */}
-      <button
-        type="button"
-        onClick={onOpenChat}
-        className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-colors text-sm font-medium"
-      >
-        <MessageSquare className="w-4 h-4" />
-        <span>Chat</span>
-      </button>
     </div>
   );
 }
