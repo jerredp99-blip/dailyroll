@@ -176,7 +176,18 @@ export function BonusDropBanner({
 
       {/* Action Row */}
       <div className="w-full flex justify-end pt-0.5" data-stop-propagation="true" onClick={(e) => e.stopPropagation()}>
-        {!unlocked ? (
+        {isClaimed ? (
+          <a
+            href={affiliateUrl || targetUrl || "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Revisit bonus drop link"
+            className="h-8 px-3 rounded-lg text-xs font-bold text-zinc-400 hover:text-zinc-200 bg-zinc-950/80 hover:bg-zinc-900 border border-zinc-800 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-colors cursor-pointer select-none"
+          >
+            <span>Claimed</span>
+            <Check className="w-3.5 h-3.5 text-zinc-500" />
+          </a>
+        ) : !unlocked ? (
           <button
             type="button"
             onClick={handleAddCasinoAndUnlock}
@@ -186,20 +197,9 @@ export function BonusDropBanner({
             <span>+ Add {effectiveCasinoName} to Claim</span>
             <ExternalLink className="w-3.5 h-3.5 text-zinc-950 stroke-[2.5]" />
           </button>
-        ) : isClaimed ? (
-          <a
-            href={affiliateUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Revisit bonus drop link"
-            className="h-8 px-3 rounded-lg text-xs font-bold text-zinc-400 hover:text-zinc-200 bg-zinc-950/80 hover:bg-zinc-900 border border-zinc-800 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-colors cursor-pointer select-none"
-          >
-            <span>Claimed</span>
-            <Check className="w-3.5 h-3.5 text-zinc-500" />
-          </a>
         ) : (
           <a
-            href={affiliateUrl}
+            href={affiliateUrl || targetUrl || "#"}
             target="_blank"
             rel="noopener noreferrer"
             onClick={markAsClaimed}

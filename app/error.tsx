@@ -36,9 +36,10 @@ export default function Error({
         <p className="text-sm text-zinc-400 max-w-md">
           An unexpected error occurred. Please try reloading the page.
         </p>
-        {process.env.NODE_ENV === "development" && error?.message && (
-          <pre className="mt-4 max-w-lg overflow-auto rounded-lg bg-zinc-900/80 border border-zinc-800 p-3 text-left text-xs text-rose-300 font-mono">
+        {error?.message && (
+          <pre className="mt-4 max-w-lg overflow-auto rounded-lg bg-zinc-900/80 border border-zinc-800 p-3 text-left text-xs text-rose-300 font-mono select-all">
             {error.message}
+            {error.digest && `\nDigest: ${error.digest}`}
           </pre>
         )}
       </div>

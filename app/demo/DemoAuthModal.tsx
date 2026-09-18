@@ -301,3 +301,4 @@ export function DemoAuthModal({ isOpen, onClose, triggerContext }: DemoAuthModal
 
   return typeof document !== "undefined" ? createPortal(modalContent, document.body) : null;
 }
+

@@ -169,12 +169,12 @@ export function TopBar() {
               <div className="flex flex-col items-center leading-tight">
                 <span
                   className={`font-mono text-xs sm:text-base tracking-tight ${
-                    scTotals.available > 0
+                    (Number(scTotals.available) || 0) > 0
                       ? "text-emerald-400 font-black drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]"
                       : "text-zinc-400 font-extrabold"
                   }`}
                 >
-                  {scTotals.available.toFixed(2)} SC
+                  {(Number(scTotals.available) || 0).toFixed(2)} SC
                 </span>
                 <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-emerald-400/80 mt-0.5 group-hover:text-emerald-300">
                   <span className="hidden sm:inline">READY TO CLAIM</span>
@@ -188,7 +188,7 @@ export function TopBar() {
               {/* Claimed SC (The Daily Streak / Score) */}
               <div className="flex flex-col items-center leading-tight">
                 <span className="text-zinc-100 font-extrabold font-mono text-xs sm:text-base tracking-tight">
-                  {scTotals.claimedToday.toFixed(2)} SC
+                  {(Number(scTotals.claimedToday) || 0).toFixed(2)} SC
                 </span>
                 <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-zinc-400 mt-0.5 group-hover:text-zinc-300">
                   <span className="hidden sm:inline">CLAIMED TODAY</span>
