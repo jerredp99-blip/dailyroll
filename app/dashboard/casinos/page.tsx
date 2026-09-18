@@ -638,6 +638,47 @@ export default function AdminCasinosPage() {
                             />
                           </div>
                         </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 block mb-1">
+                              Timer Cycle (Hours)
+                            </label>
+                            <input
+                              type="number"
+                              value={form.resetHours !== undefined ? form.resetHours : casino.intervalHours ?? 24}
+                              onChange={(e) => handlePendingInputChange(casino.name, "resetHours", parseInt(e.target.value))}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                              Fixed Reset Time (PST)
+                            </label>
+                            <select
+                              value={form.resetAtTime !== undefined ? form.resetAtTime : casino.resetAtTime || ""}
+                              onChange={(e) => handlePendingInputChange(casino.name, "resetAtTime", e.target.value)}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-2.5 text-xs text-white focus:border-emerald-400 outline-none cursor-pointer"
+                            >
+                              {PACIFIC_TIME_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value} className="bg-[#121d17] text-white">
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 block mb-1">
+                              Claim Tip
+                            </label>
+                            <input
+                              type="text"
+                              value={form.claimTip !== undefined ? form.claimTip : casino.claimTip || ""}
+                              placeholder="e.g. Click store popup"
+                              onChange={(e) => handlePendingInputChange(casino.name, "claimTip", e.target.value)}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                            />
+                          </div>
+                        </div>
                         {(() => {
                           const currentResetAtTime = form.resetAtTime !== undefined ? form.resetAtTime : casino.resetAtTime || "";
                           const currentResetHours = form.resetHours !== undefined ? form.resetHours : casino.intervalHours ?? 24;

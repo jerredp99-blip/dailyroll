@@ -26,11 +26,13 @@ export function CasinoDetailHeader({
   isTracked,
   onAddToRollcall,
   onUpdateCasino,
+  onClose,
 }: {
   casino: Casino;
   isTracked: boolean;
   onAddToRollcall?: () => void;
   onUpdateCasino?: (casino: Casino, updates: Partial<Casino>) => void;
+  onClose?: () => void;
 }) {
   const [isEditingBalance, setIsEditingBalance] = useState(false);
   const [balanceInput, setBalanceInput] = useState("");
@@ -66,13 +68,24 @@ export function CasinoDetailHeader({
     <div className="relative overflow-hidden rounded-2xl border border-emerald-900/60 bg-gradient-to-b from-[#14231b] via-[#0f1914] to-[#0c1410] p-4 sm:p-6 shadow-[0_12px_32px_rgba(0,0,0,0.3)]">
       {/* Top row: Back link */}
       <div className="flex items-center justify-between gap-3 border-b border-emerald-950 pb-3 sm:pb-4">
-        <Link
-          href="/tracker"
-          className="group inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-emerald-400 hover:text-emerald-300 transition"
-        >
-          <ArrowLeft size={16} className="transition group-hover:-translate-x-1" />
-          <span>Back to Rollcall</span>
-        </Link>
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="group inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-emerald-400 hover:text-emerald-300 transition cursor-pointer"
+          >
+            <ArrowLeft size={16} className="transition group-hover:-translate-x-1" />
+            <span>Back to Rollcall</span>
+          </button>
+        ) : (
+          <Link
+            href="/tracker"
+            className="group inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-emerald-400 hover:text-emerald-300 transition"
+          >
+            <ArrowLeft size={16} className="transition group-hover:-translate-x-1" />
+            <span>Back to Rollcall</span>
+          </Link>
+        )}
       </div>
 
       {/* Main identity & Action section */}
@@ -163,6 +176,11 @@ export function CasinoDetailHeader({
               href={visitUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => {
+                if (onClose) {
+                  onClose();
+                }
+              }}
               className="w-full h-12 rounded-xl inline-flex items-center justify-center gap-2 font-black text-sm tracking-wide text-white bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 border-t border-emerald-300/50 border-x border-b border-emerald-900 shadow-[0_4px_14px_rgba(16,185,129,0.35),inset_0_1px_0_rgba(255,255,255,0.35),0_2px_0_rgba(6,78,59,1)] hover:brightness-110 active:translate-y-0.5 active:shadow-[0_1px_4px_rgba(16,185,129,0.25)] transition-all select-none cursor-pointer"
             >
               <ExternalLink className="w-4 h-4 text-white stroke-[2.5] shrink-0" />

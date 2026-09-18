@@ -282,6 +282,7 @@ export function CasinoDetailsModal({
               onUpdateCasino={(updatedCasino, updates) => {
                 setCasino((prev) => (prev ? { ...prev, ...updates } : null));
               }}
+              onClose={onClose}
             />
 
             {/* 2. Operational Cheat Sheet Grid */}

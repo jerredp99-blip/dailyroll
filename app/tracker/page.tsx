@@ -149,6 +149,28 @@ function isSameLocalDay(iso: string, referenceMs: number) {
   );
 }
 
+function RollcallSkeletonList() {
+  return (
+    <div className="flex flex-col gap-2.5 w-full pt-1">
+      {[...Array(5)].map((_, i) => (
+        <div
+          key={i}
+          className="w-full h-[66px] rounded-2xl bg-zinc-900/50 border border-emerald-500/10 p-3 flex items-center justify-between animate-pulse"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-zinc-800/80 shrink-0" />
+            <div className="flex flex-col gap-1.5">
+              <div className="w-28 h-3.5 bg-zinc-800/80 rounded-md" />
+              <div className="w-16 h-2.5 bg-zinc-800/60 rounded-md" />
+            </div>
+          </div>
+          <div className="w-24 h-8 rounded-xl bg-zinc-800/80 shrink-0" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function TrustpilotStars({ rating }: { rating?: number | null }) {
   const numericRating = Number(rating);
   if (!Number.isFinite(numericRating)) {
@@ -243,7 +265,35 @@ const STATUS_STYLES: Record<
 
 export default function TrackerPage() {
   const router = useRouter();
-  const [casinos, setCasinos] = useState<Casino[]>([]);
+  const [isLoading, setIsLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("dailyroll_cached_casinos");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return false;
+          }
+        }
+      } catch {}
+    }
+    return true;
+  });
+
+  const [casinos, setCasinos] = useState<Casino[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("dailyroll_cached_casinos");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch {}
+    }
+    return [];
+  });
   const [signedInUser, setSignedInUser] = useState<SignedInUser | null>(null);
   const signedInUserRef = useRef<SignedInUser | null>(null);
   useEffect(() => {
@@ -682,6 +732,10 @@ export default function TrackerPage() {
       });
       if (cancelled) return;
       setCasinos(hydratedCasinos);
+      try {
+        localStorage.setItem("dailyroll_cached_casinos", JSON.stringify(hydratedCasinos));
+      } catch {}
+      setIsLoading(false);
       if (user && saved === null) {
         await apiSaveCasinos(user.email, hydratedCasinos);
         if (typeof window !== "undefined") {
@@ -752,6 +806,9 @@ export default function TrackerPage() {
 
   const saveCasinos = useCallback((updated: Casino[]) => {
     setCasinos(updated);
+    try {
+      localStorage.setItem("dailyroll_cached_casinos", JSON.stringify(updated));
+    } catch {}
     if (signedInUserRef.current?.email) {
       apiSaveCasinos(signedInUserRef.current.email, updated);
     } else if (typeof window !== "undefined") {
@@ -1985,31 +2042,9 @@ export default function TrackerPage() {
 
             {/* Casinos List using RollcallCard */}
             <div className="space-y-2.5 pb-24">
-              {sortedCasinos.map((casino) => (
-                <RollcallCard
-                  key={casino.id}
-                  casino={casino}
-                  now={now}
-                  status={statusFor(casino)}
-                  siteUrl={siteUrlFor(casino)}
-                  rating={ratingForCasino(casino.name, casino.trustpilotRating)}
-                  isActionMenuOpen={openActionMenu === casino.id}
-                  onToggleActionMenu={handleToggleActionMenu}
-                  onClaim={handleInitiateClaim}
-                  onConfirmClaim={handleConfirmClaim}
-                  onUndoClaim={handleUndoClaim}
-                  onResetToReady={handleResetToReady}
-                  onCancelSnooze={handleCancelSnooze}
-                  onSnoozeDuration={handleSnoozeDuration}
-                  onSetCustomTimer={handleSetCustomTimer}
-                  onUpdateCasino={handleUpdateCasino}
-                  onOpenCasino={openCasino}
-                  onOpenBonus={casino.bonusUrl ? openBonus : undefined}
-                  onOpenDetails={(id) => setSelectedCasinoId(id)}
-                  pendingInfo={pendingClaims[casino.id]}
-                />
-              ))}
-              {sortedCasinos.length === 0 && (
+              {isLoading && casinos.length === 0 ? (
+                <RollcallSkeletonList />
+              ) : sortedCasinos.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-emerald-900/60 bg-[#0c1f17]/40 p-8 text-center text-xs text-[#718275] space-y-3">
                   <p>
                     {searchQuery.trim()
@@ -2038,6 +2073,31 @@ export default function TrackerPage() {
                     </button>
                   )}
                 </div>
+              ) : (
+                sortedCasinos.map((casino) => (
+                  <RollcallCard
+                    key={casino.id}
+                    casino={casino}
+                    now={now}
+                    status={statusFor(casino)}
+                    siteUrl={siteUrlFor(casino)}
+                    rating={ratingForCasino(casino.name, casino.trustpilotRating)}
+                    isActionMenuOpen={openActionMenu === casino.id}
+                    onToggleActionMenu={handleToggleActionMenu}
+                    onClaim={handleInitiateClaim}
+                    onConfirmClaim={handleConfirmClaim}
+                    onUndoClaim={handleUndoClaim}
+                    onResetToReady={handleResetToReady}
+                    onCancelSnooze={handleCancelSnooze}
+                    onSnoozeDuration={handleSnoozeDuration}
+                    onSetCustomTimer={handleSetCustomTimer}
+                    onUpdateCasino={handleUpdateCasino}
+                    onOpenCasino={openCasino}
+                    onOpenBonus={casino.bonusUrl ? openBonus : undefined}
+                    onOpenDetails={(id) => setSelectedCasinoId(id)}
+                    pendingInfo={pendingClaims[casino.id]}
+                  />
+                ))
               )}
             </div>
           </div>
