@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/app/components/Logo";
 import { Settings, ShieldCheck, LogOut, Compass, Wallet, MessageSquare } from "lucide-react";
 import { BalancesIntroTooltip } from "@/components/BalancesIntroTooltip";
+import { ActionNav } from "@/components/ActionNav";
+import { useActiveDropsCount } from "@/lib/dropsStore";
 
 type SignedInUser = {
   name: string;
@@ -16,6 +18,7 @@ type SignedInUser = {
 export function TopBar() {
   const pathname = usePathname();
   const router = useRouter();
+  const unclaimedBonusDropsCount = useActiveDropsCount();
   const [signedInUser, setSignedInUser] = useState<SignedInUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
@@ -203,6 +206,20 @@ export function TopBar() {
         )}
 
         <div className="flex items-center gap-2 sm:gap-3.5 transition-all shrink-0">
+          {(signedInUser || isAdmin) && (
+            <div className="hidden md:flex items-center">
+              <ActionNav
+                unclaimedBonusDropsCount={unclaimedBonusDropsCount}
+                onOpenChat={() => {
+                  if (pathname === "/tracker") {
+                    window.dispatchEvent(new CustomEvent("dailyroll_open_feed"));
+                  } else {
+                    router.push("/tracker?feed=open");
+                  }
+                }}
+              />
+            </div>
+          )}
           {(signedInUser || isAdmin) && pathname !== "/tracker" && (
             <Link
               href="/tracker"
