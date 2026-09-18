@@ -37,6 +37,8 @@ export interface Casino {
   snoozedUntil?: string | null;
   /** Exact custom target reset timestamp (milliseconds or ISO string) */
   targetResetTimestamp?: number | string | null;
+  /** Flag for newly added casinos requiring initial claim confirmation on Rollcall card. */
+  isInitialSetup?: boolean;
 
   /** Operational cheat sheet specifications */
   dailySc?: string | null;

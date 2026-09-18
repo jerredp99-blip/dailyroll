@@ -34,7 +34,6 @@ import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { SpeedRunModal } from "@/app/components/SpeedRunModal";
 import { SpeedRunErrorBoundary } from "@/components/SpeedRunErrorBoundary";
 import { AddCasinosModal } from "@/components/AddCasinosModal";
-import { ClaimStatusPromptModal } from "@/components/ClaimStatusPromptModal";
 import { BalancesIntroTooltip } from "@/components/BalancesIntroTooltip";
 import { CustomTimerModal } from "@/components/CustomTimerModal";
 import { CasinoDetailsModal } from "@/components/CasinoDetailsModal";
@@ -1283,22 +1282,77 @@ export default function TrackerPage() {
       claimUrl: directoryClaimUrls[casinoName],
       bonusUrl: directoryBonusUrls[casinoName],
       lastClaimedAt: null,
+      isInitialSetup: true,
       intervalHours: seed?.intervalHours || 24,
       trustpilotRating: directoryRatings[casinoName] ?? seed?.trustpilotRating,
     };
     saveCasinos([...casinos, entry]);
-    setPromptCasino(entry);
     if (!stayOnList) showAddCasinosPage(false);
   }
 
-  const handleConfirmClaimedPrompt = useCallback(() => {
-    if (!promptCasino) return;
-    markClaimed(promptCasino);
-    setPromptCasino(null);
-  }, [promptCasino, markClaimed]);
+  const handleResolveInitial = useCallback((casino: Casino, claimedToday: boolean) => {
+    const nowIso = new Date().toISOString();
+    setCasinos((prev) => {
+      const updated = prev.map((item) =>
+        item.id === casino.id
+          ? {
+              ...item,
+              isInitialSetup: false,
+              ...(claimedToday ? { lastClaimedAt: nowIso } : { lastClaimedAt: null }),
+            }
+          : item,
+      );
+      apiSaveCasinos(signedInUserRef.current?.email, updated);
+      return updated;
+    });
 
-  const handleConfirmReadyPrompt = useCallback(() => {
-    setPromptCasino(null);
+    if (claimedToday) {
+      try {
+        const storedTimes = JSON.parse(localStorage.getItem("dailyroll_claimed_times") || "{}");
+        storedTimes[casino.id] = nowIso;
+        localStorage.setItem("dailyroll_claimed_times", JSON.stringify(storedTimes));
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+  const handleInitialSnooze = useCallback((casino: Casino, value: string) => {
+    if (value === "custom") {
+      setCustomTimerCasino(casino);
+      setCasinos((prev) => {
+        const updated = prev.map((item) =>
+          item.id === casino.id ? { ...item, isInitialSetup: false } : item
+        );
+        apiSaveCasinos(signedInUserRef.current?.email, updated);
+        return updated;
+      });
+      return;
+    }
+    const minsMap: Record<string, number> = {
+      "15m": 15,
+      "30m": 30,
+      "1h": 60,
+      "2h": 120,
+      "4h": 240,
+    };
+    const mins = minsMap[value];
+    if (mins) {
+      const snoozeUntilMs = Date.now() + mins * 60 * 1000;
+      setCasinos((prev) => {
+        const updated = prev.map((item) =>
+          item.id === casino.id
+            ? {
+                ...item,
+                snoozedUntil: new Date(snoozeUntilMs).toISOString(),
+                isInitialSetup: false,
+              }
+            : item,
+        );
+        apiSaveCasinos(signedInUserRef.current?.email, updated);
+        return updated;
+      });
+    }
   }, []);
 
   function signUpForCasino(casinoName: string) {
@@ -2152,6 +2206,8 @@ export default function TrackerPage() {
                     onOpenCasino={openCasino}
                     onOpenBonus={casino.bonusUrl ? openBonus : undefined}
                     onOpenDetails={(id) => setSelectedCasinoId(id)}
+                    onResolveInitial={handleResolveInitial}
+                    onInitialSnooze={handleInitialSnooze}
                     pendingInfo={pendingClaims[casino.id]}
                   />
                 ))
@@ -2689,13 +2745,6 @@ export default function TrackerPage() {
         onClaimCasino={(c) => markClaimed(c)}
         directoryData={directorySnapshot}
         isAdmin={isAdmin}
-      />
-
-      <ClaimStatusPromptModal
-        isOpen={Boolean(promptCasino)}
-        casinoName={promptCasino?.name || ""}
-        onConfirmClaimed={handleConfirmClaimedPrompt}
-        onConfirmReady={handleConfirmReadyPrompt}
       />
 
 

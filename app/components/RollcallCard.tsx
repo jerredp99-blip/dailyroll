@@ -73,6 +73,8 @@ export interface RollcallCardProps {
   onOpenCasino: (casino: Casino) => void;
   onOpenBonus?: (casino: Casino) => void;
   onOpenDetails?: (casinoId: string) => void;
+  onResolveInitial?: (casino: Casino, claimedToday: boolean) => void;
+  onInitialSnooze?: (casino: Casino, value: string) => void;
   renderLogo?: () => React.ReactNode;
   renderTrustpilot?: () => React.ReactNode;
   pendingInfo?: { expiresAt: number; isDefocused?: boolean };
@@ -99,6 +101,8 @@ function RollcallCardComponent({
   onOpenCasino,
   onOpenBonus,
   onOpenDetails,
+  onResolveInitial,
+  onInitialSnooze,
   renderLogo,
   renderTrustpilot,
   pendingInfo,
@@ -240,8 +244,68 @@ function RollcallCardComponent({
 
 
 
-      {/* Action / Countdown / Pending Controls + Inline Kebab */}
-      {isPending ? (
+      {/* Action / Countdown / Pending / Initial Setup Controls */}
+      {casino.isInitialSetup ? (
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto sm:ml-auto shrink-0 pt-1 sm:pt-0">
+          <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-300 sm:hidden">
+            <span className="font-semibold text-emerald-400">Newly Added:</span>
+            <span>Did you claim today?</span>
+          </div>
+
+          <div className="hidden sm:flex flex-col items-end leading-tight mr-1 text-right">
+            <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Newly Added</span>
+            <span className="text-[11px] text-zinc-300 font-medium">Did you claim today?</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0 justify-end">
+            {/* Snooze selector */}
+            <select
+              defaultValue=""
+              onChange={(e) => {
+                e.stopPropagation();
+                const val = e.target.value;
+                if (val && onInitialSnooze) {
+                  onInitialSnooze(casino, val);
+                }
+              }}
+              aria-label="Snooze newly added casino"
+              className="h-8 px-2.5 bg-zinc-950/80 border border-zinc-800 hover:border-zinc-700 rounded-lg text-xs font-medium text-zinc-300 outline-none cursor-pointer shrink-0"
+            >
+              <option value="" disabled hidden>Snooze ⌵</option>
+              <option value="15m" className="bg-[#101b15] text-white">15m</option>
+              <option value="30m" className="bg-[#101b15] text-white">30m</option>
+              <option value="1h" className="bg-[#101b15] text-white">1h</option>
+              <option value="2h" className="bg-[#101b15] text-white">2h</option>
+              <option value="4h" className="bg-[#101b15] text-white">4h</option>
+              <option value="custom" className="bg-[#101b15] text-amber-400 font-semibold">Custom...</option>
+            </select>
+
+            {/* Decision Buttons */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onResolveInitial) onResolveInitial(casino, false);
+              }}
+              className="h-8 px-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold border border-zinc-700 transition-colors cursor-pointer"
+            >
+              Did Not Claim
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onResolveInitial) onResolveInitial(casino, true);
+              }}
+              className="h-8 px-2.5 rounded-lg bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 hover:brightness-110 text-white text-xs font-bold shadow-[0_2px_8px_rgba(16,185,129,0.3)] border-t border-emerald-300/40 transition-all cursor-pointer whitespace-nowrap"
+            >
+              Claimed Today
+            </button>
+          </div>
+        </div>
+      ) : isPending ? (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto sm:ml-auto shrink-0">
           {/* Live Countdown Status Chip on Desktop */}
           <div className="hidden sm:flex items-center gap-1.5 h-8 rounded-lg border border-emerald-500/40 bg-[#0c1a13] px-2.5 font-mono text-xs font-semibold text-emerald-300 shadow-inner shrink-0 whitespace-nowrap">
