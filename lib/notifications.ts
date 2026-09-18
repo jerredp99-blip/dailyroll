@@ -20,12 +20,44 @@ export function getNotificationPermission(): NotificationPermissionState {
 }
 
 /**
+ * Proactively registers and returns the active Service Worker registration.
+ */
+export async function getOrRegisterServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    return null;
+  }
+  try {
+    let reg = await navigator.serviceWorker.getRegistration().catch(() => null);
+    if (!reg) {
+      reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => null);
+    }
+    return reg || null;
+  } catch (err) {
+    console.warn("Failed to get or register service worker:", err);
+    return null;
+  }
+}
+
+/**
  * Requests browser notification permission on demand.
  */
 export async function requestNotificationPermission(): Promise<NotificationPermissionState> {
   if (!isNotificationSupported()) return "unsupported";
+
+  // Pre-register service worker so it's ready when permission is granted
+  getOrRegisterServiceWorker().catch(() => {});
+
   try {
-    const permission = await Notification.requestPermission();
+    let permission: NotificationPermission;
+    const p = Notification.requestPermission();
+    if (p && typeof p.then === "function") {
+      permission = await p;
+    } else {
+      // Legacy callback for Safari
+      permission = await new Promise((resolve) => {
+        Notification.requestPermission(resolve);
+      });
+    }
     return permission;
   } catch (err) {
     console.error("Failed to request notification permission:", err);
@@ -105,39 +137,62 @@ export async function sendCasinoReadyNotification(
   bonusText?: string,
   url?: string
 ): Promise<boolean> {
-  if (!isNotificationSupported()) return false;
-  if (Notification.permission !== "granted") return false;
+  if (!isNotificationSupported()) {
+    console.warn("[DailyRoll] Notifications not supported in this environment");
+    return false;
+  }
+  if (Notification.permission !== "granted") {
+    console.warn("[DailyRoll] Notification permission not granted:", Notification.permission);
+    return false;
+  }
 
   const title = `${casinoName} — Ready to Claim! 🎁`;
   const bonusSubtext = bonusText ? ` (${bonusText})` : "";
   const body = `Your daily reload bonus for ${casinoName}${bonusSubtext} is ready to claim now!`;
   const targetUrl = url || "/tracker";
+  const tag = `casino-ready-${casinoName.toLowerCase().replace(/\s+/g, "-")}`;
 
-  const options: NotificationOptions = {
-    body,
-    icon: "/icon-192.png",
-    badge: "/favicon.ico",
-    tag: `casino-ready-${casinoName.toLowerCase().replace(/\s+/g, "-")}`,
-    renotify: true,
-    data: { url: targetUrl },
-  };
-
-  // 1. Try ServiceWorkerRegistration.showNotification (recommended for PWA & mobile)
+  // 1. Try ServiceWorkerRegistration.showNotification first (required on Android Chrome & mobile PWAs)
   if ("serviceWorker" in navigator) {
     try {
-      const registration = await navigator.serviceWorker.ready;
-      if (registration && registration.showNotification) {
-        await registration.showNotification(title, options);
+      // Ensure registration exists without waiting indefinitely
+      let registration = await navigator.serviceWorker.getRegistration().catch(() => null);
+      if (!registration) {
+        registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => null);
+      }
+
+      // Race navigator.serviceWorker.ready with a 600ms timeout so it NEVER freezes
+      const readyReg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 600)),
+      ]);
+
+      const activeReg = readyReg || registration;
+      if (activeReg && typeof activeReg.showNotification === "function") {
+        await activeReg.showNotification(title, {
+          body,
+          icon: "/icon-192.png",
+          badge: "/favicon.ico",
+          tag,
+          renotify: true,
+          vibrate: [200, 100, 200],
+          data: { url: targetUrl },
+        } as any);
+        console.log(`[DailyRoll] SW Notification dispatched for ${casinoName}`);
         return true;
       }
-    } catch (err) {
-      console.warn("ServiceWorker showNotification failed, falling back to window.Notification:", err);
+    } catch (swErr) {
+      console.warn("[DailyRoll] SW showNotification failed, trying window.Notification:", swErr);
     }
   }
 
-  // 2. Fallback to native window.Notification
+  // 2. Fallback to native window.Notification (standard on desktop Windows/macOS/Linux)
   try {
-    const notification = new Notification(title, options);
+    const notification = new Notification(title, {
+      body,
+      icon: "/icon-192.png",
+      tag,
+    });
     notification.onclick = (event) => {
       event.preventDefault();
       window.focus();
@@ -146,9 +201,21 @@ export async function sendCasinoReadyNotification(
       }
       notification.close();
     };
+    console.log(`[DailyRoll] Window Notification dispatched for ${casinoName}`);
     return true;
-  } catch (err) {
-    console.error("Failed to show native browser notification:", err);
+  } catch (notifErr) {
+    console.error("[DailyRoll] Native window.Notification failed:", notifErr);
     return false;
   }
+}
+
+/**
+ * Dispatches an immediate test notification to verify audio, vibration, and banner on device.
+ */
+export async function sendTestNotification(casinoName: string = "DailyRoll"): Promise<boolean> {
+  return sendCasinoReadyNotification(
+    casinoName,
+    "Test Notification — Alerts Active!",
+    "/tracker"
+  );
 }

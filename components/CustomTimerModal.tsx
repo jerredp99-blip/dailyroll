@@ -19,11 +19,12 @@ export interface CustomTimerModalProps {
 }
 
 const PRESET_HOURS = [
-  { label: "15m", h: 0, m: 15 },
-  { label: "1h", h: 1, m: 0 },
-  { label: "4h", h: 4, m: 0 },
-  { label: "12h", h: 12, m: 0 },
-  { label: "24h", h: 24, m: 0 },
+  { label: "10s (Test)", h: 0, m: 0, s: 10 },
+  { label: "15m", h: 0, m: 15, s: 0 },
+  { label: "1h", h: 1, m: 0, s: 0 },
+  { label: "4h", h: 4, m: 0, s: 0 },
+  { label: "12h", h: 12, m: 0, s: 0 },
+  { label: "24h", h: 24, m: 0, s: 0 },
 ];
 
 export function CustomTimerModal({
@@ -39,6 +40,7 @@ export function CustomTimerModal({
   const [mounted, setMounted] = useState(false);
   const [hours, setHours] = useState("");
   const [minutes, setMinutes] = useState("");
+  const [seconds, setSeconds] = useState("");
   const [scAmount, setScAmount] = useState<string>("");
   const modalRef = useRef<HTMLDivElement>(null);
   const hoursInputRef = useRef<HTMLInputElement>(null);
@@ -117,16 +119,22 @@ export function CustomTimerModal({
     }
     const h = parseInt(hours || "0", 10);
     const m = parseInt(minutes || "0", 10);
-    if (isNaN(h) && isNaN(m)) return;
+    const s = parseInt(seconds || "0", 10);
+    if (isNaN(h) && isNaN(m) && isNaN(s)) return;
 
     const finalHours = Math.max(0, isNaN(h) ? 0 : h);
     const finalMinutes = Math.max(0, isNaN(m) ? 0 : m);
+    const finalSeconds = Math.max(0, isNaN(s) ? 0 : s);
 
-    // If both 0, set targetResetTimestamp to Date.now() - 1000 so it immediately becomes "Ready to claim"
-    const targetResetTimestamp =
-      finalHours === 0 && finalMinutes === 0
-        ? Date.now() - 1000
-        : calculateCustomResetTimestamp(finalHours, finalMinutes);
+    // If all 0, set targetResetTimestamp to Date.now() - 1000 so it immediately becomes "Ready to claim"
+    let targetResetTimestamp: number;
+    if (finalHours === 0 && finalMinutes === 0 && finalSeconds === 0) {
+      targetResetTimestamp = Date.now() - 1000;
+    } else if (finalHours === 0 && finalMinutes === 0 && finalSeconds > 0) {
+      targetResetTimestamp = Date.now() + finalSeconds * 1000;
+    } else {
+      targetResetTimestamp = calculateCustomResetTimestamp(finalHours, finalMinutes) + finalSeconds * 1000;
+    }
 
     const parsedSc = scAmount.trim() !== "" ? parseFloat(scAmount) : undefined;
     const finalSc = typeof parsedSc === "number" && !isNaN(parsedSc) ? parsedSc : undefined;
@@ -134,9 +142,10 @@ export function CustomTimerModal({
     onClose();
   };
 
-  const applyPreset = (h: number, m: number) => {
+  const applyPreset = (h: number, m: number, s: number = 0) => {
     setHours(h > 0 ? String(h) : "");
     setMinutes(m > 0 ? String(m) : "");
+    setSeconds(s > 0 ? String(s) : "");
   };
 
   return createPortal(
@@ -179,21 +188,22 @@ export function CustomTimerModal({
               e.stopPropagation();
               onClose();
             }}
-            aria-label="Close custom timer modal"
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-emerald-950/60 hover:text-white transition cursor-pointer"
+            className="rounded-lg p-1 text-gray-400 hover:bg-emerald-900/40 hover:text-white transition cursor-pointer"
+            aria-label="Close"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Body */}
-        <form onSubmit={handleSave} className="mt-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+        {/* Form */}
+        <form onSubmit={handleSave} className="space-y-4 pt-4" onClick={(e) => e.stopPropagation()}>
+          {/* Hours, Minutes & Seconds Input */}
           <div>
             <label className="block text-xs font-semibold text-[#8ea794] mb-1.5">
               Exact Cooldown Remaining:
             </label>
-            <div className="flex items-center justify-center gap-2 bg-[#09130e] border border-emerald-900/80 rounded-xl p-3">
-              <div className="flex items-center gap-1.5">
+            <div className="flex items-center justify-center gap-1.5 bg-[#09130e] border border-emerald-900/80 rounded-xl p-3">
+              <div className="flex items-center gap-1">
                 <input
                   ref={hoursInputRef}
                   type="number"
@@ -202,12 +212,12 @@ export function CustomTimerModal({
                   placeholder="0"
                   value={hours}
                   onChange={(e) => setHours(e.target.value)}
-                  className="w-16 rounded-lg border border-[#395040] bg-[#101e16] px-2 py-1.5 text-center text-sm font-mono font-bold text-white outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition"
+                  className="w-14 rounded-lg border border-[#395040] bg-[#101e16] px-1.5 py-1.5 text-center text-sm font-mono font-bold text-white outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition"
                 />
-                <span className="text-xs font-semibold text-gray-400">hours</span>
+                <span className="text-[11px] font-semibold text-gray-400">h</span>
               </div>
               <span className="text-gray-500 font-bold">:</span>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1">
                 <input
                   type="number"
                   min="0"
@@ -215,9 +225,22 @@ export function CustomTimerModal({
                   placeholder="0"
                   value={minutes}
                   onChange={(e) => setMinutes(e.target.value)}
-                  className="w-16 rounded-lg border border-[#395040] bg-[#101e16] px-2 py-1.5 text-center text-sm font-mono font-bold text-white outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition"
+                  className="w-14 rounded-lg border border-[#395040] bg-[#101e16] px-1.5 py-1.5 text-center text-sm font-mono font-bold text-white outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition"
                 />
-                <span className="text-xs font-semibold text-gray-400">mins</span>
+                <span className="text-[11px] font-semibold text-gray-400">m</span>
+              </div>
+              <span className="text-gray-500 font-bold">:</span>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min="0"
+                  max="59"
+                  placeholder="0"
+                  value={seconds}
+                  onChange={(e) => setSeconds(e.target.value)}
+                  className="w-14 rounded-lg border border-[#395040] bg-[#101e16] px-1.5 py-1.5 text-center text-sm font-mono font-bold text-white outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition"
+                />
+                <span className="text-[11px] font-semibold text-gray-400">s</span>
               </div>
             </div>
           </div>
@@ -251,12 +274,12 @@ export function CustomTimerModal({
             <span className="block text-[11px] font-semibold text-[#6d8a74] mb-1.5">
               Quick Cooldown Presets:
             </span>
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
               {PRESET_HOURS.map((preset) => (
                 <button
                   key={preset.label}
                   type="button"
-                  onClick={() => applyPreset(preset.h, preset.m)}
+                  onClick={() => applyPreset(preset.h, preset.m, preset.s)}
                   className="rounded-lg border border-[#2b4433] bg-[#112217] py-1.5 text-xs font-bold text-gray-300 hover:border-emerald-500 hover:bg-emerald-950/70 hover:text-emerald-300 transition cursor-pointer"
                 >
                   {preset.label}

@@ -491,6 +491,15 @@ export default function TrackerPage() {
       signedInUser?.email
     );
     setNotificationPreferences(updated);
+
+    // If turned ON, dispatch confirmation alert so user can verify audio, vibration & banner on device
+    if (nextState) {
+      sendCasinoReadyNotification(
+        casino.name,
+        "Alerts Active — You'll be notified when reset hits 00:00:00!",
+        "/tracker"
+      );
+    }
   };
 
   // Monitor countdown timers reaching zero and dispatch browser notifications
@@ -507,13 +516,17 @@ export default function TrackerPage() {
       const status = statusFor(casino);
       const wasReady = previousReadinessRef.current[casino.id];
 
+      // Reset debounce tracking whenever casino is on cooldown/pending
+      if (!status.ready) {
+        lastNotifiedAtRef.current[casino.id] = 0;
+      }
+
       // If casino was previously on cooldown/pending and is now ready
       if (isNotifEnabled && wasReady === false && status.ready) {
         const lastNotified = lastNotifiedAtRef.current[casino.id] || 0;
-        // Debounce: don't notify more than once every 2 minutes for the same casino
-        if (nowMs - lastNotified > 120000) {
+        if (nowMs - lastNotified > 30000) {
           lastNotifiedAtRef.current[casino.id] = nowMs;
-          sendCasinoReadyNotification(casino.name, casino.dailyBonus, casino.url);
+          sendCasinoReadyNotification(casino.name, casino.dailyBonus, "/tracker");
         }
       }
 
@@ -1096,6 +1109,10 @@ export default function TrackerPage() {
       delete next[targetCasino.id];
       return next;
     });
+    // Explicitly track cooldown transition for notification trigger
+    previousReadinessRef.current[targetCasino.id] = false;
+    lastNotifiedAtRef.current[targetCasino.id] = 0;
+
     const nowIso = new Date().toISOString();
     setCasinos((prev) => {
       const updated = prev.map((item) =>

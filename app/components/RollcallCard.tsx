@@ -12,7 +12,6 @@ import {
   X,
   Wallet,
   Bell,
-  BellRing,
 } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
