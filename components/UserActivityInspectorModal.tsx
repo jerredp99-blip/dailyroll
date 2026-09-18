@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Activity, X, RefreshCw, Award, Zap, Layers, Clock } from "lucide-react";
 import type { ActivityEvent } from "@/lib/activity";
+import { ActiveBadge } from "@/components/ActiveBadge";
 
 interface UserActivityInspectorModalProps {
   user: {
@@ -128,7 +129,10 @@ export function UserActivityInspectorModal({
                 Activity Telemetry Inspector
               </h2>
             </div>
-            <p className="text-xs text-emerald-400/90 font-medium mt-1">{user.email}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-xs text-emerald-400/90 font-medium">{user.email}</p>
+              <ActiveBadge lastActiveAt={summary.last_active} />
+            </div>
             <p className="text-[11px] text-zinc-400 mt-0.5 flex items-center gap-1">
               <Clock className="w-3 h-3 text-emerald-400/70" />
               <span>Last Active: </span>
