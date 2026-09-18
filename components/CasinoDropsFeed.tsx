@@ -7,6 +7,8 @@ import type { Post } from "@/lib/store";
 import type { Casino } from "@/types/casino";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 
+import { notifyDropClaimed } from "@/lib/dropsStore";
+
 const CLAIMED_DROPS_STORAGE_KEY = "dailyroll_claimed_drop_ids";
 
 export function CasinoDropsFeed({ casino }: { casino: Casino }) {
@@ -27,14 +29,10 @@ export function CasinoDropsFeed({ casino }: { casino: Casino }) {
   }, []);
 
   const markDropClaimed = (postId: string) => {
+    notifyDropClaimed(postId);
     setClaimedDropIds((prev) => {
       if (prev.includes(postId)) return prev;
       const next = [...prev, postId];
-      try {
-        localStorage.setItem(CLAIMED_DROPS_STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // Ignore
-      }
       return next;
     });
   };

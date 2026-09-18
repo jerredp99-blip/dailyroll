@@ -30,8 +30,13 @@ export function isBonusDrop(post: any): boolean {
 export function getClaimedDropIds(): string[] {
   if (typeof window === "undefined") return [];
   try {
-    const stored = JSON.parse(localStorage.getItem("dailyroll_claimed_drops") || "[]");
-    return Array.isArray(stored) ? stored : [];
+    const s1 = JSON.parse(localStorage.getItem("dailyroll_claimed_drops") || "[]");
+    const s2 = JSON.parse(localStorage.getItem("dailyroll_claimed_drop_ids") || "[]");
+    const s3 = JSON.parse(localStorage.getItem("claimed_bonus_drop_ids") || "[]");
+    const a1 = Array.isArray(s1) ? s1 : [];
+    const a2 = Array.isArray(s2) ? s2 : [];
+    const a3 = Array.isArray(s3) ? s3 : [];
+    return Array.from(new Set([...a1, ...a2, ...a3]));
   } catch {
     return [];
   }
@@ -146,10 +151,10 @@ export function notifyDropClaimed(postId: string): void {
   try {
     const list = getClaimedDropIds();
     if (!list.includes(postId)) {
-      localStorage.setItem(
-        "dailyroll_claimed_drops",
-        JSON.stringify([...list, postId])
-      );
+      const next = [...list, postId];
+      localStorage.setItem("dailyroll_claimed_drops", JSON.stringify(next));
+      localStorage.setItem("dailyroll_claimed_drop_ids", JSON.stringify(next));
+      localStorage.setItem("claimed_bonus_drop_ids", JSON.stringify(next));
     }
   } catch {}
   window.dispatchEvent(

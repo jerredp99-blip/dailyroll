@@ -266,6 +266,7 @@ const STATUS_STYLES: Record<
 
 export default function TrackerPage() {
   const router = useRouter();
+  const unclaimedDropsCount = useActiveDropsCount();
   const [isLoading, setIsLoading] = useState(() => {
     if (typeof window !== "undefined") {
       try {
@@ -2070,17 +2071,22 @@ export default function TrackerPage() {
                   </Button>
                 </div>
 
-                {/* Tactile Gift Drops Button */}
-                <Button
+                {/* Tactile Gift Drops Button with Unclaimed Counter Badge */}
+                <button
                   type="button"
-                  variant="warning"
-                  size="icon"
                   onClick={() => setActiveDrawer((prev) => (prev === "drops" ? null : "drops"))}
-                  className="w-10 h-10 shrink-0"
-                  title="Active Bonus Drops"
+                  className="relative h-10 w-10 rounded-2xl bg-zinc-900/90 border border-emerald-500/20 hover:border-emerald-500/40 flex items-center justify-center text-emerald-400 hover:text-emerald-300 transition-all shrink-0 cursor-pointer"
+                  title="Bonus Drops"
+                  aria-label={`Bonus Drops (${unclaimedDropsCount} unclaimed)`}
                 >
-                  <Gift className="w-4 h-4 fill-amber-400/20" />
-                </Button>
+                  <Gift className="w-4 h-4 text-emerald-400" />
+
+                  {unclaimedDropsCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center shadow-[0_0_8px_rgba(244,63,94,0.6)] border border-zinc-950 animate-in zoom-in-50 duration-150">
+                      {unclaimedDropsCount > 99 ? "99+" : unclaimedDropsCount}
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
 

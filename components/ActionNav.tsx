@@ -18,8 +18,8 @@ export function ActionNav({ unclaimedBonusDropsCount }: NavActionsProps) {
         <span>Bonus Drops</span>
 
         {unclaimedBonusDropsCount > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[1.125rem] h-[1.125rem] px-1 text-[10px] font-bold text-black bg-emerald-400 rounded-full shadow-sm animate-pulse">
-            {unclaimedBonusDropsCount > 99 ? '99+' : unclaimedBonusDropsCount}
+          <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center shadow-[0_0_8px_rgba(244,63,94,0.6)] border border-zinc-950 animate-in zoom-in-50 duration-150">
+            {unclaimedBonusDropsCount > 99 ? "99+" : unclaimedBonusDropsCount}
           </span>
         )}
       </Link>
