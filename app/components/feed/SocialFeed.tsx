@@ -638,6 +638,7 @@ export function SocialFeed({
                   post={post}
                   currentUserEmail={currentUserEmail}
                   isAdmin={isAdmin}
+                  casinos={casinos}
                   onSelectTag={handleSelectTag}
                   onPostUpdated={handlePostUpdated}
                   onPostDeleted={handlePostDeleted}

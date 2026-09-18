@@ -21,9 +21,11 @@ import {
 import { TagBadge } from "@/app/components/feed/TagBadge";
 import { CATEGORY_TAGS, CASINO_TAGS } from "@/lib/casino-tags";
 import type { Post, Comment } from "@/lib/store";
+import type { Casino } from "@/types/casino";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { BonusDropBanner } from "@/components/BonusDropBanner";
 import { notifyDropFeedback } from "@/lib/dropsStore";
+import { getActiveRollcallCasinoKeys, isDropInUserRollcall } from "@/lib/userCasinos";
 
 const EMOJI_OPTIONS = ["🔥", "🎰", "💎", "🚀"];
 
@@ -86,6 +88,7 @@ function PostCardComponent({
   post,
   currentUserEmail,
   isAdmin,
+  casinos,
   onSelectTag,
   onPostUpdated,
   onPostDeleted,
@@ -95,6 +98,7 @@ function PostCardComponent({
   post: Post;
   currentUserEmail?: string;
   isAdmin?: boolean;
+  casinos?: Casino[];
   onSelectTag?: (tag: string) => void;
   onPostUpdated?: (post: Post) => void;
   onPostDeleted?: (postId: string) => void;
@@ -102,6 +106,16 @@ function PostCardComponent({
   onToggleMenu?: (open: boolean, postId?: string) => void;
 }) {
   const [currentPost, setCurrentPost] = useState<Post>(post);
+
+  const activeRollcallKeys = useMemo(
+    () => getActiveRollcallCasinoKeys(casinos),
+    [casinos]
+  );
+
+  const isRollcallAdded = useMemo(() => {
+    if (!casinos || casinos.length === 0) return true;
+    return isDropInUserRollcall(currentPost, activeRollcallKeys);
+  }, [currentPost, casinos, activeRollcallKeys]);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -949,6 +963,7 @@ function PostCardComponent({
               postId={currentPost.id}
               dropCode={currentPost.dropCode}
               targetUrl={destinationUrl}
+              casinoName={currentPost.casinoName}
               casinoTag={
                 currentPost.casinoTag ||
                 currentPost.tags?.find(
@@ -958,6 +973,7 @@ function PostCardComponent({
                     )
                 )
               }
+              isRollcallAdded={isRollcallAdded}
               className={isBonusDrop ? "mt-1.5" : "mt-3.5"}
             />
           )}
