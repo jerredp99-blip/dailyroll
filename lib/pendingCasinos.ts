@@ -279,6 +279,19 @@ export const additionalPendingCasinos: PendingCasinoData[] = [
     isPublished: false,
     pendingReview: true,
   },
+  {
+    name: "SidePot",
+    slug: "sidepot",
+    siteUrl: "https://sidepotcasino.com",
+    dailyBonus: "0.20 SC (6h Reload)",
+    dailyBonusSc: "0.20",
+    dailyScAmount: 0.2,
+    minRedemption: "$50 Min Cashout",
+    intervalHours: 6,
+    claimTip: "Claim 0.20 SC reload every 6 hours from promotions tab",
+    isPublished: false,
+    pendingReview: true,
+  },
 ];
 
 export const ALL_PENDING_CASINOS: PendingCasinoData[] = [

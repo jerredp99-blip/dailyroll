@@ -113,6 +113,16 @@ export const MASTER_CASINOS_DATA: CasinoSeedData[] = [
     resetRule: "Rolling 24 Hours",
     hasStreak: true,
   },
+  {
+    name: "SidePot",
+    siteUrl: "https://sidepotcasino.com",
+    dailyBonus: "0.20 SC every 6h",
+    dailyBonusSc: "0.20",
+    minRedemption: "$50 Min Cash",
+    intervalHours: 6,
+    resetRule: "6-Hour Reload",
+    hasStreak: false,
+  },
 ];
 
 const DATA_BY_NAME: Record<string, CasinoSeedData> = Object.fromEntries(

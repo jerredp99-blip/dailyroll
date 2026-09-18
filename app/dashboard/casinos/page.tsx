@@ -50,6 +50,7 @@ export default function AdminCasinosPage() {
   const [details, setDetails] = useState("");
   const [rating, setRating] = useState("");
   const [resetTime, setResetTime] = useState("");
+  const [resetHours, setResetHours] = useState(24);
   const [error, setError] = useState("");
 
   const [directoryList, setDirectoryList] = useState<string[]>(casinoDirectory);
@@ -326,6 +327,7 @@ export default function AdminCasinosPage() {
     setDetails(casino.details || "");
     setRating(typeof casino.trustpilotRating === "number" ? String(casino.trustpilotRating) : "");
     setResetTime(casino.resetAtTime || "");
+    setResetHours(casino.intervalHours || 24);
     setError("");
   }
 
@@ -354,6 +356,7 @@ export default function AdminCasinosPage() {
       details: details.trim() || null,
       trustpilotRating: parsedRating ?? null,
       resetAtTime: resetTime || null,
+      intervalHours: resetHours || 24,
     };
     const updatedRecords = records.map((record) => record.user.email === editing.user.email
       ? { ...record, casinos: record.casinos.map((casino) => casino.id === editing.casino.id ? updatedCasino : casino) }
@@ -373,6 +376,7 @@ export default function AdminCasinosPage() {
         dailyBonus: bonus.trim() || "Free daily",
         details: details.trim() || null,
         resetAtTime: resetTime || null,
+        intervalHours: resetHours || 24,
       });
       setEditing(null);
     } catch (saveError) {
@@ -634,47 +638,112 @@ export default function AdminCasinosPage() {
                             />
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-400 block mb-1">
-                              Timer Cycle (Hours)
-                            </label>
-                            <input
-                              type="number"
-                              value={form.resetHours !== undefined ? form.resetHours : casino.intervalHours ?? 24}
-                              onChange={(e) => handlePendingInputChange(casino.name, "resetHours", parseInt(e.target.value))}
-                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
-                              Fixed Reset Time (PST)
-                            </label>
-                            <select
-                              value={form.resetAtTime !== undefined ? form.resetAtTime : casino.resetAtTime || ""}
-                              onChange={(e) => handlePendingInputChange(casino.name, "resetAtTime", e.target.value)}
-                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-2.5 text-xs text-white focus:border-emerald-400 outline-none cursor-pointer"
-                            >
-                              {PACIFIC_TIME_OPTIONS.map((opt) => (
-                                <option key={opt.value} value={opt.value} className="bg-[#121d17] text-white">
-                                  {opt.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-400 block mb-1">
-                              Claim Tip
-                            </label>
-                            <input
-                              type="text"
-                              value={form.claimTip !== undefined ? form.claimTip : casino.claimTip || ""}
-                              placeholder="e.g. Click store popup"
-                              onChange={(e) => handlePendingInputChange(casino.name, "claimTip", e.target.value)}
-                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
-                            />
-                          </div>
-                        </div>
+                        {(() => {
+                          const currentResetAtTime = form.resetAtTime !== undefined ? form.resetAtTime : casino.resetAtTime || "";
+                          const currentResetHours = form.resetHours !== undefined ? form.resetHours : casino.intervalHours ?? 24;
+
+                          let currentResetMode = "ROLLING_24";
+                          if (currentResetAtTime && currentResetAtTime.trim() !== "") {
+                            currentResetMode = "FIXED";
+                          } else if (currentResetHours === 6) {
+                            currentResetMode = "INTERVAL_6";
+                          } else if (currentResetHours === 4) {
+                            currentResetMode = "INTERVAL_4";
+                          } else if (currentResetHours !== 24) {
+                            currentResetMode = "INTERVAL_CUSTOM";
+                          }
+
+                          return (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
+                              <div>
+                                <label className="text-[10px] font-bold text-gray-400 block mb-1">
+                                  Reset Mode
+                                </label>
+                                <select
+                                  value={currentResetMode}
+                                  onChange={(e) => {
+                                    const mode = e.target.value;
+                                    if (mode === "ROLLING_24") {
+                                      handlePendingInputChange(casino.name, "resetHours", 24);
+                                      handlePendingInputChange(casino.name, "resetAtTime", "");
+                                    } else if (mode === "INTERVAL_6") {
+                                      handlePendingInputChange(casino.name, "resetHours", 6);
+                                      handlePendingInputChange(casino.name, "resetAtTime", "");
+                                    } else if (mode === "INTERVAL_4") {
+                                      handlePendingInputChange(casino.name, "resetHours", 4);
+                                      handlePendingInputChange(casino.name, "resetAtTime", "");
+                                    } else if (mode === "INTERVAL_CUSTOM") {
+                                      handlePendingInputChange(
+                                        casino.name,
+                                        "resetHours",
+                                        currentResetHours === 24 || currentResetHours === 6 || currentResetHours === 4 ? 6 : currentResetHours
+                                      );
+                                      handlePendingInputChange(casino.name, "resetAtTime", "");
+                                    } else if (mode === "FIXED") {
+                                      handlePendingInputChange(casino.name, "resetHours", 24);
+                                      handlePendingInputChange(casino.name, "resetAtTime", currentResetAtTime || "00:00");
+                                    }
+                                  }}
+                                  className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-2.5 text-xs text-white focus:border-emerald-400 outline-none cursor-pointer"
+                                >
+                                  <option value="ROLLING_24" className="bg-[#121d17] text-white">Rolling 24 Hours</option>
+                                  <option value="INTERVAL_6" className="bg-[#121d17] text-white">6-Hour Reload (e.g. SidePot)</option>
+                                  <option value="INTERVAL_4" className="bg-[#121d17] text-white">4-Hour Reload</option>
+                                  <option value="INTERVAL_CUSTOM" className="bg-[#121d17] text-white">Custom Interval (Hours)</option>
+                                  <option value="FIXED" className="bg-[#121d17] text-white">Fixed Daily Clock Time (PST)</option>
+                                </select>
+                              </div>
+
+                              {currentResetMode === "FIXED" && (
+                                <div>
+                                  <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                                    Fixed Reset Time (PST)
+                                  </label>
+                                  <select
+                                    value={currentResetAtTime || "00:00"}
+                                    onChange={(e) => handlePendingInputChange(casino.name, "resetAtTime", e.target.value)}
+                                    className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-2.5 text-xs text-white focus:border-emerald-400 outline-none cursor-pointer"
+                                  >
+                                    {PACIFIC_TIME_OPTIONS.filter((opt) => opt.value !== "").map((opt) => (
+                                      <option key={opt.value} value={opt.value} className="bg-[#121d17] text-white">
+                                        {opt.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+
+                              {currentResetMode === "INTERVAL_CUSTOM" && (
+                                <div>
+                                  <label className="text-[10px] font-bold text-gray-400 block mb-1">
+                                    Cycle Duration (Hours)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max="168"
+                                    value={currentResetHours}
+                                    onChange={(e) => handlePendingInputChange(casino.name, "resetHours", parseInt(e.target.value) || 24)}
+                                    className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                                  />
+                                </div>
+                              )}
+
+                              <div>
+                                <label className="text-[10px] font-bold text-gray-400 block mb-1">
+                                  Claim Tip
+                                </label>
+                                <input
+                                  type="text"
+                                  value={form.claimTip !== undefined ? form.claimTip : casino.claimTip || ""}
+                                  placeholder="e.g. Click store popup"
+                                  onChange={(e) => handlePendingInputChange(casino.name, "claimTip", e.target.value)}
+                                  className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                                />
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* 3. Redemption & Affiliate */}
