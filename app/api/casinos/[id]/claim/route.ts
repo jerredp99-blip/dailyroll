@@ -54,3 +54,4 @@ export async function POST(
     return NextResponse.json({ error: "Failed to record claim" }, { status: 500 });
   }
 }
+

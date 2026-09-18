@@ -315,32 +315,32 @@ export function TopBar() {
                           router.push("/tracker?feed=open");
                         }
                       }}
-                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-zinc-300 hover:bg-emerald-950/40 hover:text-emerald-400 transition-colors cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-200 hover:text-white hover:bg-emerald-500/10 transition-colors text-left cursor-pointer"
                       role="menuitem"
                     >
-                      <MessageSquare className="w-4 h-4 text-emerald-400" />
-                      <span>Feed & Chat</span>
+                      <MessageSquare className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>Chat</span>
                     </button>
 
                     <Link
                       href="/tracker"
                       onClick={() => setIsAccountMenuOpen(false)}
-                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-zinc-300 hover:bg-emerald-950/40 hover:text-white transition-colors"
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-zinc-200 hover:text-white hover:bg-emerald-500/10 transition-colors text-left cursor-pointer"
                       role="menuitem"
                     >
-                      <Compass className="w-4 h-4 text-teal-400" />
+                      <Compass className="w-4 h-4 text-teal-400 shrink-0" />
                       <span>Rollcall</span>
                     </Link>
                   </div>
 
-                  <div className="border-t border-emerald-950/80 pt-1">
+                  <div className="border-t border-zinc-800/80 pt-2.5 mt-1">
                     <button
                       type="button"
                       onClick={handleSignOut}
-                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-950/30 hover:text-rose-300 transition-colors cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-300 hover:text-rose-100 hover:bg-rose-500/10 transition-colors text-left cursor-pointer"
                       role="menuitem"
                     >
-                      <LogOut className="w-4 h-4 text-rose-400" />
+                      <LogOut className="w-4 h-4 text-rose-400 shrink-0" />
                       <span>Sign out</span>
                     </button>
                   </div>
@@ -351,7 +351,7 @@ export function TopBar() {
             pathname !== "/sign-in" && pathname !== "/" && pathname !== "/login" && (
               <Link
                 href="/sign-in"
-                className="text-sm font-semibold text-[#9bcf9c] hover:text-[#c2e4bd]"
+                className="text-xs sm:text-sm font-bold text-white hover:text-emerald-300 bg-emerald-600/30 border border-emerald-500/40 rounded-xl px-3.5 py-1.5 transition-all shadow-sm"
               >
                 Sign in
               </Link>

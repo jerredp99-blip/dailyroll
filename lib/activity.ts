@@ -52,3 +52,4 @@ export async function trackUserActivity(
     console.error("Failed to log activity:", err);
   }
 }
+
