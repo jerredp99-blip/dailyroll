@@ -14,6 +14,11 @@ export interface FeedModalProps {
   isAdmin?: boolean;
   casinos?: Casino[];
   onClaimCasino?: (casino: Casino) => void;
+  isBonusDropsOpen?: boolean;
+  setIsBonusDropsOpen?: (open: boolean) => void;
+  isAddCasinosOpen?: boolean;
+  setIsAddCasinosOpen?: (open: boolean) => void;
+  onOpenAddCasinos?: () => void;
 }
 
 export function FeedModal({
@@ -25,8 +30,14 @@ export function FeedModal({
   isAdmin,
   casinos,
   onClaimCasino,
+  isBonusDropsOpen,
+  setIsBonusDropsOpen,
+  isAddCasinosOpen,
+  setIsAddCasinosOpen,
+  onOpenAddCasinos,
 }: FeedModalProps) {
-  if (!isOpen) return null;
+  const effectiveIsOpen = isOpen ?? false;
+  if (!effectiveIsOpen) return null;
 
   return (
     <div
@@ -71,6 +82,9 @@ export function FeedModal({
             casinos={casinos}
             onClaimCasino={onClaimCasino}
             onClose={onClose}
+            setIsBonusDropsOpen={setIsBonusDropsOpen || ((open) => { if (!open) onClose(); })}
+            setIsAddCasinosOpen={setIsAddCasinosOpen}
+            onOpenAddCasinos={onOpenAddCasinos}
           />
         </div>
       </div>

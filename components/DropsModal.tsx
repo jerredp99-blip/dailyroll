@@ -14,6 +14,11 @@ export interface DropsModalProps {
   isAdmin?: boolean;
   casinos?: Casino[];
   onClaimCasino?: (casino: Casino) => void;
+  isBonusDropsOpen?: boolean;
+  setIsBonusDropsOpen?: (open: boolean) => void;
+  isAddCasinosOpen?: boolean;
+  setIsAddCasinosOpen?: (open: boolean) => void;
+  onOpenAddCasinos?: () => void;
 }
 
 export function DropsModal({
@@ -25,8 +30,14 @@ export function DropsModal({
   isAdmin,
   casinos,
   onClaimCasino,
+  isBonusDropsOpen,
+  setIsBonusDropsOpen,
+  isAddCasinosOpen,
+  setIsAddCasinosOpen,
+  onOpenAddCasinos,
 }: DropsModalProps) {
-  if (!isOpen) return null;
+  const effectiveIsOpen = isOpen ?? isBonusDropsOpen ?? false;
+  if (!effectiveIsOpen) return null;
 
   return (
     <div
@@ -72,6 +83,9 @@ export function DropsModal({
             casinos={casinos}
             onClaimCasino={onClaimCasino}
             onClose={onClose}
+            setIsBonusDropsOpen={setIsBonusDropsOpen || ((open) => { if (!open) onClose(); })}
+            setIsAddCasinosOpen={setIsAddCasinosOpen}
+            onOpenAddCasinos={onOpenAddCasinos}
           />
         </div>
       </div>

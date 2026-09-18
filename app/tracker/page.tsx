@@ -2785,6 +2785,18 @@ export default function TrackerPage() {
                 casinos={casinos}
                 onClaimCasino={handleClaimFromFeed}
                 onClose={() => setActiveDrawer(null)}
+                setIsBonusDropsOpen={(open) => {
+                  if (!open) setActiveDrawer(null);
+                  else setActiveDrawer("drops");
+                }}
+                setIsAddCasinosOpen={(open) => {
+                  setIsAddCasinosModalOpen(open);
+                  if (open) setActiveDrawer(null);
+                }}
+                onOpenAddCasinos={() => {
+                  setActiveDrawer(null);
+                  setIsAddCasinosModalOpen(true);
+                }}
               />
             </div>
           </div>
