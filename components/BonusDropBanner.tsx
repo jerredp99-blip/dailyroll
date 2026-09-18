@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, ExternalLink } from "lucide-react";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { notifyDropClaimed, getClaimedDropIds } from "@/lib/dropsStore";
 
@@ -84,17 +84,17 @@ export function BonusDropBanner({
   };
 
   return (
-    <div className={`w-full space-y-2 ${className}`}>
+    <div className={`w-full flex flex-col gap-2 ${className}`}>
       {/* Optional Offer Title */}
       {offerTitle && (
-        <h4 className="w-full text-center uppercase tracking-wider font-extrabold text-base sm:text-lg text-white my-1.5 leading-snug">
+        <h4 className="w-full text-xs sm:text-sm font-black text-white tracking-wide truncate whitespace-nowrap my-0.5">
           {offerTitle}
         </h4>
       )}
 
       {/* Promo Code Row (Compact) */}
       {dropCode && (
-        <div className="bg-zinc-950/60 border border-dashed border-zinc-700 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+        <div className="bg-zinc-950/80 border border-dashed border-zinc-700/80 rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 shrink-0">
               CODE:
@@ -106,7 +106,7 @@ export function BonusDropBanner({
           <button
             type="button"
             onClick={handleCopyCode}
-            className={`border border-zinc-700 hover:border-zinc-600 bg-zinc-900 text-zinc-300 hover:text-white px-2.5 py-1 text-[11px] font-semibold rounded-md transition active:scale-95 flex items-center gap-1 shrink-0 ${
+            className={`border border-zinc-700/80 hover:border-zinc-600 bg-zinc-900 text-zinc-300 hover:text-white px-2 py-0.5 text-[11px] font-semibold rounded-md transition active:scale-95 flex items-center gap-1 shrink-0 cursor-pointer ${
               copied ? "border-emerald-500 text-emerald-400" : ""
             }`}
           >
@@ -125,20 +125,28 @@ export function BonusDropBanner({
         </div>
       )}
 
-      {/* Action Row: Defined High-Contrast Claim Bonus Action Button */}
+      {/* Action Row: High-Contrast Claim Bonus / Claimed Button */}
       {targetUrl && (
-        <div className="w-full flex justify-center pt-0.5">
-          <button
-            type="button"
-            onClick={handleClaim}
-            className={`w-full max-w-xs mx-auto h-10 px-4 rounded-lg flex items-center justify-center text-sm font-bold tracking-wide cursor-pointer select-none transition-all active:scale-[0.98] ${
-              isClaimed
-                ? "bg-zinc-800/80 text-zinc-400 border border-zinc-700 font-medium"
-                : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold shadow-md shadow-emerald-500/20"
-            }`}
-          >
-            {isClaimed ? "Claimed ✓" : "Claim Bonus ↗"}
-          </button>
+        <div className="w-full flex justify-end pt-0.5" data-stop-propagation="true" onClick={(e) => e.stopPropagation()}>
+          {isClaimed ? (
+            <button
+              type="button"
+              disabled
+              className="h-8 px-3 rounded-lg text-xs font-bold text-zinc-500 bg-zinc-950/80 border border-zinc-800/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] cursor-not-allowed whitespace-nowrap shrink-0 flex items-center gap-1.5 select-none opacity-75"
+            >
+              <span>Claimed</span>
+              <Check className="w-3.5 h-3.5 text-zinc-600" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleClaim}
+              className="h-8 px-3 rounded-lg text-xs font-bold text-white bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 hover:brightness-110 active:translate-y-0.5 border-t border-emerald-300/40 shadow-[0_2px_8px_rgba(16,185,129,0.35)] whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-all select-none cursor-pointer"
+            >
+              <span>Claim Bonus</span>
+              <ExternalLink className="w-3.5 h-3.5 text-emerald-200 stroke-[2.5]" />
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -128,77 +128,95 @@ export function CasinoDropsFeed({ casino }: { casino: Casino }) {
         return (
           <div
             key={drop.id}
-            className={`relative rounded-xl border p-3.5 transition ${
-              isClaimed
-                ? "border-emerald-950/60 bg-[#0c1410] opacity-75"
-                : "border-emerald-700/60 bg-[#112117] shadow-[0_4px_16px_rgba(0,0,0,0.25)] ring-1 ring-emerald-500/20"
+            className={`w-full p-2.5 sm:p-3 rounded-xl bg-zinc-900/90 border border-emerald-500/25 hover:border-emerald-500/40 shadow-md transition-all flex flex-col gap-2 ${
+              isClaimed ? "opacity-75" : ""
             }`}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                {/* Title and Pin status */}
-                <div className="flex items-center gap-2 mb-1">
-                  {!isClaimed && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-300 border border-emerald-500/40">
-                      <Pin size={10} />
-                      Active Drop
-                    </span>
-                  )}
-                  {isClaimed && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-gray-800/80 px-2 py-0.5 text-[10px] font-semibold text-gray-400 border border-gray-700/50">
-                      Claimed / Visited
-                    </span>
-                  )}
-                  <span className="text-[11px] text-gray-400">
-                    by {drop.authorName || "Admin"}
-                  </span>
+            {/* Compact Header: Author & Timestamp */}
+            <div className="flex items-center justify-between gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-[10px] font-bold text-emerald-400 shrink-0">
+                  {(drop.authorName || "AD").slice(0, 2).toUpperCase()}
                 </div>
-
-                <p className="text-sm font-semibold text-gray-200 break-words mb-2.5">
-                  {drop.content}
-                </p>
-
-                {/* Drop code box if present */}
-                {code && (
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                      Code:
-                    </span>
-                    <div className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-600/40 bg-[#172c1f] px-2.5 py-1 font-mono text-xs font-bold text-emerald-200">
-                      <span>{code}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyCode(drop.id, code)}
-                        className="ml-1 text-emerald-400 hover:text-white transition cursor-pointer"
-                        title="Copy code"
-                      >
-                        {copiedCodeId === drop.id ? (
-                          <Check size={13} className="text-emerald-300" />
-                        ) : (
-                          <Copy size={13} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <span className="text-xs font-semibold text-zinc-300 truncate max-w-[140px] sm:max-w-none">
+                  {drop.authorName || "Admin"}
+                </span>
+                <span className="text-[10px] text-zinc-500 whitespace-nowrap shrink-0">
+                  • {drop.createdAt ? new Date(drop.createdAt).toLocaleDateString() : "active"}
+                </span>
               </div>
 
-              {/* Action button */}
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-[10px] font-bold text-amber-300 uppercase tracking-wide whitespace-nowrap shrink-0">
+                🎁 BONUS DROP
+              </span>
+            </div>
+
+            {/* Main Row: Single-line Title & Action Button */}
+            <div className="flex items-center justify-between gap-3 min-w-0">
+              <div className="min-w-0 flex-1">
+                <h4 className="text-xs sm:text-sm font-black text-white tracking-wide truncate whitespace-nowrap">
+                  {drop.content}
+                </h4>
+              </div>
+
+              {/* Distinct Button States */}
               {claimUrl && (
-                <button
-                  type="button"
-                  onClick={() => handleClaimLink(drop.id, claimUrl)}
-                  className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
-                    isClaimed
-                      ? "border border-gray-700/60 bg-gray-800/60 text-gray-300 hover:bg-gray-700 hover:text-white"
-                      : "bg-[#39ff6a] text-black hover:bg-[#5aff84] shadow-[0_4px_12px_rgba(57,255,106,0.3)]"
-                  }`}
-                >
-                  <span>{isClaimed ? "Reopen" : "Claim"}</span>
-                  <ExternalLink size={12} />
-                </button>
+                <>
+                  {isClaimed ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="h-8 px-3 rounded-lg text-xs font-bold text-zinc-500 bg-zinc-950/80 border border-zinc-800/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] cursor-not-allowed whitespace-nowrap shrink-0 flex items-center gap-1.5 select-none opacity-75"
+                    >
+                      <span>Claimed</span>
+                      <Check className="w-3.5 h-3.5 text-zinc-600" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleClaimLink(drop.id, claimUrl)}
+                      className="h-8 px-3 rounded-lg text-xs font-bold text-white bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 hover:brightness-110 active:translate-y-0.5 border-t border-emerald-300/40 shadow-[0_2px_8px_rgba(16,185,129,0.35)] whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-all select-none cursor-pointer"
+                    >
+                      <span>Claim Bonus</span>
+                      <ExternalLink className="w-3.5 h-3.5 text-emerald-200 stroke-[2.5]" />
+                    </button>
+                  )}
+                </>
               )}
             </div>
+
+            {/* Code Box if code exists */}
+            {code && (
+              <div className="bg-zinc-950/80 border border-dashed border-zinc-700/80 rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 shrink-0">
+                    CODE:
+                  </span>
+                  <code className="font-mono text-xs sm:text-sm font-bold tracking-wider text-emerald-400 select-all truncate">
+                    {code}
+                  </code>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCopyCode(drop.id, code)}
+                  className={`border border-zinc-700/80 hover:border-zinc-600 bg-zinc-900 text-zinc-300 hover:text-white px-2 py-0.5 text-[11px] font-semibold rounded-md transition active:scale-95 flex items-center gap-1 shrink-0 cursor-pointer ${
+                    copiedCodeId === drop.id ? "border-emerald-500 text-emerald-400" : ""
+                  }`}
+                >
+                  {copiedCodeId === drop.id ? (
+                    <>
+                      <Check size={11} className="text-emerald-400" strokeWidth={2.5} />
+                      <span>Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={11} />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         );
       })}
