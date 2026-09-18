@@ -48,6 +48,7 @@ export async function GET() {
     const resetTimes: Record<string, string | null> = { ...(directory.resetTimes || {}) };
     const details: Record<string, string> = { ...(directory.details || {}) };
     const providers: Record<string, string> = { ...(directory.providers || {}) };
+    const signupBonusText: Record<string, string> = { ...(directory.signupBonusText || {}) };
 
     for (const casino of adminCasinos ?? []) {
       const numericRating = Number(casino.trustpilotRating);
@@ -64,6 +65,7 @@ export async function GET() {
       if (casino.resetAtTime) resetTimes[casino.name] = casino.resetAtTime;
       if (casino.details) details[casino.name] = casino.details;
       if (casino.provider) providers[casino.name] = casino.provider;
+      if (casino.signupBonusText) signupBonusText[casino.name] = casino.signupBonusText;
     }
 
     return NextResponse.json(
@@ -79,6 +81,7 @@ export async function GET() {
         resetTimes,
         details,
         providers,
+        signupBonusText,
       },
       { headers: NO_CACHE_HEADERS },
     );
@@ -109,6 +112,7 @@ export async function POST(request: NextRequest) {
       resetTimes?: Record<string, string | null>;
       details?: Record<string, string>;
       providers?: Record<string, string>;
+      signupBonusText?: Record<string, string>;
     };
 
     // Atomic mutation: update directory and propagate changes to all user records in ONE step
@@ -143,6 +147,11 @@ export async function POST(request: NextRequest) {
           ...(store.directoryProviders || {}),
           ...body.providers,
         };
+      if (body.signupBonusText)
+        store.directorySignupBonusText = {
+          ...(store.directorySignupBonusText || {}),
+          ...body.signupBonusText,
+        };
 
       if (
         body.urls ||
@@ -154,7 +163,8 @@ export async function POST(request: NextRequest) {
         body.dailyBonuses ||
         body.resetTimes ||
         body.details ||
-        body.providers
+        body.providers ||
+        body.signupBonusText
       ) {
         const siteUrlsByLowerName = new Map(
           Object.entries(body.urls || {}).map(([name, url]) => [name.trim().toLowerCase(), url]),

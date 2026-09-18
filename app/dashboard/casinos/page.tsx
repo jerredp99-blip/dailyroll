@@ -102,6 +102,7 @@ export default function AdminCasinosPage() {
         minRedemptionText?: string;
         minRedemption?: string;
         affiliateUrl?: string;
+        signupBonusText?: string;
       }
     >
   >({});
@@ -792,7 +793,19 @@ export default function AdminCasinosPage() {
                         <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider block mb-2">
                           Redemption &amp; Affiliate
                         </span>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                              Sign Up Bonus Text
+                            </label>
+                            <input
+                              type="text"
+                              value={form.signupBonusText !== undefined ? form.signupBonusText : (casino as unknown as { signupBonusText?: string }).signupBonusText || ""}
+                              placeholder="e.g. 2.00 SC or 10 SC"
+                              onChange={(e) => handlePendingInputChange(casino.name, "signupBonusText", e.target.value)}
+                              className="w-full h-9 bg-[#09120d] border border-[#243d2e] rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                            />
+                          </div>
                           <div>
                             <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
                               Minimum Redemption

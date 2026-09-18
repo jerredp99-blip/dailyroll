@@ -32,6 +32,7 @@ export function AdminCasinoDataForm({
     trustpilotRating: casino.trustpilotRating ? String(casino.trustpilotRating) : "",
     claimTip: casino.claimTip ?? casino.claimInstructions ?? casino.details ?? "",
     details: casino.details || "",
+    signupBonusText: casino.signupBonusText || "",
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -70,6 +71,7 @@ export function AdminCasinoDataForm({
           claimTip: formData.claimTip.trim() || null,
           claimInstructions: formData.claimTip.trim() || null,
           details: formData.details.trim() || null,
+          signupBonusText: formData.signupBonusText.trim() || null,
         }),
       });
 
@@ -175,9 +177,22 @@ export function AdminCasinoDataForm({
           {/* Section 2: Daily Bonus Specs */}
           <div className="border-t border-emerald-900/60 pt-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-3">
-              Daily Bonus Specs
+              Bonus & Sign Up Specs
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-3.5">
+              <div>
+                <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                  Sign Up Bonus Text
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 2.00 SC or 10 SC"
+                  value={formData.signupBonusText || ""}
+                  onChange={(e) => handleChange("signupBonusText", e.target.value)}
+                  className="w-full h-9 bg-zinc-950 border border-zinc-800 rounded-xl px-3 text-xs text-white focus:border-emerald-400 outline-none"
+                />
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-gray-300 mb-1">
                   Daily Bonus Label
@@ -190,7 +205,9 @@ export function AdminCasinoDataForm({
                   placeholder="e.g. 1.00 SC"
                 />
               </div>
+            </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-xs font-semibold text-gray-300 mb-1">
                   Daily SC Amount

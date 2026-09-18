@@ -13,6 +13,7 @@ export interface PendingCasinoData {
   claimTip: string;
   isPublished: boolean;
   pendingReview: boolean;
+  signupBonusText?: string;
 }
 
 export const PENDING_CASINOS_BATCH: PendingCasinoData[] = [

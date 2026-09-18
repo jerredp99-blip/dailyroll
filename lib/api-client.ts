@@ -119,6 +119,7 @@ export type DirectoryData = {
   hasStreak?: Record<string, boolean>;
   pendingReview?: Record<string, boolean>;
   published?: Record<string, boolean>;
+  signupBonusText?: Record<string, string>;
 };
 
 export async function apiGetDirectory(): Promise<DirectoryData> {
@@ -149,6 +150,7 @@ export async function apiSaveDirectory(update: {
   hasStreak?: Record<string, boolean>;
   pendingReview?: Record<string, boolean>;
   published?: Record<string, boolean>;
+  signupBonusText?: Record<string, string>;
 }): Promise<DirectoryData> {
   const res = await fetch("/api/directory", {
     method: "POST",

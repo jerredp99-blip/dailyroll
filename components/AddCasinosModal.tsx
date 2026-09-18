@@ -255,6 +255,11 @@ export function AddCasinosModal({
                 directoryData?.affiliateUrls?.[casinoName] ||
                 userCasino?.affiliateUrl;
 
+              const signupBonusText =
+                directoryData?.signupBonusText?.[casinoName] ||
+                userCasino?.signupBonusText ||
+                seed?.signupBonusText;
+
               const destinationUrl = affiliateUrl?.trim() || siteUrl?.trim() || "#";
 
               return (
@@ -303,7 +308,11 @@ export function AddCasinosModal({
                       }}
                       className="shrink-0 h-9 px-2.5 sm:px-3 rounded-xl inline-flex items-center justify-center gap-1.5 text-[11px] font-bold text-white bg-gradient-to-b from-emerald-500 via-emerald-600 to-teal-800 border-t border-emerald-300/40 border-x border-b border-emerald-900 shadow-[0_2px_8px_rgba(16,185,129,0.3)] active:translate-y-0.5 transition-all select-none whitespace-nowrap"
                     >
-                      <span>Sign Up &amp; Claim Bonuses</span>
+                      <span>
+                        {signupBonusText?.trim()
+                          ? `Sign Up & Claim ${signupBonusText.trim()}`
+                          : "Sign Up & Claim Bonuses"}
+                      </span>
                       <ExternalLink className="w-3 h-3 text-emerald-200 stroke-[2.5] shrink-0" />
                     </a>
                   </div>

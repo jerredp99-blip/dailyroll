@@ -273,6 +273,13 @@ async function resolveCasino(idOrSlug: string, userEmail?: string | null): Promi
     knownDefault?.hasStreak ??
     false;
 
+  const signupBonusText =
+    directory.signupBonusText?.[canonicalName] ??
+    userMatchedCasino?.signupBonusText ??
+    adminMatchedCasino?.signupBonusText ??
+    knownDefault?.signupBonusText ??
+    null;
+
   const resolvedCasino: Casino = {
     id: userMatchedCasino?.id || adminMatchedCasino?.id || slugify(canonicalName),
     name: canonicalName,
@@ -285,6 +292,7 @@ async function resolveCasino(idOrSlug: string, userEmail?: string | null): Promi
     resetRule,
     restrictedStates,
     hasStreak,
+    signupBonusText,
     siteUrl,
     affiliateUrl,
     claimUrl,
@@ -396,6 +404,7 @@ export async function PATCH(
     if ("payoutSpeed" in body) updatePayload.payoutSpeed = sanitizeField(body.payoutSpeed) as string | null;
     if ("resetRule" in body) updatePayload.resetRule = sanitizeField(body.resetRule) as string | null;
     if ("restrictedStates" in body) updatePayload.restrictedStates = sanitizeField(body.restrictedStates) as string | null;
+    if ("signupBonusText" in body) updatePayload.signupBonusText = sanitizeField(body.signupBonusText) as string | null;
     if ("details" in body) updatePayload.details = sanitizeField(body.details) as string | null;
     if ("provider" in body) updatePayload.provider = sanitizeField(body.provider) as string | null;
     if ("resetAtTime" in body) updatePayload.resetAtTime = sanitizeField(body.resetAtTime) as string | null;

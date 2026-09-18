@@ -134,6 +134,7 @@ type Store = {
   directoryHasStreak?: Record<string, boolean>;
   directoryPendingReview?: Record<string, boolean>;
   directoryPublished?: Record<string, boolean>;
+  directorySignupBonusText?: Record<string, string>;
   sessions: Record<string, Session>;
   magicLinks: Record<string, MagicLink>;
   posts: Post[];
@@ -552,6 +553,7 @@ export async function getDirectory() {
   const defaultClaimTips: Record<string, string> = {};
   const defaultPendingReview: Record<string, boolean> = {};
   const defaultPublished: Record<string, boolean> = {};
+  const defaultSignupBonusText: Record<string, string> = {};
 
   for (const c of MASTER_CASINOS_DATA) {
     if (c.siteUrl) defaultUrls[c.name] = c.siteUrl;
@@ -561,6 +563,7 @@ export async function getDirectory() {
     if (c.minRedemption) defaultMinRedemption[c.name] = c.minRedemption;
     if (c.resetRule) defaultResetRules[c.name] = c.resetRule;
     if (c.hasStreak !== undefined) defaultHasStreak[c.name] = c.hasStreak;
+    if (c.signupBonusText) defaultSignupBonusText[c.name] = c.signupBonusText;
   }
 
   for (const c of ALL_PENDING_CASINOS) {
@@ -569,6 +572,9 @@ export async function getDirectory() {
     if (c.dailyBonusSc) defaultDailyBonusSc[c.name] = c.dailyBonusSc;
     if (c.minRedemption) defaultMinRedemption[c.name] = c.minRedemption;
     if (c.claimTip) defaultClaimTips[c.name] = c.claimTip;
+    if ((c as { signupBonusText?: string }).signupBonusText) {
+      defaultSignupBonusText[c.name] = (c as { signupBonusText?: string }).signupBonusText!;
+    }
     defaultPendingReview[c.name] = true;
     defaultPublished[c.name] = false;
   }
@@ -605,6 +611,7 @@ export async function getDirectory() {
     hasStreak: { ...defaultHasStreak, ...(store.directoryHasStreak || {}) },
     pendingReview: { ...defaultPendingReview, ...(store.directoryPendingReview || {}) },
     published: { ...defaultPublished, ...(store.directoryPublished || {}) },
+    signupBonusText: { ...defaultSignupBonusText, ...(store.directorySignupBonusText || {}) },
   };
 }
 
@@ -631,6 +638,7 @@ export async function saveDirectory(update: {
   hasStreak?: Record<string, boolean>;
   pendingReview?: Record<string, boolean>;
   published?: Record<string, boolean>;
+  signupBonusText?: Record<string, string>;
 }) {
   return queueMutation((store) => {
     if (update.list) store.directoryList = update.list;
@@ -649,6 +657,8 @@ export async function saveDirectory(update: {
       store.directoryDailyBonusGc = { ...(store.directoryDailyBonusGc || {}), ...update.dailyBonusGc };
     if (update.minRedemption)
       store.directoryMinRedemption = { ...(store.directoryMinRedemption || {}), ...update.minRedemption };
+    if (update.signupBonusText)
+      store.directorySignupBonusText = { ...(store.directorySignupBonusText || {}), ...update.signupBonusText };
     if (update.payoutMethods)
       store.directoryPayoutMethods = { ...(store.directoryPayoutMethods || {}), ...update.payoutMethods };
     if (update.payoutSpeed)

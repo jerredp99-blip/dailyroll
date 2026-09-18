@@ -57,6 +57,8 @@ export interface Casino {
   isPublished?: boolean;
   pendingReview?: boolean;
   dailyScAmount?: number | null;
+  /** Custom free sign-up bonus promo text (e.g. "2.00 SC", "25 Stake Cash", "10 SC") */
+  signupBonusText?: string | null;
 }
 
 export interface SpeedRunSessionState {
