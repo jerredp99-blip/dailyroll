@@ -91,6 +91,8 @@ export type Post = {
   linkUrl?: string | null;
   mediaUrl?: string | null;
   mediaType?: "image" | "video" | "link" | null;
+  status?: "pending" | "approved" | "rejected";
+  isApproved?: boolean;
   createdAt: string;
   updatedAt?: string;
   likes: string[];
@@ -862,6 +864,8 @@ export async function updatePost(
       | "linkUrl"
       | "mediaUrl"
       | "mediaType"
+      | "status"
+      | "isApproved"
     >
   >
 ) {

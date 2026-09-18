@@ -119,6 +119,16 @@ export async function PUT(
       updateData.mediaType =
         body.mediaType === "" || body.mediaType === null ? null : body.mediaType;
     }
+    if (isAdmin) {
+      if ("status" in body) {
+        updateData.status = body.status;
+        updateData.isApproved = body.status === "approved";
+      }
+      if ("isApproved" in body) {
+        updateData.isApproved = Boolean(body.isApproved);
+        updateData.status = body.isApproved ? "approved" : "pending";
+      }
+    }
 
     const updated = await updatePost(id, updateData);
 

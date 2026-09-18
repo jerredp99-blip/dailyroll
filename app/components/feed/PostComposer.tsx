@@ -116,7 +116,6 @@ export function PostComposer({
   };
 
   const handleSelectType = (newType: PostType) => {
-    if (newType === "drop_code" && !isAdmin) return;
     setType(newType);
     if (newType === "big_win" && !selectedTags.includes("BIG_WIN")) {
       setSelectedTags((prev) => [
@@ -209,6 +208,9 @@ export function PostComposer({
       }
 
       onPostCreated(data.post);
+      if (data.post?.status === "pending" || data.post?.isApproved === false) {
+        alert("Submission received! Your Bonus Drop has been submitted for admin review.");
+      }
       setContent("");
       setSelectedTags([]);
       setSelectedCasinoId("");
@@ -350,20 +352,18 @@ export function PostComposer({
             Big Win
           </button>
 
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={() => handleSelectType("drop_code")}
-              className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition ${
-                type === "drop_code"
-                  ? "bg-teal-950/60 text-teal-200 border border-teal-600/40"
-                  : "text-[#859d8b] hover:text-white hover:bg-[#18291f]"
-              }`}
-            >
-              <Gift size={13} className="text-teal-400" />
-              Bonus Drop
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => handleSelectType("drop_code")}
+            className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition ${
+              type === "drop_code"
+                ? "bg-teal-950/60 text-teal-200 border border-teal-600/40"
+                : "text-[#859d8b] hover:text-white hover:bg-[#18291f]"
+            }`}
+          >
+            <Gift size={13} className="text-teal-400" />
+            Bonus Drop
+          </button>
         </div>
 
         {/* Minimize / Cancel Button */}
@@ -424,6 +424,12 @@ export function PostComposer({
 
         {type === "drop_code" && (
           <div className="space-y-2.5 animate-in fade-in duration-200">
+            {!isAdmin && (
+              <div className="flex items-center gap-2 rounded-xl bg-amber-950/40 border border-amber-500/30 p-2.5 text-xs text-amber-300">
+                <Gift className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>User Bonus Drop submissions are reviewed by an admin before being added to the public feed.</span>
+              </div>
+            )}
             {/* Associated Casino (Required for Bonus Drops) */}
             <div>
               <label className="mb-1 block text-[11px] font-semibold text-teal-300">

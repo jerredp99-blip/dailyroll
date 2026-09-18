@@ -275,6 +275,34 @@ function PostCardComponent({
     }
   };
 
+  const [isApproving, setIsApproving] = useState(false);
+
+  const handleApprovePost = async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setIsApproving(true);
+    try {
+      const res = await fetch(`/api/posts/${currentPost.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "approved",
+          isApproved: true,
+          isAdmin: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to approve post");
+      }
+      setCurrentPost(data.post);
+      onPostUpdated?.(data.post);
+    } catch (err: any) {
+      alert(err.message || "Failed to approve post");
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
   const handleDeletePost = async () => {
     setIsDeleting(true);
     try {
@@ -400,6 +428,8 @@ function PostCardComponent({
     openInExternalBrowser(destinationUrl);
   };
 
+  const isPending = Boolean(currentPost.status === "pending" || currentPost.isApproved === false);
+
   return (
     <article
       onClick={handleArticleClick}
@@ -414,6 +444,40 @@ function PostCardComponent({
         destinationUrl ? "cursor-pointer hover:border-emerald-500/60" : ""
       }`}
     >
+      {/* Pending Admin Approval Banner */}
+      {isPending && (
+        <div className="mb-2.5 flex items-center justify-between gap-2 rounded-lg bg-amber-950/70 border border-amber-500/40 px-3 py-1.5 text-xs text-amber-200">
+          <div className="flex items-center gap-1.5 font-bold">
+            <span className="animate-pulse">⏳</span>
+            <span>Pending Admin Approval</span>
+          </div>
+
+          {isAdmin ? (
+            <div className="flex items-center gap-1.5" data-stop-propagation="true" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={handleApprovePost}
+                disabled={isApproving}
+                className="flex items-center gap-1 rounded bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold px-2.5 py-0.5 text-[11px] transition cursor-pointer"
+              >
+                <Check size={12} />
+                <span>{isApproving ? "Approving..." : "Approve"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDeletePost}
+                disabled={isDeleting}
+                className="flex items-center gap-1 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-semibold px-2 py-0.5 text-[11px] transition cursor-pointer border border-rose-500/30"
+              >
+                <Trash2 size={12} />
+                <span>Reject</span>
+              </button>
+            </div>
+          ) : (
+            <span className="text-[10px] text-amber-400/80 font-medium italic">Visible only to you until reviewed</span>
+          )}
+        </div>
+      )}
       {/* Header: Author + Timestamp + Menu Button */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0" data-stop-propagation="true" onClick={(e) => e.stopPropagation()}>

@@ -67,6 +67,9 @@ export function isBonusDropActive(
 ): boolean {
   if (!post || !isBonusDrop(post)) return false;
 
+  // Exclude if pending admin approval
+  if (post.isApproved === false || post.status === "pending") return false;
+
   const id = post.id;
   const claimedSet =
     claimedDropIds instanceof Set ? claimedDropIds : new Set(claimedDropIds);

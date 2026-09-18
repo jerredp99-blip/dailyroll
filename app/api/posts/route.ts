@@ -45,8 +45,26 @@ export async function GET(request: NextRequest) {
       authorEmail: authorEmail || undefined,
     });
 
+    const session = await getCurrentSession();
+    const isAdmin = session?.role === "admin" || (session?.email ? isAdminEmail(session.email) : false);
+    const currentUserEmail = session?.email || authorEmail;
+    const statusParam = searchParams.get("status");
+
     const userCasinoIdsParam = searchParams.get("userCasinoIds");
     let resultPosts = posts;
+
+    // Filter by status / approval for non-admins vs admins
+    resultPosts = resultPosts.filter((p) => {
+      const isPending = p.status === "pending" || p.isApproved === false;
+      if (statusParam === "pending") return isPending;
+      if (statusParam === "approved") return !isPending;
+
+      if (!isPending) return true;
+      if (isAdmin) return true;
+      if (currentUserEmail && p.authorEmail?.toLowerCase() === currentUserEmail.toLowerCase()) return true;
+      return false;
+    });
+
     if (userCasinoIdsParam) {
       const allowedIds = new Set(
         userCasinoIdsParam
@@ -136,15 +154,10 @@ export async function POST(request: NextRequest) {
           ["BONUS_CODE", "BONUS_DROP", "DROP_CODE", "PROMO_CODE"].includes(t.toUpperCase())
         ));
 
-    if (isBonusDropPost) {
-      const isAdmin = session?.role === "admin" || isAdminEmail(session?.email);
-      if (!isAdmin) {
-        return NextResponse.json(
-          { error: "Only admins can post Bonus Drops" },
-          { status: 403 }
-        );
-      }
-    }
+    const isAdmin = session?.role === "admin" || (session?.email ? isAdminEmail(session.email) : false);
+    const requiresReview = isBonusDropPost && !isAdmin;
+    const initialStatus = requiresReview ? "pending" : "approved";
+    const initialIsApproved = !requiresReview;
 
     const effectiveEmail = session?.email || authorEmail || "guest@dailyroll.app";
     const effectiveName = session ? session.email.split("@")[0] : authorName || "Guest Roller";
@@ -182,6 +195,8 @@ export async function POST(request: NextRequest) {
       linkUrl: sanitizedUrl,
       mediaUrl: mediaUrl ? mediaUrl.trim() : undefined,
       mediaType: mediaType || undefined,
+      status: initialStatus,
+      isApproved: initialIsApproved,
     });
 
     try {

@@ -407,7 +407,7 @@ export function SocialFeed({
     const restOfPosts: Post[] = [];
 
     for (const post of list) {
-      if (isBonusDropPost(post) && !claimedDropIds.includes(post.id)) {
+      if (isBonusDropActive(post, claimedDropIds, getUserReportedExpiredDropIds())) {
         unclaimedDrops.push(post);
       } else {
         restOfPosts.push(post);
