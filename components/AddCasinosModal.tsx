@@ -36,15 +36,14 @@ export function AddCasinosModal({
   const [showEmailTip, setShowEmailTip] = useState(false);
 
   useEffect(() => {
+    if (!isOpen) return;
     try {
       const hasDismissed = localStorage.getItem("dailyroll_seen_casino_email_tip");
-      if (!hasDismissed) {
-        setShowEmailTip(true);
-      }
+      setShowEmailTip(hasDismissed !== "true");
     } catch {
-      // Fallback if localStorage is unavailable
+      setShowEmailTip(true);
     }
-  }, []);
+  }, [isOpen]);
 
   const dismissTip = () => {
     setShowEmailTip(false);
