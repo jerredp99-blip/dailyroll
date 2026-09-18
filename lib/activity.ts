@@ -53,3 +53,15 @@ export async function trackUserActivity(
   }
 }
 
+export async function touchUserLastActive(userId: string) {
+  if (!userId || !userId.trim()) return;
+  const normalizedId = userId.trim().toLowerCase();
+  try {
+    await redis.hset(`user:${normalizedId}:activity_summary`, {
+      last_active: Date.now(),
+    });
+  } catch (err) {
+    console.error("Failed to update last_active timestamp:", err);
+  }
+}
+

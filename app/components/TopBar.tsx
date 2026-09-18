@@ -8,6 +8,7 @@ import { Settings, ShieldCheck, LogOut, Compass, Wallet, MessageSquare } from "l
 import { BalancesIntroTooltip } from "@/components/BalancesIntroTooltip";
 import { ActionNav } from "@/components/ActionNav";
 import { useActiveDropsCount } from "@/lib/dropsStore";
+import { useHeartbeat } from "@/hooks/useHeartbeat";
 
 type SignedInUser = {
   name: string;
@@ -20,6 +21,7 @@ export function TopBar() {
   const router = useRouter();
   const unclaimedBonusDropsCount = useActiveDropsCount();
   const [signedInUser, setSignedInUser] = useState<SignedInUser | null>(null);
+  useHeartbeat(signedInUser?.email);
   const [isAdmin, setIsAdmin] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const [scTotals, setScTotals] = useState<{ available: number; claimedToday: number; totalPortfolioBalance?: number } | null>(null);
