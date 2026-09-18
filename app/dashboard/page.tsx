@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Activity, ArrowLeft, Eye, ShieldCheck, Trash2, UserPlus, X } from "lucide-react";
+import { Activity, ArrowLeft, Compass, Eye, ShieldCheck, Trash2, UserPlus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiDeleteCasinos, apiGetUsers, apiSaveUsers } from "@/lib/api-client";
@@ -174,6 +174,9 @@ export default function Dashboard() {
               <div key={user.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#304638] bg-[#1f3027] p-4">
                 <div><p className="font-semibold text-[#e5eee3]">{user.name}</p><p className="mt-1 text-sm text-[#93a495]">{user.email}</p></div>
                 <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => router.push(`/tracker?user=${encodeURIComponent(user.email)}`)} className="flex items-center gap-1.5 rounded-lg border border-teal-500/40 bg-teal-950/60 px-3 py-2 text-xs font-bold text-teal-300 transition hover:bg-teal-900/60 cursor-pointer">
+                    <Compass size={14} /> View Rollcall
+                  </button>
                   <button type="button" onClick={() => setTelemetryUser(user)} className="flex items-center gap-1.5 rounded-lg border border-emerald-600/50 bg-[#172c1f] px-3 py-2 text-xs font-bold text-emerald-300 transition hover:bg-[#1f3b2a] cursor-pointer">
                     <Activity size={14} /> Telemetry
                   </button>
@@ -204,8 +207,8 @@ export default function Dashboard() {
               <button type="button" onClick={() => setTelemetryUser(selectedUser)} className="flex h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-950/60 text-xs font-bold text-emerald-300 transition hover:bg-emerald-900/60">
                 <Activity size={15} /> Telemetry
               </button>
-              <button type="button" onClick={() => { router.push("/tracker"); }} className="flex h-11 items-center justify-center rounded-xl bg-[#79b77f] text-xs font-bold text-[#122519] transition hover:bg-[#91c991]">
-                Open user page
+              <button type="button" onClick={() => { router.push(`/tracker?user=${encodeURIComponent(selectedUser.email)}`); }} className="flex h-11 items-center justify-center rounded-xl bg-[#79b77f] text-xs font-bold text-[#122519] transition hover:bg-[#91c991]">
+                Open {selectedUser.name}&apos;s Rollcall
               </button>
             </div>
           </div>

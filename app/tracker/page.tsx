@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   Plus,
   Settings,
+  ShieldCheck,
   Trash2,
   X,
   MessageSquare,
@@ -299,6 +300,12 @@ export default function TrackerPage() {
   useEffect(() => {
     signedInUserRef.current = signedInUser;
   }, [signedInUser]);
+
+  const [viewingUserEmail, setViewingUserEmail] = useState<string | null>(null);
+  const viewingUserEmailRef = useRef<string | null>(null);
+  useEffect(() => {
+    viewingUserEmailRef.current = viewingUserEmail;
+  }, [viewingUserEmail]);
   const now = useCurrentTime();
   const [pendingClaims, setPendingClaims] = useState<Record<string, { expiresAt: number; isDefocused?: boolean }>>({});
   const activeDropsCount = useActiveDropsCount();
@@ -560,11 +567,13 @@ export default function TrackerPage() {
       let user: SignedInUser | null = null;
       let admin = false;
 
-      const [authData, saved, directoryData] = await Promise.all([
+      const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      const targetUserParam = urlParams?.get("user") || urlParams?.get("key") || null;
+
+      const [authData, directoryData] = await Promise.all([
         fetch("/api/auth/me", { cache: "no-store" })
           .then((res) => (res.ok ? (res.json() as Promise<{ user: SignedInUser | null; isAdmin: boolean }>) : null))
           .catch(() => null),
-        apiGetCasinos(),
         apiGetDirectory(),
         migrateLegacyLocalStorage(),
       ]);
@@ -574,6 +583,15 @@ export default function TrackerPage() {
         user = authData.user;
         admin = authData.isAdmin;
       }
+
+      let effectiveUserKey: string | null = null;
+      if (admin && targetUserParam) {
+        effectiveUserKey = targetUserParam;
+        setViewingUserEmail(targetUserParam);
+      }
+
+      const saved = await apiGetCasinos(effectiveUserKey);
+      if (cancelled) return;
 
       const sharedUrls = directoryData.urls;
       const sharedUrlsByName = Object.fromEntries(
@@ -807,10 +825,13 @@ export default function TrackerPage() {
   const saveCasinos = useCallback((updated: Casino[]) => {
     setCasinos(updated);
     try {
-      localStorage.setItem("dailyroll_cached_casinos", JSON.stringify(updated));
+      if (!viewingUserEmailRef.current) {
+        localStorage.setItem("dailyroll_cached_casinos", JSON.stringify(updated));
+      }
     } catch {}
-    if (signedInUserRef.current?.email) {
-      apiSaveCasinos(signedInUserRef.current.email, updated);
+    const targetKey = viewingUserEmailRef.current || signedInUserRef.current?.email;
+    if (targetKey) {
+      apiSaveCasinos(targetKey, updated);
     } else if (typeof window !== "undefined") {
       try {
         localStorage.setItem("dailyroll_guest_casinos", JSON.stringify(updated));
@@ -1868,6 +1889,29 @@ export default function TrackerPage() {
           </div>
         ) : (
           <div className="mx-auto max-w-4xl space-y-3 px-1 sm:px-2 pb-24">
+            {/* Admin Viewing Banner */}
+            {viewingUserEmail && isAdmin && (
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-950/80 via-emerald-950/80 to-zinc-950/90 p-3.5 sm:px-5 shadow-xl backdrop-blur-md">
+                <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-amber-200">
+                  <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0" />
+                  <span>Viewing & Managing Rollcall for <strong className="text-white underline font-extrabold">{viewingUserEmail}</strong> (Admin Mode)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewingUserEmail(null);
+                    if (typeof window !== "undefined") {
+                      window.location.href = "/tracker";
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 px-3.5 py-1.5 text-xs font-black text-zinc-950 shadow-md transition cursor-pointer"
+                >
+                  <X size={14} />
+                  <span>Exit User View</span>
+                </button>
+              </div>
+            )}
+
             {/* Controls Card: Lists, Filter & Sort Toolbar + Action Buttons */}
             <div className="w-full bg-zinc-900/90 border border-zinc-800/80 rounded-2xl p-2 sm:p-2.5 backdrop-blur-md shadow-sm space-y-2">
               {/* Single Horizontal Row for Dropdowns & Expandable Search */}
