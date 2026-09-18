@@ -9,7 +9,6 @@ import {
   MoreHorizontal,
   Plus,
   Settings,
-  ShieldCheck,
   Trash2,
   X,
   MessageSquare,
@@ -21,6 +20,7 @@ import {
   Sparkles,
   Pencil,
   Wallet,
+  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -382,7 +382,6 @@ export default function TrackerPage() {
   const [directoryResetRules, setDirectoryResetRules] = useState<Record<string, string>>({});
   const [directoryHasStreak, setDirectoryHasStreak] = useState<Record<string, boolean>>({});
   const [isAddCasinosModalOpen, setIsAddCasinosModalOpen] = useState(false);
-  const [promptCasino, setPromptCasino] = useState<Casino | null>(null);
   const [selectedCasinoId, setSelectedCasinoId] = useState<string | null>(null);
   const [directorySnapshot, setDirectorySnapshot] = useState<DirectoryData | null>(null);
   const [editingCasino, setEditingCasino] = useState<Casino | null>(null);
@@ -1282,78 +1281,12 @@ export default function TrackerPage() {
       claimUrl: directoryClaimUrls[casinoName],
       bonusUrl: directoryBonusUrls[casinoName],
       lastClaimedAt: null,
-      isInitialSetup: true,
       intervalHours: seed?.intervalHours || 24,
       trustpilotRating: directoryRatings[casinoName] ?? seed?.trustpilotRating,
     };
     saveCasinos([...casinos, entry]);
     if (!stayOnList) showAddCasinosPage(false);
   }
-
-  const handleResolveInitial = useCallback((casino: Casino, claimedToday: boolean) => {
-    const nowIso = new Date().toISOString();
-    setCasinos((prev) => {
-      const updated = prev.map((item) =>
-        item.id === casino.id
-          ? {
-              ...item,
-              isInitialSetup: false,
-              ...(claimedToday ? { lastClaimedAt: nowIso } : { lastClaimedAt: null }),
-            }
-          : item,
-      );
-      apiSaveCasinos(signedInUserRef.current?.email, updated);
-      return updated;
-    });
-
-    if (claimedToday) {
-      try {
-        const storedTimes = JSON.parse(localStorage.getItem("dailyroll_claimed_times") || "{}");
-        storedTimes[casino.id] = nowIso;
-        localStorage.setItem("dailyroll_claimed_times", JSON.stringify(storedTimes));
-      } catch {
-        // ignore
-      }
-    }
-  }, []);
-
-  const handleInitialSnooze = useCallback((casino: Casino, value: string) => {
-    if (value === "custom") {
-      setCustomTimerCasino(casino);
-      setCasinos((prev) => {
-        const updated = prev.map((item) =>
-          item.id === casino.id ? { ...item, isInitialSetup: false } : item
-        );
-        apiSaveCasinos(signedInUserRef.current?.email, updated);
-        return updated;
-      });
-      return;
-    }
-    const minsMap: Record<string, number> = {
-      "15m": 15,
-      "30m": 30,
-      "1h": 60,
-      "2h": 120,
-      "4h": 240,
-    };
-    const mins = minsMap[value];
-    if (mins) {
-      const snoozeUntilMs = Date.now() + mins * 60 * 1000;
-      setCasinos((prev) => {
-        const updated = prev.map((item) =>
-          item.id === casino.id
-            ? {
-                ...item,
-                snoozedUntil: new Date(snoozeUntilMs).toISOString(),
-                isInitialSetup: false,
-              }
-            : item,
-        );
-        apiSaveCasinos(signedInUserRef.current?.email, updated);
-        return updated;
-      });
-    }
-  }, []);
 
   function signUpForCasino(casinoName: string) {
     const casinoUrl =
@@ -2206,8 +2139,6 @@ export default function TrackerPage() {
                     onOpenCasino={openCasino}
                     onOpenBonus={casino.bonusUrl ? openBonus : undefined}
                     onOpenDetails={(id) => setSelectedCasinoId(id)}
-                    onResolveInitial={handleResolveInitial}
-                    onInitialSnooze={handleInitialSnooze}
                     pendingInfo={pendingClaims[casino.id]}
                   />
                 ))

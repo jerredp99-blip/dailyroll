@@ -35,3 +35,4 @@ export function ActiveBadge({ lastActiveAt, thresholdMinutes = 5 }: ActiveBadgeP
     </span>
   );
 }
+

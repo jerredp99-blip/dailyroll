@@ -17,6 +17,7 @@ export interface Casino {
   intervalHours: number;
   resetAtTime?: string | null;
   trustpilotRating?: number | null;
+  trustpilotUrl?: string | null;
   logo?: string | null;
   details?: string | null;
   hidden?: boolean;

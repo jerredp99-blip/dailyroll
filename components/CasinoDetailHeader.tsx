@@ -8,6 +8,7 @@ import {
   Plus,
   Wallet,
   Pencil,
+  X,
 } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { CasinoLogo } from "@/components/CasinoLogo";
@@ -64,6 +65,34 @@ export function CasinoDetailHeader({
   const rawUrl = casino.affiliateUrl || casino.siteUrl || casino.url;
   const visitUrl = getExternalUrl(rawUrl);
 
+  const [showTrustpilotTip, setShowTrustpilotTip] = useState(false);
+
+  useEffect(() => {
+    try {
+      const seen = localStorage.getItem("dailyroll_seen_trustpilot_tip");
+      if (!seen) {
+        setShowTrustpilotTip(true);
+      }
+    } catch {}
+  }, []);
+
+  const dismissTrustpilotTip = () => {
+    setShowTrustpilotTip(false);
+    try {
+      localStorage.setItem("dailyroll_seen_trustpilot_tip", "true");
+    } catch {}
+  };
+
+  let hostname = "google.com";
+  try {
+    const raw = casino.siteUrl || casino.affiliateUrl || casino.url || "";
+    if (raw) hostname = new URL(raw).hostname.replace(/^www\./, "");
+  } catch {
+    hostname = casino.name.toLowerCase().replace(/[^a-z0-9]/g, "") + ".com";
+  }
+  const trustpilotUrl =
+    casino.trustpilotUrl?.trim() || `https://www.trustpilot.com/review/${hostname}`;
+
   return (
     <div className="relative overflow-hidden rounded-2xl border border-emerald-900/60 bg-gradient-to-b from-[#14231b] via-[#0f1914] to-[#0c1410] p-4 sm:p-6 shadow-[0_12px_32px_rgba(0,0,0,0.3)]">
       {/* Top row: Back link */}
@@ -87,6 +116,25 @@ export function CasinoDetailHeader({
           </Link>
         )}
       </div>
+
+      {showTrustpilotTip && (
+        <div className="relative w-full mt-3 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-center justify-between gap-2 shadow-lg animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">⭐</span>
+            <span className="text-[11px] leading-tight text-zinc-200">
+              <strong className="text-amber-400 font-bold">Pro-Tip:</strong> Tap the stars anytime to read verified reviews directly on Trustpilot.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={dismissTrustpilotTip}
+            className="p-1 rounded text-zinc-400 hover:text-white shrink-0 cursor-pointer"
+            aria-label="Dismiss Trustpilot tip"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Main identity & Action section */}
       <div className="mt-4 sm:mt-5 flex flex-col gap-4">
@@ -114,14 +162,19 @@ export function CasinoDetailHeader({
             </div>
 
             <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-gray-400">
-              <div className="flex items-center gap-1.5">
-                <TrustpilotStars rating={casino.trustpilotRating} className="text-sm" />
-                {casino.trustpilotRating && (
-                  <span className="font-semibold text-gray-300">
-                    {Number(casino.trustpilotRating).toFixed(1)}
-                  </span>
-                )}
-              </div>
+              <a
+                href={trustpilotUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`View ${casino.name} reviews on Trustpilot`}
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-950/40 border border-amber-400/20 hover:border-amber-400/50 hover:bg-emerald-950/70 transition-all cursor-pointer group"
+              >
+                <TrustpilotStars rating={casino.trustpilotRating} className="text-xs text-amber-400" />
+                <span className="text-xs font-bold text-zinc-200 group-hover:text-amber-300">
+                  {casino.trustpilotRating ? Number(casino.trustpilotRating).toFixed(1) : "3.8"}
+                </span>
+                <ExternalLink className="w-3 h-3 text-zinc-400 group-hover:text-amber-300 transition-colors ml-0.5" />
+              </a>
 
               {/* Interactive Balance Pill */}
               {isEditingBalance ? (

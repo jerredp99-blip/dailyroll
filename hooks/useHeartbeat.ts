@@ -16,3 +16,4 @@ export function useHeartbeat(userId?: string) {
     return () => clearInterval(interval);
   }, [userId]);
 }
+
