@@ -34,6 +34,7 @@ import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { SpeedRunModal } from "@/app/components/SpeedRunModal";
 import { SpeedRunErrorBoundary } from "@/components/SpeedRunErrorBoundary";
 import { AddCasinosModal } from "@/components/AddCasinosModal";
+import { ClaimStatusPromptModal } from "@/components/ClaimStatusPromptModal";
 import { BalancesIntroTooltip } from "@/components/BalancesIntroTooltip";
 import { CustomTimerModal } from "@/components/CustomTimerModal";
 import { CasinoDetailsModal } from "@/components/CasinoDetailsModal";
@@ -382,6 +383,7 @@ export default function TrackerPage() {
   const [directoryResetRules, setDirectoryResetRules] = useState<Record<string, string>>({});
   const [directoryHasStreak, setDirectoryHasStreak] = useState<Record<string, boolean>>({});
   const [isAddCasinosModalOpen, setIsAddCasinosModalOpen] = useState(false);
+  const [promptCasino, setPromptCasino] = useState<Casino | null>(null);
   const [selectedCasinoId, setSelectedCasinoId] = useState<string | null>(null);
   const [directorySnapshot, setDirectorySnapshot] = useState<DirectoryData | null>(null);
   const [editingCasino, setEditingCasino] = useState<Casino | null>(null);
@@ -1285,8 +1287,19 @@ export default function TrackerPage() {
       trustpilotRating: directoryRatings[casinoName] ?? seed?.trustpilotRating,
     };
     saveCasinos([...casinos, entry]);
+    setPromptCasino(entry);
     if (!stayOnList) showAddCasinosPage(false);
   }
+
+  const handleConfirmClaimedPrompt = useCallback(() => {
+    if (!promptCasino) return;
+    markClaimed(promptCasino);
+    setPromptCasino(null);
+  }, [promptCasino, markClaimed]);
+
+  const handleConfirmReadyPrompt = useCallback(() => {
+    setPromptCasino(null);
+  }, []);
 
   function signUpForCasino(casinoName: string) {
     const casinoUrl =
@@ -2676,6 +2689,13 @@ export default function TrackerPage() {
         onClaimCasino={(c) => markClaimed(c)}
         directoryData={directorySnapshot}
         isAdmin={isAdmin}
+      />
+
+      <ClaimStatusPromptModal
+        isOpen={Boolean(promptCasino)}
+        casinoName={promptCasino?.name || ""}
+        onConfirmClaimed={handleConfirmClaimedPrompt}
+        onConfirmReady={handleConfirmReadyPrompt}
       />
 
 
