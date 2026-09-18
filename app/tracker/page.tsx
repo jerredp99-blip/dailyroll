@@ -266,36 +266,23 @@ const STATUS_STYLES: Record<
 
 export default function TrackerPage() {
   const router = useRouter();
-  const unclaimedDropsCount = useActiveDropsCount();
-  const [isLoading, setIsLoading] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem("dailyroll_cached_casinos");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return false;
-          }
-        }
-      } catch {}
-    }
-    return true;
-  });
+  const activeDropsCount = useActiveDropsCount();
+  const unclaimedDropsCount = activeDropsCount;
+  const [isLoading, setIsLoading] = useState(true);
+  const [casinos, setCasinos] = useState<Casino[]>([]);
 
-  const [casinos, setCasinos] = useState<Casino[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem("dailyroll_cached_casinos");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
-          }
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem("dailyroll_cached_casinos");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCasinos(parsed);
+          setIsLoading(false);
         }
-      } catch {}
-    }
-    return [];
-  });
+      }
+    } catch {}
+  }, []);
   const [signedInUser, setSignedInUser] = useState<SignedInUser | null>(null);
   const signedInUserRef = useRef<SignedInUser | null>(null);
   useEffect(() => {
@@ -309,7 +296,6 @@ export default function TrackerPage() {
   }, [viewingUserEmail]);
   const now = useCurrentTime();
   const [pendingClaims, setPendingClaims] = useState<Record<string, { expiresAt: number; isDefocused?: boolean }>>({});
-  const activeDropsCount = useActiveDropsCount();
   const [feedUnreadCount, setFeedUnreadCount] = useState<number>(0);
   const [lastOpenedCasino, setLastOpenedCasino] = useState<{ name: string; url: string } | null>(null);
 
@@ -607,45 +593,45 @@ export default function TrackerPage() {
       const saved = await apiGetCasinos(effectiveUserKey);
       if (cancelled) return;
 
-      const sharedUrls = directoryData.urls;
+      const sharedUrls = directoryData?.urls || {};
       const sharedUrlsByName = Object.fromEntries(
-        Object.entries(sharedUrls).map(([name, url]) => [name.toLowerCase(), url]),
+        Object.entries(sharedUrls).map(([name, url]) => [(name || "").toLowerCase(), url]),
       );
-      const sharedAffiliateUrls = directoryData.affiliateUrls;
+      const sharedAffiliateUrls = directoryData?.affiliateUrls || {};
       const sharedAffiliateUrlsByName = Object.fromEntries(
-        Object.entries(sharedAffiliateUrls).map(([name, url]) => [name.toLowerCase(), url]),
+        Object.entries(sharedAffiliateUrls).map(([name, url]) => [(name || "").toLowerCase(), url]),
       );
-      const sharedClaimUrls = directoryData.claimUrls;
+      const sharedClaimUrls = directoryData?.claimUrls || {};
       const sharedClaimUrlsByName = Object.fromEntries(
-        Object.entries(sharedClaimUrls).map(([name, url]) => [name.toLowerCase(), url]),
+        Object.entries(sharedClaimUrls).map(([name, url]) => [(name || "").toLowerCase(), url]),
       );
-      const sharedBonusUrls = directoryData.bonusUrls;
+      const sharedBonusUrls = directoryData?.bonusUrls || {};
       const sharedBonusUrlsByName = Object.fromEntries(
-        Object.entries(sharedBonusUrls).map(([name, url]) => [name.toLowerCase(), url]),
+        Object.entries(sharedBonusUrls).map(([name, url]) => [(name || "").toLowerCase(), url]),
       );
-      const sharedBonusTitles = directoryData.bonusTitles;
+      const sharedBonusTitles = directoryData?.bonusTitles || {};
       const sharedBonusTitlesByName = Object.fromEntries(
-        Object.entries(sharedBonusTitles).map(([name, title]) => [name.toLowerCase(), title]),
+        Object.entries(sharedBonusTitles).map(([name, title]) => [(name || "").toLowerCase(), title]),
       );
-      const sharedRatings = directoryData.ratings;
+      const sharedRatings = directoryData?.ratings || {};
       const sharedRatingsByName = Object.fromEntries(
-        Object.entries(sharedRatings).map(([name, rating]) => [name.toLowerCase(), rating]),
+        Object.entries(sharedRatings).map(([name, rating]) => [(name || "").toLowerCase(), rating]),
       );
-      const sharedDailyBonuses = directoryData.dailyBonuses || {};
+      const sharedDailyBonuses = directoryData?.dailyBonuses || {};
       const sharedDailyBonusesByName = Object.fromEntries(
-        Object.entries(sharedDailyBonuses).map(([name, val]) => [name.toLowerCase(), val]),
+        Object.entries(sharedDailyBonuses).map(([name, val]) => [(name || "").toLowerCase(), val]),
       );
-      const sharedResetTimes = directoryData.resetTimes || {};
+      const sharedResetTimes = directoryData?.resetTimes || {};
       const sharedResetTimesByName = Object.fromEntries(
-        Object.entries(sharedResetTimes).map(([name, val]) => [name.toLowerCase(), val]),
+        Object.entries(sharedResetTimes).map(([name, val]) => [(name || "").toLowerCase(), val]),
       );
-      const sharedDetails = directoryData.details || {};
+      const sharedDetails = directoryData?.details || {};
       const sharedDetailsByName = Object.fromEntries(
-        Object.entries(sharedDetails).map(([name, val]) => [name.toLowerCase(), val]),
+        Object.entries(sharedDetails).map(([name, val]) => [(name || "").toLowerCase(), val]),
       );
-      const sharedProviders = directoryData.providers || {};
+      const sharedProviders = directoryData?.providers || {};
       const sharedProvidersByName = Object.fromEntries(
-        Object.entries(sharedProviders).map(([name, val]) => [name.toLowerCase(), val]),
+        Object.entries(sharedProviders).map(([name, val]) => [(name || "").toLowerCase(), val]),
       );
 
       let loadedCasinos = saved ?? DEFAULT_CASINOS;
@@ -663,8 +649,11 @@ export default function TrackerPage() {
       const currentRatings = { ...sharedRatings };
       if (admin) {
         let hasNewRatings = false;
-        loadedCasinos.forEach((casino) => {
+        (loadedCasinos ?? []).forEach((casino) => {
           if (
+            casino &&
+            casino.name &&
+            typeof casino.name === "string" &&
             typeof casino.trustpilotRating === "number" &&
             sharedRatingsByName[casino.name.toLowerCase()] === undefined
           ) {
@@ -677,7 +666,7 @@ export default function TrackerPage() {
         }
       }
       const defaultUrlByName = Object.fromEntries(
-        DEFAULT_CASINOS.map((casino) => [casino.name.toLowerCase(), casino.url]),
+        DEFAULT_CASINOS.filter((c) => Boolean(c?.name)).map((casino) => [(casino.name || "").toLowerCase(), casino.url]),
       );
       let localClaimedTimes: Record<string, string> = {};
       try {
@@ -685,8 +674,10 @@ export default function TrackerPage() {
       } catch {
         // Ignore malformed localStorage
       }
-      const hydratedCasinos = loadedCasinos.map((casino) => {
-        const lowerName = casino.name.trim().toLowerCase();
+      const hydratedCasinos = (loadedCasinos ?? [])
+        .filter((casino) => Boolean(casino && casino.name && typeof casino.name === "string"))
+        .map((casino) => {
+          const lowerName = (casino.name || "").trim().toLowerCase();
 
         // Authoritative Casino Metadata (Decoupled from user personal state):
         // Remote shared directory is always authoritative for links, titles, ratings, reset times, and bonuses.
@@ -855,7 +846,7 @@ export default function TrackerPage() {
     }
   }, []);
 
-  const statusFor = useCallback((casino: Casino): CasinoStatus => {
+  const statusFor = useCallback((casino?: Casino | null): CasinoStatus => {
     return calculateCasinoStatus(casino, now);
   }, [now]);
 
@@ -1268,9 +1259,13 @@ export default function TrackerPage() {
   }
 
   function addDirectoryCasino(casinoName: string, stayOnList = false) {
+    if (!casinoName || typeof casinoName !== "string") return;
     if (
-      casinos.some(
-        (casino) => casino.name.toLowerCase() === casinoName.toLowerCase(),
+      (casinos ?? []).some(
+        (casino) =>
+          casino?.name &&
+          typeof casino.name === "string" &&
+          casino.name.toLowerCase() === casinoName.toLowerCase(),
       )
     ) {
       if (!stayOnList) showAddCasinosPage(false);
@@ -1405,7 +1400,7 @@ export default function TrackerPage() {
       // Update local casino list immediately without triggering a racing personal save
       setCasinos((prev) =>
         prev.map((c) =>
-          c.name.toLowerCase() === editingCasino.name.toLowerCase()
+          c?.name && editingCasino?.name && c.name.toLowerCase() === editingCasino.name.toLowerCase()
             ? {
                 ...c,
                 siteUrl: normalizedSiteUrl,
@@ -1454,14 +1449,19 @@ export default function TrackerPage() {
     }
   }
 
-  const bonusAmount = (casino: Casino) => {
+  const bonusAmount = (casino?: Casino | null) => {
+    if (!casino?.dailyBonus || typeof casino.dailyBonus !== "string") return 0;
     const match = casino.dailyBonus.match(/[0-9]+(?:\.[0-9]+)?/);
     return match ? Number(match[0]) : 0;
   };
 
   const ratingForCasino = useCallback((casinoName: string, recordRating?: number | null) => {
-    const matchingName = Object.keys(directoryRatings).find(
-      (name) => name.toLowerCase() === casinoName.toLowerCase(),
+    if (!casinoName || typeof casinoName !== "string") {
+      const numericRecordRating = Number(recordRating);
+      return Number.isFinite(numericRecordRating) ? numericRecordRating : undefined;
+    }
+    const matchingName = Object.keys(directoryRatings || {}).find(
+      (name) => name && typeof name === "string" && name.toLowerCase() === casinoName.toLowerCase(),
     );
     if (matchingName) {
       const numericDirectoryRating = Number(directoryRatings[matchingName]);
@@ -1471,8 +1471,9 @@ export default function TrackerPage() {
     return Number.isFinite(numericRecordRating) ? numericRecordRating : undefined;
   }, [directoryRatings]);
 
-  const sortedCasinos = casinos
+  const sortedCasinos = (casinos ?? [])
     .filter((casino) => {
+      if (!casino || !casino.id) return false;
       if (activeListId === "hidden") {
         if (!casino.hidden) return false;
       } else {
@@ -1485,15 +1486,15 @@ export default function TrackerPage() {
 
       // Custom list filter
       if (activeListId !== "all" && activeListId !== "hidden") {
-        const currentList = customLists.find((l) => l.id === activeListId);
-        if (currentList && !currentList.casinoIds.includes(casino.id)) return false;
+        const currentList = (customLists ?? []).find((l) => l?.id === activeListId);
+        if (currentList && (!Array.isArray(currentList.casinoIds) || !currentList.casinoIds.includes(casino.id))) return false;
       }
 
       // Search filter matching casino.name or casino.provider (case-insensitive)
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
-        const nameMatch = casino.name.toLowerCase().includes(q);
-        const providerMatch = Boolean(casino.provider && casino.provider.toLowerCase().includes(q));
+        const nameMatch = Boolean(casino.name && typeof casino.name === "string" && casino.name.toLowerCase().includes(q));
+        const providerMatch = Boolean(casino.provider && typeof casino.provider === "string" && casino.provider.toLowerCase().includes(q));
         if (!nameMatch && !providerMatch) return false;
       }
 
@@ -1535,21 +1536,21 @@ export default function TrackerPage() {
         if (!status1.ready && !status2.ready) {
           return status1.remainingMs - status2.remainingMs;
         }
-        return firstCasino.name.localeCompare(secondCasino.name);
+        return (firstCasino.name || "").localeCompare(secondCasino.name || "");
       }
       if (casinoSort === "provider") {
-        const p1 = (firstCasino.provider || directoryProviders[firstCasino.name] || "").toLowerCase();
-        const p2 = (secondCasino.provider || directoryProviders[secondCasino.name] || "").toLowerCase();
+        const p1 = (firstCasino.provider || (firstCasino.name ? directoryProviders[firstCasino.name] : "") || "").toLowerCase();
+        const p2 = (secondCasino.provider || (secondCasino.name ? directoryProviders[secondCasino.name] : "") || "").toLowerCase();
         if (!p1 && p2) return 1;
         if (p1 && !p2) return -1;
         const comp = p1.localeCompare(p2);
-        return comp !== 0 ? comp : firstCasino.name.localeCompare(secondCasino.name);
+        return comp !== 0 ? comp : (firstCasino.name || "").localeCompare(secondCasino.name || "");
       }
       if (casinoSort === "name-asc") {
-        return firstCasino.name.localeCompare(secondCasino.name);
+        return (firstCasino.name || "").localeCompare(secondCasino.name || "");
       }
       if (casinoSort === "name-desc") {
-        return secondCasino.name.localeCompare(firstCasino.name);
+        return (secondCasino.name || "").localeCompare(firstCasino.name || "");
       }
       if (casinoSort === "f2p") {
         const readyDifference = Number(statusFor(secondCasino).ready) - Number(statusFor(firstCasino).ready);
@@ -1565,9 +1566,13 @@ export default function TrackerPage() {
 
   const visibleDirectory = [...directory]
     .filter((casinoName) => {
-      const isAdded = casinos.some(
+      if (!casinoName || typeof casinoName !== "string") return false;
+      const isAdded = (casinos ?? []).some(
         (casino) =>
+          casino &&
           casino.hidden !== true &&
+          casino.name &&
+          typeof casino.name === "string" &&
           casino.name.toLowerCase() === casinoName.toLowerCase(),
       );
       if (directoryFilter === "added") return isAdded;
@@ -1575,23 +1580,36 @@ export default function TrackerPage() {
       return !isAdded;
     })
     .sort((firstName, secondName) => {
-      if (directorySort === "name-asc") return firstName.localeCompare(secondName);
-      if (directorySort === "name-desc") return secondName.localeCompare(firstName);
-      const firstCasino = casinos.find((casino) => casino.name.toLowerCase() === firstName.toLowerCase());
-      const secondCasino = casinos.find((casino) => casino.name.toLowerCase() === secondName.toLowerCase());
+      if (directorySort === "name-asc") return (firstName || "").localeCompare(secondName || "");
+      if (directorySort === "name-desc") return (secondName || "").localeCompare(firstName || "");
+      const firstCasino = (casinos ?? []).find(
+        (casino) =>
+          casino?.name &&
+          typeof casino.name === "string" &&
+          casino.name.toLowerCase() === (firstName || "").toLowerCase(),
+      );
+      const secondCasino = (casinos ?? []).find(
+        (casino) =>
+          casino?.name &&
+          typeof casino.name === "string" &&
+          casino.name.toLowerCase() === (secondName || "").toLowerCase(),
+      );
       if (directorySort === "trustpilot") {
         return (secondCasino?.trustpilotRating ?? -1) - (firstCasino?.trustpilotRating ?? -1);
       }
-      return bonusAmount(secondCasino || { dailyBonus: "", name: secondName } as Casino) - bonusAmount(firstCasino || { dailyBonus: "", name: firstName } as Casino);
+      return (
+        bonusAmount(secondCasino || ({ dailyBonus: "", name: secondName } as Casino)) -
+        bonusAmount(firstCasino || ({ dailyBonus: "", name: firstName } as Casino))
+      );
     });
 
   const actionCasino = openActionMenu
-    ? casinos.find((casino) => casino.id === openActionMenu) || null
+    ? (casinos ?? []).find((casino) => casino && casino.id === openActionMenu) || null
     : null;
 
-  const dailyTotals = casinos.reduce(
+  const dailyTotals = (casinos ?? []).reduce(
     (totals, casino) => {
-      if (casino.hidden) return totals;
+      if (!casino || casino.hidden) return totals;
       const value = bonusAmount(casino);
       if (statusFor(casino).ready) {
         totals.available += value;
@@ -1614,8 +1632,8 @@ export default function TrackerPage() {
   }, [dailyTotals.available, dailyTotals.claimedToday]);
 
   const totalPortfolioBalance = useMemo(() => {
-    return casinos.reduce((sum, c) => {
-      if (c.hidden) return sum;
+    return (casinos ?? []).reduce((sum, c) => {
+      if (!c || c.hidden) return sum;
       const bal = typeof c.currentBalance === "number" ? c.currentBalance : Number(c.currentBalance);
       return sum + (!isNaN(bal) ? bal : 0);
     }, 0);
@@ -1647,16 +1665,17 @@ export default function TrackerPage() {
     }
   }, []);
 
-  const readyCasinos = casinos.filter((c) => !c.hidden && statusFor(c).ready);
+  const readyCasinos = (casinos ?? []).filter((c) => c && !c.hidden && statusFor(c).ready);
   // User's active Rollcall casinos (filtered strictly by non-hidden and active custom list)
-  const activeCustomList = customLists.find((l) => l.id === activeListId) || customLists[0];
-  const userRollcallCasinos = casinos.filter((c) => {
+  const activeCustomList = (customLists ?? []).find((l) => l?.id === activeListId) || (customLists ?? [])[0];
+  const userRollcallCasinos = (casinos ?? []).filter((c) => {
+    if (!c) return false;
     if (activeListId === "hidden") {
       return Boolean(c.hidden);
     }
     if (c.hidden) return false;
     if (activeCustomList && activeCustomList.id !== "all") {
-      return activeCustomList.casinoIds.includes(c.id);
+      return Array.isArray(activeCustomList.casinoIds) && activeCustomList.casinoIds.includes(c.id);
     }
     return true;
   });
@@ -1740,8 +1759,8 @@ export default function TrackerPage() {
               <div className="mt-5 grid grid-cols-1 gap-3">
                 {visibleDirectory.map((casinoName) => {
                   const seed = getCasinoDefaultMetadata(casinoName);
-                  const trackedCasino = casinos.find(
-                    (c) => c.name.toLowerCase() === casinoName.toLowerCase()
+                  const trackedCasino = (casinos ?? []).find(
+                    (c) => c?.name && typeof c.name === "string" && c.name.toLowerCase() === (casinoName || "").toLowerCase()
                   );
                   const isAdded = Boolean(trackedCasino);
                   const hasStreak = directoryHasStreak[casinoName] ?? seed?.hasStreak ?? false;

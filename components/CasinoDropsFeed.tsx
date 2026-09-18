@@ -86,8 +86,10 @@ export function CasinoDropsFeed({ casino }: { casino: Casino }) {
   };
 
   // Split into unclaimed (pinned to top) and claimed
-  const unclaimedDrops = posts.filter((p) => !claimedDropIds.includes(p.id));
-  const claimedDrops = posts.filter((p) => claimedDropIds.includes(p.id));
+  const claimed = claimedDropIds ?? [];
+  const drops = posts ?? [];
+  const unclaimedDrops = drops.filter((p) => p && !claimed.includes(p.id));
+  const claimedDrops = drops.filter((p) => p && claimed.includes(p.id));
   const sortedDrops = [...unclaimedDrops, ...claimedDrops];
 
   if (isLoading) {
@@ -125,7 +127,7 @@ export function CasinoDropsFeed({ casino }: { casino: Casino }) {
   return (
     <div className="space-y-3">
       {sortedDrops.map((drop) => {
-        const isClaimed = claimedDropIds.includes(drop.id);
+        const isClaimed = Boolean(drop?.id && claimed.includes(drop.id));
         const code = drop.dropCode?.trim();
         const claimUrl = drop.targetUrl || drop.linkUrl || casino.claimUrl || casino.siteUrl;
 

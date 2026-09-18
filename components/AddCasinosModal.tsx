@@ -74,16 +74,21 @@ export function AddCasinosModal({
   // Lookup existing user casinos by lowercase name
   const userCasinosByName = useMemo(() => {
     const map = new Map<string, Casino>();
-    for (const c of casinos) {
-      map.set(c.name.trim().toLowerCase(), c);
+    const userCasinos = casinos ?? [];
+    for (const c of userCasinos) {
+      if (c && c.name && typeof c.name === "string") {
+        map.set(c.name.trim().toLowerCase(), c);
+      }
     }
     return map;
   }, [casinos]);
 
   // Filtered and searched list
   const filteredCasinos = useMemo(() => {
-    return allNames
+    const names = allNames ?? [];
+    return names
       .filter((name) => {
+        if (!name || typeof name !== "string") return false;
         const isAdded = userCasinosByName.has(name.trim().toLowerCase());
         if (filterMode === "available" && isAdded) return false;
         if (filterMode === "added" && !isAdded) return false;
@@ -230,12 +235,12 @@ export function AddCasinosModal({
             </div>
           ) : (
             filteredCasinos.map((casinoName) => {
-              const userCasino = userCasinosByName.get(casinoName.trim().toLowerCase());
+              const userCasino = casinoName ? userCasinosByName.get(casinoName.trim().toLowerCase()) : undefined;
               const isAdded = Boolean(userCasino);
 
               const seed = getCasinoDefaultMetadata(casinoName);
               const siteUrl =
-                directoryData?.urls[casinoName] ||
+                directoryData?.urls?.[casinoName] ||
                 casinoDirectoryUrls[casinoName] ||
                 seed?.siteUrl ||
                 `https://www.google.com/search?q=${encodeURIComponent(`${casinoName} casino`)}`;

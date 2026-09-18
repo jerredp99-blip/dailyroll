@@ -162,7 +162,17 @@ export function formatResetTimeDisplay(resetAtTimeStr?: string | null): string {
   }
 }
 
-export function calculateCasinoStatus(casino: Casino, now: number = Date.now()): CasinoStatus {
+export function calculateCasinoStatus(casino?: Casino | null, now: number = Date.now()): CasinoStatus {
+  if (!casino) {
+    return {
+      ready: true,
+      state: "ready",
+      label: "Ready to claim",
+      shortLabel: "now",
+      remainingMs: 0,
+    };
+  }
+
   // 1. Explicit target reset timestamp (highest priority: Custom Timer or Snooze Override)
   if (casino.targetResetTimestamp) {
     const targetReset =

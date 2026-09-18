@@ -72,11 +72,13 @@ export function isBonusDropActive(
 
   const id = post.id;
   const claimedSet =
-    claimedDropIds instanceof Set ? claimedDropIds : new Set(claimedDropIds);
+    claimedDropIds instanceof Set
+      ? claimedDropIds
+      : new Set(claimedDropIds ?? []);
   const reportedSet =
     userReportedExpiredIds instanceof Set
       ? userReportedExpiredIds
-      : new Set(userReportedExpiredIds);
+      : new Set(userReportedExpiredIds ?? []);
 
   // 1. Exclude if claimed by user
   if (id && claimedSet.has(id)) return false;
@@ -205,10 +207,7 @@ export function notifyDropsUpdated(posts: any[]): void {
  * Updates immediately when drops are claimed, reported expired, or updated.
  */
 export function useActiveDropsCount(): number {
-  const [count, setCount] = useState<number>(() => {
-    if (typeof window === "undefined") return 0;
-    return computeActiveDropsCount();
-  });
+  const [count, setCount] = useState<number>(0);
 
   useEffect(() => {
     const update = () => {

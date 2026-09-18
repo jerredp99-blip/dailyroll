@@ -363,19 +363,25 @@ export function SocialFeed({
   const [modalTab, setModalTab] = useState<"locked" | "all">("locked");
 
   const bonusDrops = useMemo(() => {
-    const reported = getUserReportedExpiredDropIds();
-    return posts.filter((p) => isBonusDropActive(p, claimedDropIds, reported));
+    const reported = getUserReportedExpiredDropIds() ?? [];
+    const claimed = claimedDropIds ?? [];
+    const allPosts = posts ?? [];
+    return allPosts.filter((p) => isBonusDropActive(p, claimed, reported));
   }, [posts, claimedDropIds]);
 
   const userCasinoIds = useMemo(() => {
-    if (!casinos) return [];
-    return casinos.map((c) => c.id || c.name);
+    if (!casinos || !Array.isArray(casinos)) return [];
+    return casinos
+      .map((c) => (c ? (c as any).casinoId ?? c.id ?? c.name : null))
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
   }, [casinos]);
 
   const activeCasinosWithDrops = useMemo(() => {
     const map = new Map<string, { id: string; name: string; count: number; isEnrolled: boolean; isAdded: boolean }>();
+    const drops = bonusDrops ?? [];
 
-    bonusDrops.forEach((drop) => {
+    drops.forEach((drop) => {
+      if (!drop) return;
       const casinoId =
         drop.casinoId ||
         drop.casinoName ||
@@ -388,19 +394,20 @@ export function SocialFeed({
         (drop.casinoTag ? drop.casinoTag.replace(/^[$#]+/, "") : null) ||
         drop.tags?.find(
           (t) =>
+            typeof t === "string" &&
             !["BONUS_CODE", "PROMO_CODE", "BONUS_DROP", "DROP_CODE", "DISCUSSION", "BIG_WIN"].includes(
               t.toUpperCase()
             )
         )?.replace(/^[$#]+/, "") ||
         "Unknown Casino";
 
-      const nameLower = casinoName.toLowerCase();
+      const nameLower = (casinoName || "").toLowerCase();
       const isEnrolled =
         userCasinoIds.includes(casinoId) ||
-        userCasinoIds.some((id) => id.toLowerCase() === nameLower) ||
+        userCasinoIds.some((id) => typeof id === "string" && id.toLowerCase() === nameLower) ||
         (activeRollcallKeys.size > 0 &&
           Array.from(activeRollcallKeys).some(
-            (key) => key.toLowerCase() === nameLower || nameLower.includes(key.toLowerCase())
+            (key) => typeof key === "string" && (key.toLowerCase() === nameLower || nameLower.includes(key.toLowerCase()))
           ));
 
       const existing = map.get(casinoId);
@@ -421,15 +428,15 @@ export function SocialFeed({
     if (list.length === 0) {
       const defaultList = ["Stake.us", "Crown Coins", "Pulsz", "High 5 Casino", "McLuck", "ThrillCoins", "Coinsback"];
       return defaultList.map((name) => {
-        const nameLower = name.toLowerCase();
+        const nameLower = (name || "").toLowerCase();
         const isEnrolled =
-          userCasinoIds.some((id) => id.toLowerCase() === nameLower) ||
+          userCasinoIds.some((id) => typeof id === "string" && id.toLowerCase() === nameLower) ||
           (activeRollcallKeys.size > 0 &&
             Array.from(activeRollcallKeys).some(
-              (key) => key.toLowerCase() === nameLower || nameLower.includes(key.toLowerCase())
+              (key) => typeof key === "string" && (key.toLowerCase() === nameLower || nameLower.includes(key.toLowerCase()))
             ));
         return {
-          id: name.toLowerCase().replace(/\s+/g, "-"),
+          id: (name || "").toLowerCase().replace(/\s+/g, "-"),
           name,
           count: 1,
           isEnrolled,
@@ -457,9 +464,12 @@ export function SocialFeed({
   }, [casinosWithActiveCodes]);
 
   const unclaimedDropsCount = useMemo(() => {
-    const reported = getUserReportedExpiredDropIds();
-    return posts.filter((p) => {
-      if (!isBonusDropActive(p, claimedDropIds, reported)) return false;
+    const reported = getUserReportedExpiredDropIds() ?? [];
+    const claimed = claimedDropIds ?? [];
+    const allPosts = posts ?? [];
+    return allPosts.filter((p) => {
+      if (!p) return false;
+      if (!isBonusDropActive(p, claimed, reported)) return false;
       if (!showAllCasinoDrops && activeRollcallKeys.size > 0) {
         return isDropInUserRollcall(p, activeRollcallKeys);
       }
@@ -468,7 +478,9 @@ export function SocialFeed({
   }, [posts, claimedDropIds, showAllCasinoDrops, activeRollcallKeys]);
 
   const sortedPosts = useMemo(() => {
-    let list = [...posts];
+    const claimed = claimedDropIds ?? [];
+    const allPosts = posts ?? [];
+    let list = [...allPosts];
 
     // Rollcall Filtering: If user has active Rollcall casinos and hasn't toggled "show all",
     // only show drops matching casinos in their Rollcall (or universal drops)
