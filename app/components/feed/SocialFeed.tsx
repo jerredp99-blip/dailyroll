@@ -40,6 +40,9 @@ export function SocialFeed({
   setIsBonusDropsOpen,
   setIsAddCasinosOpen,
   onOpenAddCasinos,
+  hideBanner = false,
+  showActiveCasinosModal: controlledShowActiveCasinosModal,
+  setShowActiveCasinosModal: controlledSetShowActiveCasinosModal,
   showActiveDropsCasinos: controlledShowActiveDropsCasinos,
   setShowActiveDropsCasinos: controlledSetShowActiveDropsCasinos,
   showExploreModal: controlledShowExploreModal,
@@ -54,10 +57,13 @@ export function SocialFeed({
   compact?: boolean;
   initialType?: "all" | "discussion" | "drop_code" | "big_win";
   hideComposer?: boolean;
+  hideBanner?: boolean;
   onClose?: () => void;
   setIsBonusDropsOpen?: (open: boolean) => void;
   setIsAddCasinosOpen?: (open: boolean) => void;
   onOpenAddCasinos?: () => void;
+  showActiveCasinosModal?: boolean;
+  setShowActiveCasinosModal?: (show: boolean) => void;
   showActiveDropsCasinos?: boolean;
   setShowActiveDropsCasinos?: (show: boolean) => void;
   showExploreModal?: boolean;
@@ -660,10 +666,10 @@ export function SocialFeed({
       )}
 
       {/* Always render when drops exist - persistent guidance */}
-      {(currentType === "all" || currentType === "drop_code") && activeCasinosWithDrops.length > 0 && (
+      {!hideBanner && (currentType === "all" || currentType === "drop_code") && activeCasinosWithDrops.length > 0 && (
         <div className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200 mb-3 select-none">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span>🎁 <strong className="text-amber-300 font-bold">{activeCasinosWithDrops.length} casinos</strong> have active bonus drops</span>
+            <span>🎁 {activeCasinosWithDrops.length} casinos with active bonus codes</span>
             <button
               type="button"
               onClick={(e) => {

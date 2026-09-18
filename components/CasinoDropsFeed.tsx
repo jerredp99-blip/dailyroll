@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Copy, Check, ExternalLink, Gift, Sparkles, Pin } from "lucide-react";
+import { Copy, Check, ExternalLink, Gift, Sparkles, Pin, Loader2 } from "lucide-react";
 import type { Post } from "@/lib/store";
 import type { Casino } from "@/types/casino";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
