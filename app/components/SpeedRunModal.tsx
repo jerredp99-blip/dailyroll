@@ -821,16 +821,9 @@ export function SpeedRunModal({
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-[#39ff6a] shadow-[0_0_15px_rgba(57,255,106,0.35)]">
               <Zap size={20} fill="#39ff6a" />
             </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 id="speed-run-title" className="text-base sm:text-lg font-bold text-white tracking-tight">
-                  Speed Run V2
-                </h2>
-              </div>
-              <p className="text-[11px] text-[#8ca892]">
-                State-aware daily bonus speed runner
-              </p>
-            </div>
+            <h2 id="speed-run-title" className="text-base sm:text-lg font-bold text-white tracking-tight">
+              Speed Run V2
+            </h2>
           </div>
 
           {/* Gamified Live Claim Counter */}
