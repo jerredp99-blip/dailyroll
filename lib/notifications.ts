@@ -115,7 +115,7 @@ export async function sendCasinoReadyNotification(
 
   const options: NotificationOptions = {
     body,
-    icon: "/icon-192x192.png",
+    icon: "/icon-192.png",
     badge: "/favicon.ico",
     tag: `casino-ready-${casinoName.toLowerCase().replace(/\s+/g, "-")}`,
     renotify: true,
@@ -138,10 +138,11 @@ export async function sendCasinoReadyNotification(
   // 2. Fallback to native window.Notification
   try {
     const notification = new Notification(title, options);
-    notification.onclick = () => {
+    notification.onclick = (event) => {
+      event.preventDefault();
       window.focus();
-      if (url && url.startsWith("http")) {
-        window.open(url, "_blank");
+      if (targetUrl && targetUrl !== window.location.pathname) {
+        window.location.href = targetUrl;
       }
       notification.close();
     };

@@ -145,12 +145,12 @@ function RollcallCardComponent({
       }
       className={`h-8.5 w-8.5 sm:h-9 sm:w-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer shrink-0 select-none ${
         isNotificationEnabled
-          ? "bg-amber-500/15 border-amber-500/50 text-amber-400 hover:bg-amber-500/25 shadow-[0_0_8px_rgba(245,158,11,0.25)]"
-          : "bg-zinc-950/60 border-emerald-900/60 hover:border-emerald-500/50 text-zinc-500 hover:text-zinc-300"
+          ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-400 hover:bg-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+          : "bg-zinc-950/60 border-zinc-800/80 hover:border-zinc-700 text-zinc-500 hover:text-zinc-300"
       }`}
     >
       {isNotificationEnabled ? (
-        <BellRing size={16} className="text-amber-400 animate-pulse" />
+        <Bell size={16} className="text-emerald-400 fill-emerald-400/40" />
       ) : (
         <Bell size={16} />
       )}
