@@ -364,14 +364,26 @@ export default function TrackerPage() {
       // 4. If already subscribed, toggle this casino's notification alert preference
       setEnabledAlertCasinoIds((prev) => {
         const next = new Set(prev);
-        if (next.has(casino.id)) {
-          next.delete(casino.id);
-        } else {
+        const willEnable = !next.has(casino.id);
+        if (willEnable) {
           next.add(casino.id);
+        } else {
+          next.delete(casino.id);
         }
         try {
           localStorage.setItem("dailyroll_alert_casinos", JSON.stringify(Array.from(next)));
         } catch {}
+
+        // Persist to server so background cron knows to check this casino
+        fetch("/api/push/toggle-casino", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            casinoId: casino.id,
+            enabled: willEnable,
+          }),
+        }).catch((err) => console.warn("[push] Failed to sync casino alert with server:", err));
+
         return next;
       });
     },

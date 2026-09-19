@@ -123,6 +123,7 @@ export type StoredPushSubscription = {
   keys: PushSubscriptionKeys;
   userId?: string | null;
   enabledCasinos?: string[];
+  lastNotifiedTimestamps?: Record<string, number>;
   createdAt: string;
   updatedAt: string;
 };
@@ -426,7 +427,7 @@ async function readFileStore(): Promise<Store> {
   }
 }
 
-async function readStore(): Promise<Store> {
+export async function readStore(): Promise<Store> {
   if (hasRemoteStore()) {
     const raw = await redisCommand<string | null>(["GET", REDIS_KEY]);
     if (raw) {
