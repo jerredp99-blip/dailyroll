@@ -12,12 +12,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 2. Allow static files, Next.js assets, and public auth API endpoints
+  // 2. Allow static files, Next.js assets, public auth, cron, and notifications API endpoints
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/cron") ||
+    pathname.startsWith("/api/notifications") ||
+    pathname === "/api/user/notifications" ||
     pathname === "/favicon.ico" ||
     pathname === "/manifest.webmanifest" ||
+    pathname === "/sw.js" ||
     /\.(png|jpg|jpeg|svg|gif|webp|ico|css|js|mjs|map|json)$/i.test(pathname)
   ) {
     return NextResponse.next();

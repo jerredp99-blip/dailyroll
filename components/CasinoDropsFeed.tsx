@@ -129,7 +129,7 @@ export function CasinoDropsFeed({ casino }: { casino: Casino }) {
       {sortedDrops.map((drop) => {
         const isClaimed = Boolean(drop?.id && claimed.includes(drop.id));
         const code = drop.dropCode?.trim();
-        const claimUrl = drop.claimUrl || drop.targetUrl || drop.linkUrl || casino.claimUrl || casino.siteUrl || "#";
+        const claimUrl = (drop as any).claimUrl || drop.targetUrl || drop.linkUrl || casino.claimUrl || casino.siteUrl || "#";
 
         return (
           <div

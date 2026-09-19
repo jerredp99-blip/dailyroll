@@ -16,7 +16,13 @@ export interface CustomTimerModalProps {
   currentRemainingMs?: number;
   initialSc?: string | number;
   onClose: () => void;
-  onSave: (target: Casino | string, targetResetTimestamp: number, customSc?: number) => void;
+  onSave?: (target: Casino | string, targetResetTimestamp: number | null, customSc?: number) => void;
+  onApplyTimer?: (data: {
+    casinoId?: string;
+    targetTimestamp: number | null;
+    totalSeconds: number;
+    rewardValue?: number;
+  }) => void;
 }
 
 const PRESET_HOURS = [
@@ -36,6 +42,7 @@ export function CustomTimerModal({
   initialSc,
   onClose,
   onSave,
+  onApplyTimer,
 }: CustomTimerModalProps) {
   const [mounted, setMounted] = useState(false);
   const [hours, setHours] = useState("");
@@ -116,22 +123,34 @@ export function CustomTimerModal({
       e.preventDefault();
       e.stopPropagation();
     }
-    const h = parseInt(hours || "0", 10);
-    const m = parseInt(minutes || "0", 10);
-    if (isNaN(h) && isNaN(m)) return;
 
-    const finalHours = Math.max(0, isNaN(h) ? 0 : h);
-    const finalMinutes = Math.max(0, isNaN(m) ? 0 : m);
+    const h = Math.max(0, parseInt(String(hours || "0"), 10) || 0);
+    const m = Math.max(0, parseInt(String(minutes || "0"), 10) || 0);
+    const totalSeconds = h * 3600 + m * 60;
 
-    // If both 0, set targetResetTimestamp to Date.now() - 1000 so it immediately becomes "Ready to claim"
-    const targetResetTimestamp =
-      finalHours === 0 && finalMinutes === 0
-        ? Date.now() - 1000
-        : calculateCustomResetTimestamp(finalHours, finalMinutes);
+    // If 0h 0m, set target to null so it becomes READY immediately
+    const targetTimestamp = totalSeconds > 0 ? Date.now() + totalSeconds * 1000 : null;
 
-    const parsedSc = scAmount.trim() !== "" ? parseFloat(scAmount) : undefined;
+    const parsedSc =
+      scAmount && scAmount.trim() !== ""
+        ? parseFloat(String(scAmount).replace(/[^0-9.]/g, ""))
+        : undefined;
     const finalSc = typeof parsedSc === "number" && !isNaN(parsedSc) ? parsedSc : undefined;
-    onSave(targetIdentifier, targetResetTimestamp, finalSc);
+
+    // Pass to parent handler
+    if (typeof onApplyTimer === "function") {
+      onApplyTimer({
+        casinoId: casino?.id || casinoId,
+        targetTimestamp,
+        totalSeconds,
+        rewardValue: finalSc,
+      });
+    }
+
+    if (typeof onSave === "function") {
+      onSave(targetIdentifier, targetTimestamp, finalSc);
+    }
+
     onClose();
   };
 

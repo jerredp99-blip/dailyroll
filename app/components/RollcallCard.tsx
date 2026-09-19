@@ -23,8 +23,10 @@ import {
   SNOOZE_PRESETS,
   calculateCustomResetTimestamp,
   calculateCasinoStatus,
+  getCasinoTargetResetTimestamp,
   useCurrentTimeContext,
 } from "@/lib/timerUtils";
+import { useCasinoCountdown } from "@/hooks/useTimer";
 import { CasinoLogo } from "@/components/CasinoLogo";
 import { TrustpilotStars } from "@/components/TrustpilotStars";
 import { CustomTimerModal } from "@/components/CustomTimerModal";
@@ -69,7 +71,7 @@ export interface RollcallCardProps {
   onResetToReady?: (casino: Casino) => void;
   onCancelSnooze?: (casino: Casino) => void;
   onSnoozeDuration?: (casino: Casino, durationMs: number) => void;
-  onSetCustomTimer?: (casino: Casino, targetResetTimestamp: number, customSc?: number) => void;
+  onSetCustomTimer?: (casino: Casino, targetResetTimestamp: number | null, customSc?: number) => void;
   onUpdateCasino?: (casino: Casino, updates: Partial<Casino>) => void;
   onOpenCasino: (casino: Casino) => void;
   onOpenBonus?: (casino: Casino) => void;
@@ -117,6 +119,19 @@ function RollcallCardComponent({
   const contextNow = useCurrentTimeContext();
   const currentNow = now ?? contextNow;
   const currentStatus = status ?? calculateCasinoStatus(casino, currentNow);
+
+  const targetTimestamp = React.useMemo(
+    () => getCasinoTargetResetTimestamp(casino, currentNow),
+    [casino, currentNow]
+  );
+
+  useCasinoCountdown(
+    casino.id,
+    casino.name,
+    casino.logo || undefined,
+    targetTimestamp,
+    isNotificationEnabled
+  );
 
   const styles = STATUS_STYLES[currentStatus.state];
   const formattedCountdown = formatRemainingTimer(currentStatus.remainingMs);
@@ -587,6 +602,7 @@ function areRollcallCardPropsEqual(prev: RollcallCardProps, next: RollcallCardPr
   if (prev.onToggleActionMenu !== next.onToggleActionMenu) return false;
   if (prev.renderLogo !== next.renderLogo) return false;
   if (prev.renderTrustpilot !== next.renderTrustpilot) return false;
+  if (prev.isNotificationEnabled !== next.isNotificationEnabled) return false;
 
   const prevPending = prev.pendingInfo;
   const nextPending = next.pendingInfo;

@@ -138,30 +138,20 @@ import { playNotificationChime, vibrateDevice, flashTabTitle } from "@/lib/audio
 export async function sendCasinoReadyNotification(
   casinoName: string,
   bonusText?: string,
-  url?: string
+  url?: string,
+  iconUrl?: string
 ): Promise<boolean> {
   const title = `${casinoName} — Ready to Claim! 🎁`;
   const bonusSubtext = bonusText ? ` (${bonusText})` : "";
   const body = `Your daily reload bonus for ${casinoName}${bonusSubtext} is ready to claim now!`;
   const targetUrl = url || "/tracker";
   const tag = `casino-ready-${casinoName.toLowerCase().replace(/\s+/g, "-")}`;
+  const icon = iconUrl || "/icon-192.png";
 
-  // 1. Multi-channel Immediate Feedback (Guaranteed on all platforms & permissions)
+  // 1. Multi-channel Immediate Feedback
   playNotificationChime();
   vibrateDevice([200, 100, 200]);
   flashTabTitle(`${casinoName} Ready!`);
-
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(
-      new CustomEvent("dailyroll-alert", {
-        detail: {
-          title,
-          body,
-          actionUrl: targetUrl,
-        },
-      })
-    );
-  }
 
   // 2. Native OS Notification (if supported and granted)
   if (!isNotificationSupported() || Notification.permission !== "granted") {
@@ -179,7 +169,7 @@ export async function sendCasinoReadyNotification(
     try {
       const notification = new Notification(title, {
         body,
-        icon: "/icon-192.png",
+        icon,
         tag,
       });
       notification.onclick = (event) => {
@@ -199,14 +189,39 @@ export async function sendCasinoReadyNotification(
 
   // On mobile (Android Chrome / PWA), or fallback from desktop
   if (!osDispatched && typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+    // Immediate fallback: Post directly to active SW controller if available
     try {
-      let reg = await navigator.serviceWorker.getRegistration().catch(() => null);
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: "SHOW_NOTIFICATION",
+          title,
+          options: {
+            body,
+            icon,
+            badge: "/favicon.ico",
+            tag,
+            renotify: true,
+            vibrate: [200, 100, 200],
+            data: { url: targetUrl },
+          },
+        });
+      }
+    } catch {}
+
+    try {
+      let reg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<null>((r) => setTimeout(() => r(null), 1200)),
+      ]);
+
       if (!reg) {
-        reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => null);
+        reg = (await navigator.serviceWorker.getRegistration().catch(() => null)) || null;
+      }
+      if (!reg) {
+        reg = (await navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => null)) || null;
       }
 
       if (reg) {
-        // Wait briefly for active worker if currently installing
         if (reg.installing) {
           await new Promise<void>((res) => {
             const w = reg!.installing;
@@ -214,14 +229,14 @@ export async function sendCasinoReadyNotification(
             w.addEventListener("statechange", () => {
               if (w.state === "activated") res();
             });
-            setTimeout(res, 1200);
+            setTimeout(res, 1000);
           });
         }
 
         if (typeof reg.showNotification === "function") {
           await reg.showNotification(title, {
             body,
-            icon: "/icon-192.png",
+            icon,
             badge: "/favicon.ico",
             tag,
             renotify: true,
@@ -238,6 +253,18 @@ export async function sendCasinoReadyNotification(
   }
 
   return osDispatched;
+}
+
+/**
+ * Triggers a notification when a countdown timer hits zero.
+ */
+export async function triggerTimerZeroNotification(
+  casinoName: string,
+  casinoLogo?: string,
+  bonusText?: string,
+  url?: string
+): Promise<boolean> {
+  return sendCasinoReadyNotification(casinoName, bonusText, url, casinoLogo);
 }
 
 /**

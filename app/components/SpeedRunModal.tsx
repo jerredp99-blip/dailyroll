@@ -608,14 +608,15 @@ export function SpeedRunModal({
   }
 
   // User set Custom Timer
-  function handleCustomTimerSave(targetResetTimestamp: number, customSc?: number) {
+  function handleCustomTimerSave(targetResetTimestamp: number | null, customSc?: number) {
     if (!currentCasino || !session) return;
 
+    const isReady = !targetResetTimestamp || targetResetTimestamp <= Date.now();
     const nowIso = new Date().toISOString();
     const updates: Partial<Casino> = {
-      targetResetTimestamp,
+      targetResetTimestamp: isReady ? null : targetResetTimestamp,
       snoozedUntil: null,
-      lastClaimedAt: nowIso,
+      lastClaimedAt: isReady ? null : nowIso,
       ...(customSc !== undefined
         ? { dailyBonusSc: String(customSc), dailyBonus: `${customSc} SC` }
         : {}),
@@ -629,9 +630,13 @@ export function SpeedRunModal({
       console.error("Failed to set custom timer in SpeedRun:", err);
     }
 
-    advanceQueue({
-      snooze: { id: currentCasino.id, until: new Date(targetResetTimestamp).toISOString() },
-    });
+    if (isReady) {
+      advanceQueue({ skipId: currentCasino.id });
+    } else {
+      advanceQueue({
+        snooze: { id: currentCasino.id, until: new Date(targetResetTimestamp).toISOString() },
+      });
+    }
   }
 
   // Fallback 1h snooze

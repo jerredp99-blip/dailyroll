@@ -102,3 +102,4 @@ export function flashTabTitle(alertText: string): void {
     }
   }, 1000);
 }
+

@@ -29,15 +29,16 @@ import { SocialFeed } from "@/app/components/feed/SocialFeed";
 import { RollcallCard } from "@/app/components/RollcallCard";
 import { ExpandableSearch } from "@/app/components/ExpandableSearch";
 import { useActiveDropsCount, notifyDropsUpdated } from "@/lib/dropsStore";
-import { calculateCasinoStatus, resetCasinoTimers, useCurrentTime, SNOOZE_PRESETS, type CasinoStatus } from "@/lib/timerUtils";
+import { calculateCasinoStatus, resetCasinoTimers, useCurrentTime, SNOOZE_PRESETS, getCasinoTargetResetTimestamp, type CasinoStatus } from "@/lib/timerUtils";
 import {
   getCasinoNotificationPreferences,
   setCasinoNotificationPreference,
   fetchServerNotificationPreferences,
   requestNotificationPermission,
   getNotificationPermission,
-  sendCasinoReadyNotification,
+  triggerTimerZeroNotification,
 } from "@/lib/notifications";
+import { usePushSubscription } from "@/lib/usePushSubscription";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
 import { SpeedRunModal } from "@/app/components/SpeedRunModal";
@@ -304,6 +305,7 @@ export default function TrackerPage() {
     viewingUserEmailRef.current = viewingUserEmail;
   }, [viewingUserEmail]);
   const now = useCurrentTime();
+  const { subscribe: subscribeToPush, getSubscription: getPushSubscription } = usePushSubscription();
   const [pendingClaims, setPendingClaims] = useState<Record<string, { expiresAt: number; isDefocused?: boolean }>>({});
   const [feedUnreadCount, setFeedUnreadCount] = useState<number>(0);
   const [lastOpenedCasino, setLastOpenedCasino] = useState<{ name: string; url: string } | null>(null);
@@ -464,33 +466,6 @@ export default function TrackerPage() {
       .catch(() => {});
   }, []);
 
-  // In-app interactive alert toast state
-  interface NotificationToastData {
-    title: string;
-    body: string;
-    actionUrl?: string;
-  }
-  const [activeNotificationToast, setActiveNotificationToast] = useState<NotificationToastData | null>(null);
-
-  useEffect(() => {
-    const handleAlert = (e: Event) => {
-      const customEvent = e as CustomEvent<NotificationToastData>;
-      if (customEvent.detail) {
-        setActiveNotificationToast(customEvent.detail);
-      }
-    };
-    window.addEventListener("dailyroll-alert", handleAlert);
-    return () => window.removeEventListener("dailyroll-alert", handleAlert);
-  }, []);
-
-  useEffect(() => {
-    if (!activeNotificationToast) return;
-    const timer = setTimeout(() => {
-      setActiveNotificationToast(null);
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [activeNotificationToast]);
-
   const handleToggleNotification = async (casino: Casino) => {
     const currentlyEnabled = Boolean(notificationPreferences[casino.id]);
     const nextState = !currentlyEnabled;
@@ -509,52 +484,103 @@ export default function TrackerPage() {
     );
     setNotificationPreferences(updated);
 
+    // If turned ON, silently subscribe to push and schedule server-side push for background delivery
     // If turned ON, dispatch multi-channel alert (chime, toast, vibration, desktop)
     if (nextState) {
       const perm = getNotificationPermission();
       const isSystemGranted = perm === "granted";
-      sendCasinoReadyNotification(
-        casino.name,
-        isSystemGranted
-          ? "Alerts Active — Audio, banner, and desktop notifications will alert you at 00:00:00!"
-          : "In-App Audio & Banner Alerts Active! (Allow notifications in your address bar for desktop popups).",
-        "/tracker"
-      );
+
+      // Subscribe to Web Push for background notifications (when app is closed)
+      if (isSystemGranted) {
+        subscribeToPush().then((sub) => {
+          // If this casino already has a running timer, schedule a server-side push for it
+          if (sub) {
+            const status = statusFor(casino);
+            if (!status.ready && status.remainingMs > 0) {
+              const targetTs = Date.now() + status.remainingMs;
+              fetch("/api/notifications/schedule", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  casinoId: casino.id,
+                  casinoName: casino.name,
+                  dailyBonus: casino.dailyBonus,
+                  targetResetTimestamp: targetTs,
+                  subscription: sub,
+                }),
+              }).catch(() => {});
+            }
+          }
+        }).catch(() => {});
+      }
     }
   };
 
-  // Monitor countdown timers reaching zero and dispatch browser notifications
-  const previousReadinessRef = useRef<Record<string, boolean>>({});
-  const lastNotifiedAtRef = useRef<Record<string, number>>({});
+  // Robust countdown timer expiration listener with visibility change listener & persistent fired tracking
+  const firedTimersRef = useRef<Record<string, boolean>>({});
+  const lastTargetTimestampRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     if (!casinos || casinos.length === 0) return;
-    const nowMs = Date.now();
 
-    casinos.forEach((casino) => {
-      if (!casino || !casino.id) return;
-      const isNotifEnabled = Boolean(notificationPreferences[casino.id]);
-      const status = statusFor(casino);
-      const wasReady = previousReadinessRef.current[casino.id];
+    const checkAllExpirations = () => {
+      const nowMs = Date.now();
 
-      // Reset debounce tracking whenever casino is on cooldown/pending
-      if (!status.ready) {
-        lastNotifiedAtRef.current[casino.id] = 0;
-      }
+      casinos.forEach((casino) => {
+        if (!casino || !casino.id) return;
+        const notifyEnabled = Boolean(notificationPreferences[casino.id]);
+        const targetTimestamp = getCasinoTargetResetTimestamp(casino, nowMs);
 
-      // If casino was previously on cooldown/pending and is now ready
-      if (isNotifEnabled && wasReady === false && status.ready) {
-        const lastNotified = lastNotifiedAtRef.current[casino.id] || 0;
-        if (nowMs - lastNotified > 30000) {
-          lastNotifiedAtRef.current[casino.id] = nowMs;
-          sendCasinoReadyNotification(casino.name, casino.dailyBonus, "/tracker");
+        if (!targetTimestamp) {
+          firedTimersRef.current[casino.id] = false;
+          lastTargetTimestampRef.current[casino.id] = 0;
+          return;
         }
-      }
 
-      // Track current state
-      previousReadinessRef.current[casino.id] = status.ready;
-    });
-  }, [now, casinos, notificationPreferences]);
+        // Reset fired status whenever a new future cooldown is assigned or updated
+        if (targetTimestamp > nowMs && targetTimestamp !== lastTargetTimestampRef.current[casino.id]) {
+          firedTimersRef.current[casino.id] = false;
+          lastTargetTimestampRef.current[casino.id] = targetTimestamp;
+        }
+
+        const remainingMs = targetTimestamp - nowMs;
+
+        // Check if timer expired (<= 0) and has not yet triggered an alert
+        if (remainingMs <= 0 && !firedTimersRef.current[casino.id]) {
+          firedTimersRef.current[casino.id] = true;
+
+          if (notifyEnabled) {
+            triggerTimerZeroNotification(
+              casino.name,
+              casino.logo || undefined,
+              casino.dailyBonus,
+              "/tracker"
+            );
+          }
+        }
+      });
+    };
+
+    // Check immediately on mount/update (catches wake-from-sleep and tab switch events)
+    checkAllExpirations();
+
+    const intervalId = setInterval(checkAllExpirations, 1000);
+
+    // Re-check when window regains visibility after being backgrounded/locked
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        checkAllExpirations();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", checkAllExpirations);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", checkAllExpirations);
+    };
+  }, [casinos, notificationPreferences]);
 
   // When feed drawer is opened, mark feed as read
   useEffect(() => {
@@ -1000,6 +1026,13 @@ export default function TrackerPage() {
       } catch {
         // ignore
       }
+
+      // Remove scheduled background push for this casino (no longer needed)
+      fetch("/api/notifications/schedule", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ casinoId }),
+      }).catch(() => {});
     },
     [],
   );
@@ -1123,7 +1156,7 @@ export default function TrackerPage() {
     handleSnoozeCasino(targetCasino, snoozedUntil);
   }, [handleSnoozeCasino]);
 
-  const handleSetCustomTimer = useCallback((targetCasino: Casino, targetResetTimestamp: number, customSc?: number) => {
+  const handleSetCustomTimer = useCallback((targetCasino: Casino, targetResetTimestamp: number | null, customSc?: number) => {
     setPendingClaims((prev) => {
       if (!prev[targetCasino.id]) return prev;
       const next = { ...prev };
@@ -1131,8 +1164,13 @@ export default function TrackerPage() {
       return next;
     });
     // Explicitly track cooldown transition for notification trigger
-    previousReadinessRef.current[targetCasino.id] = false;
-    lastNotifiedAtRef.current[targetCasino.id] = 0;
+    if (targetResetTimestamp && targetResetTimestamp > Date.now()) {
+      firedTimersRef.current[targetCasino.id] = false;
+      lastTargetTimestampRef.current[targetCasino.id] = targetResetTimestamp;
+    } else {
+      firedTimersRef.current[targetCasino.id] = true;
+      lastTargetTimestampRef.current[targetCasino.id] = 0;
+    }
 
     const nowIso = new Date().toISOString();
     setCasinos((prev) => {
@@ -1152,7 +1190,26 @@ export default function TrackerPage() {
       apiSaveCasinos(signedInUserRef.current?.email, updated);
       return updated;
     });
-  }, []);
+
+    // Schedule server-side push notification for when timer expires (background delivery)
+    const isNotifEnabled = Boolean(notificationPreferences[targetCasino.id]);
+    if (isNotifEnabled && targetResetTimestamp && targetResetTimestamp > Date.now()) {
+      const sub = getPushSubscription();
+      if (sub) {
+        fetch("/api/notifications/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            casinoId: targetCasino.id,
+            casinoName: targetCasino.name,
+            dailyBonus: customSc !== undefined ? `${customSc} SC` : targetCasino.dailyBonus,
+            targetResetTimestamp,
+            subscription: sub,
+          }),
+        }).catch(() => {});
+      }
+    }
+  }, [notificationPreferences, getPushSubscription]);
 
   const handleResetToReady = useCallback((targetCasino: Casino) => {
     setPendingClaims((prev) => {
@@ -3101,42 +3158,7 @@ export default function TrackerPage() {
           </button>
         </div>
       )}
-      {/* Interactive Casino Ready & Alert Toast */}
-      {activeNotificationToast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 rounded-2xl border border-emerald-500/60 bg-[#0c1a12]/95 px-4 py-3 text-sm text-zinc-100 shadow-[0_10px_40px_rgba(0,0,0,0.8),0_0_20px_rgba(16,185,129,0.25)] backdrop-blur-md animate-in fade-in slide-in-from-top-4 duration-300 max-w-[94vw] sm:max-w-md">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 shrink-0">
-            <Bell className="h-5 w-5 fill-emerald-400/40 animate-bounce" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-bold text-white text-sm truncate flex items-center gap-1.5">
-              <span>{activeNotificationToast.title}</span>
-            </div>
-            <p className="text-xs text-zinc-400 truncate mt-0.5">
-              {activeNotificationToast.body}
-            </p>
-          </div>
-          {activeNotificationToast.actionUrl && (
-            <button
-              onClick={() => {
-                if (activeNotificationToast.actionUrl && activeNotificationToast.actionUrl !== window.location.pathname) {
-                  window.location.href = activeNotificationToast.actionUrl;
-                }
-                setActiveNotificationToast(null);
-              }}
-              className="rounded-lg bg-emerald-500 hover:bg-emerald-400 px-3 py-1.5 text-xs font-bold text-zinc-950 transition shrink-0 cursor-pointer shadow-sm"
-            >
-              Claim
-            </button>
-          )}
-          <button
-            onClick={() => setActiveNotificationToast(null)}
-            className="text-zinc-400 hover:text-white p-1 shrink-0 cursor-pointer"
-            aria-label="Dismiss alert"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
+
 
       {/* Casino Details Modal Overlay */}
       <CasinoDetailsModal

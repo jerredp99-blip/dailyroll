@@ -35,17 +35,23 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getCurrentSession();
+  const session = await getCurrentSession().catch(() => null);
+  const body = await req.json();
+  const { casinoId, enabled, preferences: incomingPreferences, subscription } = body;
+
   if (!session?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (subscription && typeof subscription === "object" && subscription.endpoint) {
+      const clean = subscription.endpoint.replace(/[^a-zA-Z0-9]/g, "");
+      const subKey = `guest:${clean.slice(-32)}:push_subscription`;
+      await redis.set(subKey, JSON.stringify(subscription)).catch(() => {});
+    }
+    return NextResponse.json({ success: true, guest: true });
   }
 
   const normalizedEmail = session.email.trim().toLowerCase();
   const key = `user:${normalizedEmail}:notifications`;
 
   try {
-    const body = await req.json();
-    const { casinoId, enabled, preferences: incomingPreferences, subscription } = body;
 
     // 1. Fetch current preferences
     let existingPreferences: Record<string, boolean> = {};

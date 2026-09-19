@@ -162,6 +162,56 @@ export function formatResetTimeDisplay(resetAtTimeStr?: string | null): string {
   }
 }
 
+/**
+ * Computes the target expiration timestamp (epoch ms) for a casino's cooldown.
+ * Returns null if the casino is already ready, never claimed, or has no active cooldown.
+ */
+export function getCasinoTargetResetTimestamp(casino?: Casino | null, now: number = Date.now()): number | null {
+  if (!casino) return null;
+
+  // 1. Explicit target reset timestamp (Custom Timer or Snooze Override)
+  if (casino.targetResetTimestamp) {
+    const targetReset =
+      typeof casino.targetResetTimestamp === "string"
+        ? new Date(casino.targetResetTimestamp).getTime()
+        : Number(casino.targetResetTimestamp);
+    if (targetReset && !isNaN(targetReset)) {
+      return targetReset;
+    }
+  }
+
+  // 2. Snooze hold
+  if (casino.snoozedUntil) {
+    const snoozeEnd = new Date(casino.snoozedUntil).getTime();
+    if (!isNaN(snoozeEnd)) {
+      return snoozeEnd;
+    }
+  }
+
+  // 3. If never claimed, no active target cooldown
+  if (!casino.lastClaimedAt) {
+    return null;
+  }
+
+  // 4. Reset time (fixed Pacific time or rolling interval)
+  if (casino.resetAtTime) {
+    const nextPacificReset = getNextPacificResetTimestamp(casino.resetAtTime, now);
+    const currentCycleReset = nextPacificReset - 24 * 60 * 60 * 1000;
+    const lastClaimedTime = new Date(casino.lastClaimedAt).getTime();
+
+    if (lastClaimedTime >= currentCycleReset) {
+      return nextPacificReset;
+    }
+    return null;
+  }
+
+  const nextReset =
+    new Date(casino.lastClaimedAt).getTime() +
+    (casino.intervalHours || 24) * 60 * 60 * 1000;
+
+  return nextReset;
+}
+
 export function calculateCasinoStatus(casino?: Casino | null, now: number = Date.now()): CasinoStatus {
   if (!casino) {
     return {

@@ -59,7 +59,7 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "DailyRoll — Ready to Claim!";
   const options = {
     body: payload.body || "Your daily reload bonus is ready to claim now!",
-    icon: payload.icon || "/icon-192x192.png",
+    icon: payload.icon || "/icon-192.png",
     badge: "/favicon.ico",
     vibrate: [200, 100, 200],
     tag: payload.tag || "dailyroll-ready-claim",
@@ -93,7 +93,10 @@ self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SHOW_NOTIFICATION") {
     const { title, options } = event.data;
     if (self.registration && self.registration.showNotification) {
-      self.registration.showNotification(title, options);
+      const p = self.registration.showNotification(title, options);
+      if (event.waitUntil && p) {
+        event.waitUntil(p);
+      }
     }
   }
 });
