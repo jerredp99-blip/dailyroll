@@ -35,6 +35,19 @@ async function main() {
   console.log("3. Found subscription in store:", Boolean(found));
   if (!found) throw new Error("Subscription not found after save");
 
+  // 3b. Verify Notifications are Disabled by Default for un-enrolled casinos
+  const defaultSubEndpoint = "https://fcm.googleapis.com/fcm/send/default-sub-" + Date.now();
+  await savePushSubscription({
+    endpoint: defaultSubEndpoint,
+    keys: dummyKeys,
+    userId: "defaultuser@dailyroll.app",
+  });
+  const defaultSubsForCasino = await getPushSubscriptions({ casinoId: "stake" });
+  const unEnrolledMatches = defaultSubsForCasino.find((s) => s.endpoint === defaultSubEndpoint);
+  console.log("3b. Casino alert disabled by default for fresh subscription:", !unEnrolledMatches);
+  if (unEnrolledMatches) throw new Error("Subscription was erroneously enrolled in casino alerts by default");
+  await removePushSubscription(defaultSubEndpoint);
+
   // 4. Test Error Handling on Dead/Invalid Endpoint (410/404 handling)
   console.log("4. Testing dispatch to simulated endpoint (expecting graceful error and prune)...");
   const dummyPayload: PushNotificationPayload = {

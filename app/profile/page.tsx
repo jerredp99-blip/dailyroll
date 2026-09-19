@@ -477,15 +477,15 @@ export default function ProfilePage() {
                     <button
                       type="button"
                       disabled={isPushLoading}
-                      aria-pressed={notifications || isPushSubscribed}
+                      aria-pressed={Boolean(notifications && isPushSubscribed)}
                       aria-label="Toggle daily login reminders"
                       className={`relative h-6 w-12 rounded-full border transition-colors cursor-pointer ${
-                        notifications || isPushSubscribed
+                        notifications && isPushSubscribed
                           ? "border-emerald-500 bg-emerald-500/20"
                           : "border-gray-700 bg-gray-800"
                       }`}
                       onClick={async () => {
-                        const isCurrentlyActive = notifications || isPushSubscribed;
+                        const isCurrentlyActive = Boolean(notifications && isPushSubscribed);
                         if (!isCurrentlyActive) {
                           if (pushPermission === "denied") {
                             setPushModal({ isOpen: true, type: "denied" });
@@ -512,7 +512,7 @@ export default function ProfilePage() {
                     >
                       <div
                         className={`absolute top-0.5 h-4 w-4 rounded-full transition-all ${
-                          notifications || isPushSubscribed
+                          notifications && isPushSubscribed
                             ? "right-1 bg-emerald-500"
                             : "left-1 bg-gray-500"
                         }`}

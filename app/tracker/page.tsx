@@ -2261,7 +2261,7 @@ export default function TrackerPage() {
                     onOpenBonus={casino.bonusUrl ? openBonus : undefined}
                     onOpenDetails={(id) => setSelectedCasinoId(id)}
                     pendingInfo={pendingClaims[casino.id]}
-                    isNotificationEnabled={isPushSubscribed && (enabledAlertCasinoIds.has(casino.id) || enabledAlertCasinoIds.size === 0)}
+                    isNotificationEnabled={Boolean(isPushSubscribed && enabledAlertCasinoIds.has(casino.id))}
                     isNotificationBlocked={pushPermission === "denied"}
                     onToggleNotification={handleToggleNotification}
                   />

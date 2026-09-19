@@ -1083,7 +1083,7 @@ export async function getPushSubscriptions(filter?: {
   }
   if (filter?.casinoId) {
     subs = subs.filter(
-      (s) => !s.enabledCasinos || s.enabledCasinos.length === 0 || s.enabledCasinos.includes(filter.casinoId!)
+      (s) => Array.isArray(s.enabledCasinos) && s.enabledCasinos.includes(filter.casinoId!)
     );
   }
   return subs;
