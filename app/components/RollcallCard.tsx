@@ -11,7 +11,6 @@ import {
   Check,
   X,
   Wallet,
-  Bell,
 } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { openInExternalBrowser } from "@/lib/openExternalLink";
@@ -26,7 +25,6 @@ import {
   getCasinoTargetResetTimestamp,
   useCurrentTimeContext,
 } from "@/lib/timerUtils";
-import { useCasinoCountdown } from "@/hooks/useTimer";
 import { CasinoLogo } from "@/components/CasinoLogo";
 import { TrustpilotStars } from "@/components/TrustpilotStars";
 import { CustomTimerModal } from "@/components/CustomTimerModal";
@@ -81,8 +79,6 @@ export interface RollcallCardProps {
   renderLogo?: () => React.ReactNode;
   renderTrustpilot?: () => React.ReactNode;
   pendingInfo?: { expiresAt: number; isDefocused?: boolean };
-  isNotificationEnabled?: boolean;
-  onToggleNotification?: (casino: Casino) => void;
 }
 
 function RollcallCardComponent({
@@ -111,8 +107,6 @@ function RollcallCardComponent({
   renderLogo,
   renderTrustpilot,
   pendingInfo,
-  isNotificationEnabled = false,
-  onToggleNotification,
 }: RollcallCardProps) {
   const [isCustomTimerOpen, setIsCustomTimerOpen] = useState(false);
 
@@ -120,26 +114,11 @@ function RollcallCardComponent({
   const currentNow = now ?? contextNow;
   const currentStatus = status ?? calculateCasinoStatus(casino, currentNow);
 
-  const targetTimestamp = React.useMemo(
-    () => getCasinoTargetResetTimestamp(casino, currentNow),
-    [casino, currentNow]
-  );
-
-  useCasinoCountdown(
-    casino.id,
-    casino.name,
-    casino.logo || undefined,
-    targetTimestamp,
-    isNotificationEnabled
-  );
-
   const styles = STATUS_STYLES[currentStatus.state];
   const formattedCountdown = formatRemainingTimer(currentStatus.remainingMs);
 
   const isPending = Boolean(pendingInfo);
   const isDefocused = Boolean(pendingInfo?.isDefocused);
-
-  const renderNotificationBell = () => null;
 
   const lastClaimClickRef = useRef(0);
 
@@ -377,8 +356,6 @@ function RollcallCardComponent({
               ))}
             </select>
 
-            {renderNotificationBell()}
-
             {/* Inline Kebab Button */}
             <button
               type="button"
@@ -446,8 +423,6 @@ function RollcallCardComponent({
                 </span>
               </button>
 
-              {renderNotificationBell()}
-
               {/* Inline Kebab Button */}
               <button
                 type="button"
@@ -512,8 +487,6 @@ function RollcallCardComponent({
                 </span>
               </button>
 
-              {renderNotificationBell()}
-
               {/* Inline Kebab Button */}
               <button
                 type="button"
@@ -572,7 +545,6 @@ function areRollcallCardPropsEqual(prev: RollcallCardProps, next: RollcallCardPr
   if (prev.onToggleActionMenu !== next.onToggleActionMenu) return false;
   if (prev.renderLogo !== next.renderLogo) return false;
   if (prev.renderTrustpilot !== next.renderTrustpilot) return false;
-  if (prev.isNotificationEnabled !== next.isNotificationEnabled) return false;
 
   const prevPending = prev.pendingInfo;
   const nextPending = next.pendingInfo;

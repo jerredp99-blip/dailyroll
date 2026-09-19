@@ -2,11 +2,10 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Clock, X, CheckCircle2, Coins, BellRing } from "lucide-react";
+import { Clock, X, CheckCircle2, Coins } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { calculateCustomResetTimestamp } from "@/lib/timerUtils";
 import { parseScReward } from "@/lib/speedRunStorage";
-import { sendTestNotification } from "@/lib/notifications";
 
 export interface CustomTimerModalProps {
   isOpen: boolean;
@@ -287,20 +286,7 @@ export function CustomTimerModal({
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-between gap-2 pt-2 border-t border-emerald-900/50">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                sendTestNotification(casino?.name || casinoName || "DailyRoll");
-              }}
-              className="flex items-center gap-1.5 rounded-lg border border-emerald-700/60 bg-emerald-950/50 hover:bg-emerald-900/70 px-2.5 py-1.5 text-[11px] font-bold text-emerald-300 hover:text-white transition cursor-pointer shadow-sm"
-              title="Test audio chime, vibration, and notification banner immediately"
-            >
-              <BellRing size={13} className="text-emerald-400 animate-pulse" />
-              <span>Test Alert</span>
-            </button>
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-emerald-900/50">
             <div className="flex items-center gap-2">
               <button
                 type="button"

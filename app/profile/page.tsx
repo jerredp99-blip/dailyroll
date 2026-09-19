@@ -24,7 +24,6 @@ type StoredPreferences = {
   name: string;
   email: string;
   avatarUrl?: string;
-  notifications: boolean;
   amoe: boolean;
   sortOrder: SortOrder;
 };
@@ -32,7 +31,6 @@ type StoredPreferences = {
 const DEFAULT_PREFERENCES: StoredPreferences = {
   name: "PlayerOne",
   email: "player@example.com",
-  notifications: false,
   amoe: true,
   sortOrder: "next-available",
 };
@@ -43,7 +41,6 @@ export default function ProfilePage() {
   const [email, setEmail] = useState(DEFAULT_PREFERENCES.email);
   const [avatarUrl, setAvatarUrl] = useState<string>("");
   const [amoeEnabled, setAmoeEnabled] = useState(DEFAULT_PREFERENCES.amoe);
-  const [notifications, setNotifications] = useState(DEFAULT_PREFERENCES.notifications);
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_PREFERENCES.sortOrder);
   const [isSaving, setIsSaving] = useState(false);
   const [savedLocally, setSavedLocally] = useState(false);
@@ -104,7 +101,6 @@ export default function ProfilePage() {
           if (typeof parsed.name === "string") setName(parsed.name);
           if (typeof parsed.email === "string") setEmail(parsed.email);
           if (typeof parsed.avatarUrl === "string") setAvatarUrl(parsed.avatarUrl);
-          if (typeof parsed.notifications === "boolean") setNotifications(parsed.notifications);
           if (typeof parsed.amoe === "boolean") setAmoeEnabled(parsed.amoe);
           if (parsed.sortOrder) {
             setSortOrder(
@@ -127,7 +123,6 @@ export default function ProfilePage() {
           if (data.user.avatarUrl) setAvatarUrl(data.user.avatarUrl);
         }
         if (data.preferences) {
-          setNotifications(data.preferences.notifications);
           setAmoeEnabled(data.preferences.amoe);
           const savedOrder = data.preferences.sortOrder;
           const isMigrated = typeof window !== "undefined" && window.localStorage.getItem("dailyroll_sort_migrated_v2");
@@ -228,7 +223,6 @@ export default function ProfilePage() {
         name: trimmedName,
         email: trimmedEmail,
         avatarUrl,
-        notifications,
         amoe: amoeEnabled,
         sortOrder,
       } satisfies StoredPreferences),
@@ -241,7 +235,7 @@ export default function ProfilePage() {
         name: trimmedName,
         contactEmail: trimmedEmail,
         avatarUrl: avatarUrl || undefined,
-        notifications,
+        notifications: false,
         amoe: amoeEnabled,
         sortOrder,
       });
@@ -439,31 +433,6 @@ export default function ProfilePage() {
               <h2 className="mb-4 text-base font-bold text-white">Tracker Preferences</h2>
 
               <div className="space-y-5">
-                {/* Notifications Toggle */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xs font-bold text-white">Daily Login Reminders</h3>
-                    <p className="text-[11px] text-[#8ca592]">Get notified when cooldowns reach zero</p>
-                  </div>
-                  <button
-                    type="button"
-                    aria-pressed={notifications}
-                    aria-label="Toggle daily login reminders"
-                    className={`relative h-6 w-12 rounded-full border transition-colors ${
-                      notifications
-                        ? "border-emerald-500 bg-emerald-500/20"
-                        : "border-gray-700 bg-gray-800"
-                    }`}
-                    onClick={() => setNotifications(!notifications)}
-                  >
-                    <div
-                      className={`absolute top-0.5 h-4 w-4 rounded-full transition-all ${
-                        notifications ? "right-1 bg-emerald-500" : "left-1 bg-gray-500"
-                      }`}
-                    />
-                  </button>
-                </div>
-
                 {/* AMOE Settings */}
                 <div className="flex items-center justify-between">
                   <div>
