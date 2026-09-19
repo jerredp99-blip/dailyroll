@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 async function handleCron(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
+    const cronSecret = process.env.CRON_SECRET || "dailyroll-cron-secret-change-me";
     const isVercelCronHeader = req.headers.get("x-vercel-cron") === "1";
 
     const isCronAuthorized =
