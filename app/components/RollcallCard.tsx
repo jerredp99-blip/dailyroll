@@ -461,8 +461,6 @@ function RollcallCardComponent({
 
           {currentStatus.ready ? (
             <>
-              {renderNotificationBell()}
-
               {/* Inline Kebab Button (placed to the LEFT of the Claim button when ready) */}
               <button
                 type="button"

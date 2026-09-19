@@ -22,6 +22,7 @@ import {
   Wallet,
   ShieldCheck,
   Bell,
+  BellOff,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -2397,6 +2398,49 @@ export default function TrackerPage() {
                   <RotateCcw size={16} className="text-emerald-400" />
                   <span>Mark as Ready to Claim</span>
                 </button>
+
+                {/* Notification Alert Toggle */}
+                {(() => {
+                  const isActionAlertEnabled = Boolean(
+                    isPushSubscribed && enabledAlertCasinoIds.has(actionCasino.id)
+                  );
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (pushPermission === "denied" || isIosNeedsInstall) {
+                          setOpenActionMenu(null);
+                        }
+                        handleToggleNotification(actionCasino);
+                      }}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold transition-all cursor-pointer active:scale-[0.99] border ${
+                        isActionAlertEnabled
+                          ? "bg-emerald-950/25 border-emerald-500/30 text-emerald-400 hover:bg-emerald-900/30 hover:border-emerald-500/50"
+                          : "bg-zinc-900/50 border-zinc-800 text-zinc-300 hover:bg-zinc-800/60 hover:text-white"
+                      }`}
+                    >
+                      {isActionAlertEnabled ? (
+                        <Bell size={16} className="text-emerald-400 fill-emerald-400/40 shrink-0" />
+                      ) : (
+                        <BellOff size={16} className="text-zinc-400 shrink-0" />
+                      )}
+                      <div className="flex flex-1 items-center justify-between">
+                        <span>
+                          {isActionAlertEnabled ? "Mute Notifications" : "Enable Notifications"}
+                        </span>
+                        <span
+                          className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
+                            isActionAlertEnabled
+                              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                              : "border-zinc-700 bg-zinc-800 text-zinc-400"
+                          }`}
+                        >
+                          {isActionAlertEnabled ? "Active" : "Muted"}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })()}
 
                 {/* General Actions */}
                 <button
