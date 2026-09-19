@@ -2914,6 +2914,9 @@ export default function TrackerPage() {
           renderLogo={(casino) =>
             casino ? <CasinoLogo name={casino.name} siteUrl={siteUrlFor(casino)} /> : null
           }
+          enabledAlertCasinoIds={enabledAlertCasinoIds}
+          isPushSubscribed={isPushSubscribed}
+          onToggleNotification={handleToggleNotification}
         />
       </SpeedRunErrorBoundary>
 

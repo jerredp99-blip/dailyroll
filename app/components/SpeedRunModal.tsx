@@ -17,6 +17,8 @@ import {
   Loader2,
   MoreVertical,
   Lightbulb,
+  Bell,
+  BellOff,
 } from "lucide-react";
 import type { Casino, SpeedRunSessionState, SpeedRunStep } from "@/types/casino";
 import { getCasinoDeepLink } from "@/lib/casinoLinks";
@@ -46,6 +48,9 @@ interface SpeedRunModalProps {
   onUpdateCasino?: (casino: Casino, updates: Partial<Casino>) => void;
   onSnooze?: (casino: Casino, snoozedUntil: string) => void;
   renderLogo?: (casino: Casino) => React.ReactNode;
+  enabledAlertCasinoIds?: Set<string>;
+  isPushSubscribed?: boolean;
+  onToggleNotification?: (casino: Casino) => void;
 }
 
 export function SpeedRunModal({
@@ -58,6 +63,9 @@ export function SpeedRunModal({
   onUpdateCasino,
   onSnooze,
   renderLogo,
+  enabledAlertCasinoIds,
+  isPushSubscribed,
+  onToggleNotification,
 }: SpeedRunModalProps) {
   // Session state from storage or fresh queue
   const [session, setSession] = useState<SpeedRunSessionState | null>(null);
@@ -371,6 +379,10 @@ export function SpeedRunModal({
 
   const isNewlyAdded = Boolean(
     currentCasinoId && pendingNewlyAddedIds.includes(currentCasinoId)
+  );
+
+  const isCurrentCasinoNotificationEnabled = Boolean(
+    currentCasino && isPushSubscribed && enabledAlertCasinoIds?.has(currentCasino.id)
   );
 
   // Clear viewed card from pending newly added set
@@ -1141,8 +1153,69 @@ export function SpeedRunModal({
                       </button>
                     </div>
 
+                    {/* Notify when ready? Prompt & Toggle */}
+                    {currentCasino && onToggleNotification && (
+                      <div className="w-full mt-3.5 pt-3 border-t border-emerald-500/10 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`p-1.5 rounded-lg border transition-colors ${
+                              isCurrentCasinoNotificationEnabled
+                                ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
+                                : "bg-zinc-900 border-zinc-800 text-zinc-500"
+                            }`}
+                          >
+                            {isCurrentCasinoNotificationEnabled ? (
+                              <Bell size={14} className="fill-emerald-400/40 text-emerald-400" />
+                            ) : (
+                              <BellOff size={14} className="text-zinc-500" />
+                            )}
+                          </div>
+                          <div className="text-left">
+                            <span className="text-xs font-semibold text-zinc-200 block leading-tight">
+                              Notify when ready?
+                            </span>
+                            <span className="text-[10px] text-zinc-400 block leading-tight">
+                              {isCurrentCasinoNotificationEnabled
+                                ? "Alert enabled for next bonus reset"
+                                : "Push alert when cooldown ends"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={isCurrentCasinoNotificationEnabled}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onToggleNotification(currentCasino);
+                          }}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none ${
+                            isCurrentCasinoNotificationEnabled
+                              ? "bg-emerald-500 border-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.4)]"
+                              : "bg-zinc-900 border-zinc-700 hover:border-zinc-500"
+                          }`}
+                          title={
+                            isCurrentCasinoNotificationEnabled
+                              ? "Disable notification"
+                              : "Enable notification"
+                          }
+                          aria-label={`Notify when ${currentCasino.name} is ready`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                              isCurrentCasinoNotificationEnabled
+                                ? "translate-x-5"
+                                : "translate-x-0 bg-zinc-400"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    )}
+
                     {/* Simplified Balance Input Row underneath buttons */}
-                    <div className="w-full mt-4 pt-3 border-t border-emerald-500/10 flex items-center justify-between gap-3">
+                    <div className="w-full mt-3 pt-3 border-t border-emerald-500/10 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-medium text-zinc-300">Track balance:</span>
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/50">
