@@ -63,7 +63,7 @@ self.addEventListener("push", (event) => {
     badge: "/favicon.ico",
     vibrate: [200, 100, 200],
     tag: payload.tag || "dailyroll-ready-claim",
-    renotify: true,
+    renotify: false,
     data: {
       url: payload.url || "/tracker",
     },

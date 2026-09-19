@@ -516,15 +516,40 @@ export default function TrackerPage() {
     }
   };
 
+  // Persistent tracking of notified target timestamps across page loads & refreshes
+  const NOTIFIED_TIMERS_STORAGE_KEY = "dailyroll_notified_target_timestamps";
+
+  const getPersistedNotifiedTimers = (): Record<string, number> => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem(NOTIFIED_TIMERS_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const setPersistedNotifiedTimer = (casinoId: string, targetTimestamp: number) => {
+    if (typeof window === "undefined") return;
+    try {
+      const current = getPersistedNotifiedTimers();
+      current[casinoId] = targetTimestamp;
+      localStorage.setItem(NOTIFIED_TIMERS_STORAGE_KEY, JSON.stringify(current));
+    } catch {}
+  };
+
   // Robust countdown timer expiration listener with visibility change listener & persistent fired tracking
   const firedTimersRef = useRef<Record<string, boolean>>({});
   const lastTargetTimestampRef = useRef<Record<string, number>>({});
+  // Track which casino cooldowns were actively observed with a future countdown in THIS browser session
+  const activeCountdownObservedRef = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!casinos || casinos.length === 0) return;
 
     const checkAllExpirations = () => {
       const nowMs = Date.now();
+      const persistedNotified = getPersistedNotifiedTimers();
 
       casinos.forEach((casino) => {
         if (!casino || !casino.id) return;
@@ -534,29 +559,54 @@ export default function TrackerPage() {
         if (!targetTimestamp) {
           firedTimersRef.current[casino.id] = false;
           lastTargetTimestampRef.current[casino.id] = 0;
+          activeCountdownObservedRef.current[casino.id] = false;
           return;
         }
 
-        // Reset fired status whenever a new future cooldown is assigned or updated
-        if (targetTimestamp > nowMs && targetTimestamp !== lastTargetTimestampRef.current[casino.id]) {
+        // Reset armed status whenever a new future target timestamp is assigned
+        if (
+          lastTargetTimestampRef.current[casino.id] &&
+          lastTargetTimestampRef.current[casino.id] !== targetTimestamp
+        ) {
           firedTimersRef.current[casino.id] = false;
-          lastTargetTimestampRef.current[casino.id] = targetTimestamp;
+          activeCountdownObservedRef.current[casino.id] = false;
         }
+        lastTargetTimestampRef.current[casino.id] = targetTimestamp;
 
         const remainingMs = targetTimestamp - nowMs;
 
-        // Check if timer expired (<= 0) and has not yet triggered an alert
-        if (remainingMs <= 0 && !firedTimersRef.current[casino.id]) {
-          firedTimersRef.current[casino.id] = true;
+        if (remainingMs > 0) {
+          // Future timer actively running countdown: mark observed so it can fire when reaching 0
+          firedTimersRef.current[casino.id] = false;
+          activeCountdownObservedRef.current[casino.id] = true;
+          return;
+        }
 
-          if (notifyEnabled) {
-            triggerTimerZeroNotification(
-              casino.name,
-              casino.logo || undefined,
-              casino.dailyBonus,
-              "/tracker"
-            );
-          }
+        // Timer is at or past zero (remainingMs <= 0)
+        const alreadyNotified =
+          firedTimersRef.current[casino.id] ||
+          persistedNotified[casino.id] === targetTimestamp;
+
+        if (alreadyNotified) {
+          return;
+        }
+
+        // Mark as fired immediately so it can never double-trigger
+        firedTimersRef.current[casino.id] = true;
+        setPersistedNotifiedTimer(casino.id, targetTimestamp);
+
+        // ONLY fire notification if this timer was actively observed counting down in this session!
+        // If the app was opened or refreshed when the timer was ALREADY expired, do NOT spam notifications.
+        const wasActivelyCountingDown = activeCountdownObservedRef.current[casino.id];
+        activeCountdownObservedRef.current[casino.id] = false;
+
+        if (wasActivelyCountingDown && notifyEnabled) {
+          triggerTimerZeroNotification(
+            casino.name,
+            casino.logo || undefined,
+            casino.dailyBonus,
+            "/tracker"
+          );
         }
       });
     };
@@ -1129,6 +1179,12 @@ export default function TrackerPage() {
     const newResetTimestamp = new Date(snoozedUntil).getTime();
     const nowIso = new Date().toISOString();
 
+    if (!isNaN(newResetTimestamp) && newResetTimestamp > Date.now()) {
+      firedTimersRef.current[targetCasino.id] = false;
+      lastTargetTimestampRef.current[targetCasino.id] = newResetTimestamp;
+      activeCountdownObservedRef.current[targetCasino.id] = true;
+    }
+
     setCasinos((prev) => {
       const updated = prev.map((item) =>
         item.id === targetCasino.id
@@ -1167,9 +1223,14 @@ export default function TrackerPage() {
     if (targetResetTimestamp && targetResetTimestamp > Date.now()) {
       firedTimersRef.current[targetCasino.id] = false;
       lastTargetTimestampRef.current[targetCasino.id] = targetResetTimestamp;
+      activeCountdownObservedRef.current[targetCasino.id] = true;
     } else {
       firedTimersRef.current[targetCasino.id] = true;
       lastTargetTimestampRef.current[targetCasino.id] = 0;
+      activeCountdownObservedRef.current[targetCasino.id] = false;
+      if (targetResetTimestamp) {
+        setPersistedNotifiedTimer(targetCasino.id, targetResetTimestamp);
+      }
     }
 
     const nowIso = new Date().toISOString();

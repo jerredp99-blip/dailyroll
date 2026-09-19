@@ -131,8 +131,10 @@ export async function fetchServerNotificationPreferences(): Promise<Record<strin
 
 import { playNotificationChime, vibrateDevice, flashTabTitle } from "@/lib/audioAlert";
 
+const lastNotificationSentAt: Record<string, number> = {};
+
 /**
- * Dispatches a multi-channel notification (Audio Chime, In-App Toast, Device Vibration, Tab Flashing, & Native OS Notification)
+ * Dispatches a multi-channel notification (Audio Chime, Device Vibration, Tab Flashing, & Native OS Notification)
  * when a casino's timer resets to zero.
  */
 export async function sendCasinoReadyNotification(
@@ -141,6 +143,16 @@ export async function sendCasinoReadyNotification(
   url?: string,
   iconUrl?: string
 ): Promise<boolean> {
+  const normalizedKey = casinoName.trim().toLowerCase();
+  const now = Date.now();
+
+  // Throttle duplicate notifications for the exact same casino within 30 seconds
+  if (lastNotificationSentAt[normalizedKey] && now - lastNotificationSentAt[normalizedKey] < 30_000) {
+    console.log(`[DailyRoll] Throttling duplicate notification for ${casinoName} (sent ${Math.round((now - lastNotificationSentAt[normalizedKey]) / 1000)}s ago)`);
+    return false;
+  }
+  lastNotificationSentAt[normalizedKey] = now;
+
   const title = `${casinoName} — Ready to Claim! 🎁`;
   const bonusSubtext = bonusText ? ` (${bonusText})` : "";
   const body = `Your daily reload bonus for ${casinoName}${bonusSubtext} is ready to claim now!`;
@@ -200,7 +212,7 @@ export async function sendCasinoReadyNotification(
             icon,
             badge: "/favicon.ico",
             tag,
-            renotify: true,
+            renotify: false,
             vibrate: [200, 100, 200],
             data: { url: targetUrl },
           },
@@ -239,7 +251,7 @@ export async function sendCasinoReadyNotification(
             icon,
             badge: "/favicon.ico",
             tag,
-            renotify: true,
+            renotify: false,
             vibrate: [200, 100, 200],
             data: { url: targetUrl },
           } as any);
