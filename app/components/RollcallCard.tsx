@@ -139,37 +139,7 @@ function RollcallCardComponent({
   const isPending = Boolean(pendingInfo);
   const isDefocused = Boolean(pendingInfo?.isDefocused);
 
-  const renderNotificationBell = () => (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onToggleNotification?.(casino);
-      }}
-      aria-label={
-        isNotificationEnabled
-          ? `Disable timer alert for ${casino.name}`
-          : `Notify me when ${casino.name} resets`
-      }
-      title={
-        isNotificationEnabled
-          ? `Alerts ON for ${casino.name} (click to disable)`
-          : `Notify me when ${casino.name} resets`
-      }
-      className={`h-7.5 w-7.5 sm:h-8.5 sm:w-8.5 rounded-lg sm:rounded-xl border flex items-center justify-center transition-all cursor-pointer shrink-0 select-none ${
-        isNotificationEnabled
-          ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-400 hover:bg-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
-          : "bg-zinc-950/60 border-zinc-800/80 hover:border-zinc-700 text-zinc-500 hover:text-zinc-300"
-      }`}
-    >
-      {isNotificationEnabled ? (
-        <Bell size={14} className="text-emerald-400 fill-emerald-400/40 sm:w-4 sm:h-4" />
-      ) : (
-        <Bell size={14} className="sm:w-4 sm:h-4" />
-      )}
-    </button>
-  );
+  const renderNotificationBell = () => null;
 
   const lastClaimClickRef = useRef(0);
 
