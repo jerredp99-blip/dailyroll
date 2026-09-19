@@ -144,6 +144,20 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         };
       }
 
+      // 1. Local service worker confirmation test
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        await reg.showNotification("dailyroll | Test Alert 🔔", {
+          body: "Push notifications are active! Cooldown alerts will sound when bonuses are ready.",
+          icon: "/icon-192.png",
+          badge: "/favicon-32x32.png",
+          tag: `dailyroll-test-${Date.now()}`,
+        });
+      } catch (localErr: any) {
+        console.warn("[web-push] Direct local showNotification notice:", localErr);
+      }
+
+      // 2. Cloud push through VAPID and browser push service
       const res = await fetch("/api/push/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -152,10 +166,11 @@ export function usePushNotifications(): UsePushNotificationsReturn {
           subscription: sub.toJSON(),
           payload: {
             title: "dailyroll | Test Alert 🔔",
-            body: "Push notifications are active! You will receive alerts when daily bonus timers expire.",
+            body: "Cloud push active! You will receive alerts when daily bonus timers expire.",
             icon: "/icon-192.png",
             badge: "/favicon-32x32.png",
             data: { url: "/tracker" },
+            tag: `dailyroll-cloud-test-${Date.now()}`,
           },
         }),
       });

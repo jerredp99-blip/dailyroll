@@ -196,16 +196,35 @@ export async function subscribeToPush(options?: {
       };
     }
 
-    // Get registration
+    const vapidPublicKey = await fetchVapidPublicKey();
+    const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+
+    // Get active service worker registration
     const registration = await navigator.serviceWorker.ready;
 
     // Check if already subscribed
     let subscription = await registration.pushManager.getSubscription();
 
-    if (!subscription) {
-      const vapidPublicKey = await fetchVapidPublicKey();
-      const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+    if (subscription) {
+      // Validate key match to avoid stale subscriptions created under previous keys
+      let isMismatch = false;
+      if (subscription.options && subscription.options.applicationServerKey) {
+        const existingKey = new Uint8Array(subscription.options.applicationServerKey);
+        if (
+          existingKey.length !== applicationServerKey.length ||
+          !existingKey.every((byte, idx) => byte === applicationServerKey[idx])
+        ) {
+          isMismatch = true;
+        }
+      }
+      if (isMismatch) {
+        console.warn("[web-push] Subscription VAPID key mismatch detected. Re-subscribing with active key...");
+        await subscription.unsubscribe().catch(() => {});
+        subscription = null;
+      }
+    }
 
+    if (!subscription) {
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: applicationServerKey as unknown as BufferSource,
