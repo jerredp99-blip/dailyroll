@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Clock, X, CheckCircle2, Coins } from "lucide-react";
+import { Clock, X, CheckCircle2, Coins, BellRing } from "lucide-react";
 import type { Casino } from "@/types/casino";
 import { calculateCustomResetTimestamp } from "@/lib/timerUtils";
 import { parseScReward } from "@/lib/speedRunStorage";
@@ -122,13 +122,19 @@ export function CustomTimerModal({
       e.preventDefault();
       e.stopPropagation();
     }
+    const rawH = parseInt(hours || "0", 10);
+    const rawM = parseInt(minutes || "0", 10);
+    if (isNaN(rawH) && isNaN(rawM)) return;
 
-    const h = Math.max(0, parseInt(String(hours || "0"), 10) || 0);
-    const m = Math.max(0, parseInt(String(minutes || "0"), 10) || 0);
-    const totalSeconds = h * 3600 + m * 60;
+    const finalHours = Math.max(0, isNaN(rawH) ? 0 : rawH);
+    const finalMinutes = Math.max(0, isNaN(rawM) ? 0 : rawM);
+    const totalSeconds = finalHours * 3600 + finalMinutes * 60;
 
-    // If 0h 0m, set target to null so it becomes READY immediately
-    const targetTimestamp = totalSeconds > 0 ? Date.now() + totalSeconds * 1000 : null;
+    // If both 0, set target to null so it becomes READY immediately
+    const targetTimestamp =
+      totalSeconds > 0
+        ? calculateCustomResetTimestamp(finalHours, finalMinutes)
+        : null;
 
     const parsedSc =
       scAmount && scAmount.trim() !== ""
@@ -286,7 +292,32 @@ export function CustomTimerModal({
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-emerald-900/50">
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-emerald-900/50">
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                try {
+                  await fetch("/api/push/send", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      payload: {
+                        title: `dailyroll | ${casino?.name || casinoName || "Bonus"} Alert!`,
+                        body: "Your custom timer has completed. Claim now!",
+                        data: { url: "/tracker" },
+                      },
+                    }),
+                  });
+                } catch {}
+              }}
+              className="flex items-center gap-1.5 rounded-lg border border-emerald-700/60 bg-emerald-950/50 hover:bg-emerald-900/70 px-2.5 py-1.5 text-[11px] font-bold text-emerald-300 hover:text-white transition cursor-pointer shadow-sm"
+              title="Test push notification banner"
+            >
+              <BellRing size={13} className="text-emerald-400" />
+              <span>Test Alert</span>
+            </button>
             <div className="flex items-center gap-2">
               <button
                 type="button"

@@ -15,6 +15,9 @@ import Link from "next/link";
 import { apiGetProfile, apiSaveProfile, apiGetUsers } from "@/lib/api-client";
 import { PostCard } from "@/app/components/feed/PostCard";
 import type { Post } from "@/lib/store";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { PushNotificationModal } from "@/components/PushNotificationModal";
+import { getNotificationPermission } from "@/lib/push-notifications";
 
 const PREFERENCES_KEY = "dailyroll_profile_prefs";
 
@@ -24,6 +27,7 @@ type StoredPreferences = {
   name: string;
   email: string;
   avatarUrl?: string;
+  notifications: boolean;
   amoe: boolean;
   sortOrder: SortOrder;
 };
@@ -31,6 +35,7 @@ type StoredPreferences = {
 const DEFAULT_PREFERENCES: StoredPreferences = {
   name: "PlayerOne",
   email: "player@example.com",
+  notifications: false,
   amoe: true,
   sortOrder: "next-available",
 };
@@ -41,6 +46,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState(DEFAULT_PREFERENCES.email);
   const [avatarUrl, setAvatarUrl] = useState<string>("");
   const [amoeEnabled, setAmoeEnabled] = useState(DEFAULT_PREFERENCES.amoe);
+  const [notifications, setNotifications] = useState(DEFAULT_PREFERENCES.notifications);
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_PREFERENCES.sortOrder);
   const [isSaving, setIsSaving] = useState(false);
   const [savedLocally, setSavedLocally] = useState(false);
@@ -55,6 +61,24 @@ export default function ProfilePage() {
   // Admin active users state
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeUsersCount, setActiveUsersCount] = useState<number | null>(null);
+
+  // Push notifications state & hook
+  const {
+    permission: pushPermission,
+    isSubscribed: isPushSubscribed,
+    isLoading: isPushLoading,
+    isIosNeedsInstall,
+    subscribe: subscribePush,
+    unsubscribe: unsubscribePush,
+    sendTestNotification,
+  } = usePushNotifications();
+
+  const [pushModal, setPushModal] = useState<{
+    isOpen: boolean;
+    type: "denied" | "ios_install" | "general_error" | "info";
+    message?: string;
+  }>({ isOpen: false, type: "info" });
+  const [testSent, setTestSent] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -101,6 +125,7 @@ export default function ProfilePage() {
           if (typeof parsed.name === "string") setName(parsed.name);
           if (typeof parsed.email === "string") setEmail(parsed.email);
           if (typeof parsed.avatarUrl === "string") setAvatarUrl(parsed.avatarUrl);
+          if (typeof parsed.notifications === "boolean") setNotifications(parsed.notifications);
           if (typeof parsed.amoe === "boolean") setAmoeEnabled(parsed.amoe);
           if (parsed.sortOrder) {
             setSortOrder(
@@ -123,6 +148,7 @@ export default function ProfilePage() {
           if (data.user.avatarUrl) setAvatarUrl(data.user.avatarUrl);
         }
         if (data.preferences) {
+          setNotifications(data.preferences.notifications);
           setAmoeEnabled(data.preferences.amoe);
           const savedOrder = data.preferences.sortOrder;
           const isMigrated = typeof window !== "undefined" && window.localStorage.getItem("dailyroll_sort_migrated_v2");
@@ -223,6 +249,7 @@ export default function ProfilePage() {
         name: trimmedName,
         email: trimmedEmail,
         avatarUrl,
+        notifications,
         amoe: amoeEnabled,
         sortOrder,
       } satisfies StoredPreferences),
@@ -235,7 +262,7 @@ export default function ProfilePage() {
         name: trimmedName,
         contactEmail: trimmedEmail,
         avatarUrl: avatarUrl || undefined,
-        notifications: false,
+        notifications,
         amoe: amoeEnabled,
         sortOrder,
       });
@@ -433,6 +460,106 @@ export default function ProfilePage() {
               <h2 className="mb-4 text-base font-bold text-white">Tracker Preferences</h2>
 
               <div className="space-y-5">
+                {/* Notifications Toggle */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>Daily Login Reminders</span>
+                        {isPushSubscribed && (
+                          <span className="inline-flex items-center rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/30">
+                            Push Active
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-[11px] text-[#8ca592]">Get notified when cooldowns reach zero</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isPushLoading}
+                      aria-pressed={notifications || isPushSubscribed}
+                      aria-label="Toggle daily login reminders"
+                      className={`relative h-6 w-12 rounded-full border transition-colors cursor-pointer ${
+                        notifications || isPushSubscribed
+                          ? "border-emerald-500 bg-emerald-500/20"
+                          : "border-gray-700 bg-gray-800"
+                      }`}
+                      onClick={async () => {
+                        const isCurrentlyActive = notifications || isPushSubscribed;
+                        if (!isCurrentlyActive) {
+                          if (pushPermission === "denied") {
+                            setPushModal({ isOpen: true, type: "denied" });
+                            return;
+                          }
+                          if (isIosNeedsInstall) {
+                            setPushModal({ isOpen: true, type: "ios_install" });
+                            return;
+                          }
+                          const ok = await subscribePush();
+                          if (ok) {
+                            setNotifications(true);
+                          } else {
+                            const latestPerm = getNotificationPermission();
+                            if (latestPerm === "denied") {
+                              setPushModal({ isOpen: true, type: "denied" });
+                            }
+                          }
+                        } else {
+                          await unsubscribePush();
+                          setNotifications(false);
+                        }
+                      }}
+                    >
+                      <div
+                        className={`absolute top-0.5 h-4 w-4 rounded-full transition-all ${
+                          notifications || isPushSubscribed
+                            ? "right-1 bg-emerald-500"
+                            : "left-1 bg-gray-500"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {pushPermission === "denied" && (
+                    <div
+                      onClick={() => setPushModal({ isOpen: true, type: "denied" })}
+                      className="cursor-pointer rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-[11px] text-rose-300 flex items-center justify-between transition hover:bg-rose-500/20"
+                    >
+                      <span>⚠️ Notifications blocked in browser settings. Tap to view fix instructions.</span>
+                      <span className="underline text-rose-400 text-[10px]">Instructions</span>
+                    </div>
+                  )}
+
+                  {isIosNeedsInstall && (
+                    <div
+                      onClick={() => setPushModal({ isOpen: true, type: "ios_install" })}
+                      className="cursor-pointer rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-300 flex items-center justify-between transition hover:bg-amber-500/20"
+                    >
+                      <span>📲 iOS requires Home Screen install to receive push alerts.</span>
+                      <span className="underline text-amber-400 text-[10px]">Setup Guide</span>
+                    </div>
+                  )}
+
+                  {isPushSubscribed && (
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[10px] text-zinc-500">Service Worker push listener active</span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const ok = await sendTestNotification();
+                          if (ok) {
+                            setTestSent(true);
+                            setTimeout(() => setTestSent(false), 4000);
+                          }
+                        }}
+                        className="rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-2 py-1 text-[10px] text-zinc-300 transition cursor-pointer"
+                      >
+                        {testSent ? "Test Alert Sent! ✓" : "Send Test Notification"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 {/* AMOE Settings */}
                 <div className="flex items-center justify-between">
                   <div>
@@ -555,6 +682,19 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      <PushNotificationModal
+        isOpen={pushModal.isOpen}
+        onClose={() => setPushModal((prev) => ({ ...prev, isOpen: false }))}
+        type={pushModal.type}
+        customMessage={pushModal.message}
+        onRetry={async () => {
+          setPushModal((prev) => ({ ...prev, isOpen: false }));
+          const ok = await subscribePush();
+          if (ok) setNotifications(true);
+        }}
+      />
     </main>
   );
 }
+

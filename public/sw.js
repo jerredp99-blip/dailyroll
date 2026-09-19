@@ -42,3 +42,94 @@ self.addEventListener("fetch", (event) => {
     }),
   );
 });
+
+// ==========================================
+// Web Push Notifications Handling
+// ==========================================
+
+self.addEventListener("push", (event) => {
+  let data = {
+    title: "dailyroll | Bonus Ready!",
+    body: "Your daily bonus cooldown has expired. Claim now!",
+    icon: "/icon-192.png",
+    badge: "/favicon-32x32.png",
+    data: {
+      url: "/tracker",
+    },
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      data = {
+        ...data,
+        ...parsed,
+        data: {
+          ...data.data,
+          ...(parsed.data || {}),
+        },
+      };
+    } catch {
+      data.body = event.data.text() || data.body;
+    }
+  }
+
+  const title = data.title || "dailyroll | Bonus Ready!";
+  const options = {
+    body: data.body || "A casino bonus is ready to claim!",
+    icon: data.icon || "/icon-192.png",
+    badge: data.badge || "/favicon-32x32.png",
+    vibrate: [150, 50, 150],
+    tag: data.tag || "dailyroll-notification",
+    renotify: data.renotify !== false,
+    data: {
+      url: data.data?.url || "/tracker",
+      timestamp: Date.now(),
+    },
+    actions: [
+      { action: "open", title: "Open Tracker" },
+      { action: "close", title: "Dismiss" },
+    ],
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  if (event.action === "close") {
+    return;
+  }
+
+  const targetUrl = event.notification.data?.url || "/tracker";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      const resolvedTarget = new URL(targetUrl, self.location.origin).href;
+
+      // 1. Focus existing window/tab matching the target URL
+      for (const client of clientList) {
+        if (client.url === resolvedTarget && "focus" in client) {
+          return client.focus();
+        }
+      }
+
+      // 2. Or focus an existing window on the same origin and navigate it
+      for (const client of clientList) {
+        if (new URL(client.url).origin === self.location.origin && "focus" in client) {
+          if ("navigate" in client) {
+            client.navigate(resolvedTarget);
+          }
+          return client.focus();
+        }
+      }
+
+      // 3. Otherwise open a new window
+      if (clients.openWindow) {
+        return clients.openWindow(resolvedTarget);
+      }
+    })
+  );
+});
+

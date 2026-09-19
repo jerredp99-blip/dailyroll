@@ -40,6 +40,9 @@ import { CustomTimerModal } from "@/components/CustomTimerModal";
 import { CasinoDetailsModal } from "@/components/CasinoDetailsModal";
 import { Button } from "@/components/ui/Button";
 import { getCasinoDefaultMetadata, MASTER_CASINOS_DATA } from "@/lib/casinosData";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { PushNotificationModal } from "@/components/PushNotificationModal";
+import { getNotificationPermission } from "@/lib/push-notifications";
 // import { BankrollSummary } from "@/app/components/BankrollSummary";
 import {
   apiGetCasinos,
@@ -299,6 +302,81 @@ export default function TrackerPage() {
   const [pendingClaims, setPendingClaims] = useState<Record<string, { expiresAt: number; isDefocused?: boolean }>>({});
   const [feedUnreadCount, setFeedUnreadCount] = useState<number>(0);
   const [lastOpenedCasino, setLastOpenedCasino] = useState<{ name: string; url: string } | null>(null);
+
+  // Web Push Notifications integration
+  const {
+    permission: pushPermission,
+    isSubscribed: isPushSubscribed,
+    isIosNeedsInstall,
+    subscribe: subscribePush,
+  } = usePushNotifications();
+
+  const [pushModal, setPushModal] = useState<{
+    isOpen: boolean;
+    type: "denied" | "ios_install" | "general_error" | "info";
+    message?: string;
+  }>({ isOpen: false, type: "info" });
+
+  const [enabledAlertCasinoIds, setEnabledAlertCasinoIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const saved = localStorage.getItem("dailyroll_alert_casinos");
+      if (saved) return new Set(JSON.parse(saved));
+    } catch {}
+    return new Set();
+  });
+
+  const handleToggleNotification = useCallback(
+    async (casino: Casino) => {
+      // 1. Check if permission is blocked/denied in browser
+      if (pushPermission === "denied") {
+        setPushModal({ isOpen: true, type: "denied" });
+        return;
+      }
+
+      // 2. Check if iOS needs home screen install first
+      if (isIosNeedsInstall) {
+        setPushModal({ isOpen: true, type: "ios_install" });
+        return;
+      }
+
+      // 3. If not subscribed yet, trigger subscription flow on this direct user gesture
+      if (!isPushSubscribed) {
+        const ok = await subscribePush(casino.id);
+        if (ok) {
+          setEnabledAlertCasinoIds((prev) => {
+            const next = new Set(prev);
+            next.add(casino.id);
+            try {
+              localStorage.setItem("dailyroll_alert_casinos", JSON.stringify(Array.from(next)));
+            } catch {}
+            return next;
+          });
+        } else {
+          const latestPerm = getNotificationPermission();
+          if (latestPerm === "denied") {
+            setPushModal({ isOpen: true, type: "denied" });
+          }
+        }
+        return;
+      }
+
+      // 4. If already subscribed, toggle this casino's notification alert preference
+      setEnabledAlertCasinoIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(casino.id)) {
+          next.delete(casino.id);
+        } else {
+          next.add(casino.id);
+        }
+        try {
+          localStorage.setItem("dailyroll_alert_casinos", JSON.stringify(Array.from(next)));
+        } catch {}
+        return next;
+      });
+    },
+    [pushPermission, isIosNeedsInstall, isPushSubscribed, subscribePush]
+  );
 
   // Poll / fetch active bonus drop count and feed unread count for dynamic navigation indicator
   useEffect(() => {
@@ -2183,6 +2261,9 @@ export default function TrackerPage() {
                     onOpenBonus={casino.bonusUrl ? openBonus : undefined}
                     onOpenDetails={(id) => setSelectedCasinoId(id)}
                     pendingInfo={pendingClaims[casino.id]}
+                    isNotificationEnabled={isPushSubscribed && (enabledAlertCasinoIds.has(casino.id) || enabledAlertCasinoIds.size === 0)}
+                    isNotificationBlocked={pushPermission === "denied"}
+                    onToggleNotification={handleToggleNotification}
                   />
                 ))
               )}
@@ -2989,6 +3070,19 @@ export default function TrackerPage() {
         isOpen={Boolean(selectedCasinoId)}
         onClose={() => setSelectedCasinoId(null)}
       />
+
+      {/* Push Notifications Permission / Guide Modal */}
+      <PushNotificationModal
+        isOpen={pushModal.isOpen}
+        onClose={() => setPushModal((prev) => ({ ...prev, isOpen: false }))}
+        type={pushModal.type}
+        customMessage={pushModal.message}
+        onRetry={async () => {
+          setPushModal((prev) => ({ ...prev, isOpen: false }));
+          await subscribePush();
+        }}
+      />
     </main>
   );
 }
+

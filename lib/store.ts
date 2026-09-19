@@ -111,6 +111,22 @@ export type Comment = {
   createdAt: string;
 };
 
+export type PushSubscriptionKeys = {
+  p256dh: string;
+  auth: string;
+};
+
+export type StoredPushSubscription = {
+  id: string;
+  endpoint: string;
+  expirationTime?: number | null;
+  keys: PushSubscriptionKeys;
+  userId?: string | null;
+  enabledCasinos?: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 type Store = {
   users: UserProfile[];
   casinos: Record<string, Casino[]>;
@@ -142,6 +158,7 @@ type Store = {
   posts: Post[];
   comments: Record<string, Comment[]>;
   speedRunSessions?: Record<string, SpeedRunSessionState>;
+  pushSubscriptions?: StoredPushSubscription[];
 };
 
 const DATA_DIR = process.env.VERCEL ? "/tmp/dailyroll" : path.join(process.cwd(), "data");
@@ -275,6 +292,7 @@ const EMPTY_STORE: Store = {
   magicLinks: {},
   posts: INITIAL_POSTS,
   comments: INITIAL_COMMENTS,
+  pushSubscriptions: [],
 };
 
 export const STATIC_ADMIN_EMAILS = [
@@ -985,5 +1003,115 @@ export async function addComment(
     }
 
     return newComment;
+  });
+}
+
+export async function savePushSubscription(params: {
+  endpoint: string;
+  keys: PushSubscriptionKeys;
+  expirationTime?: number | null;
+  userId?: string | null;
+  casinoId?: string | null;
+}): Promise<StoredPushSubscription> {
+  const { endpoint, keys, expirationTime, userId, casinoId } = params;
+  return queueMutation((store) => {
+    if (!store.pushSubscriptions) {
+      store.pushSubscriptions = [];
+    }
+
+    const now = new Date().toISOString();
+    const existingIndex = store.pushSubscriptions.findIndex(
+      (sub) => sub.endpoint === endpoint
+    );
+
+    if (existingIndex >= 0) {
+      const existing = store.pushSubscriptions[existingIndex];
+      let enabledCasinos = existing.enabledCasinos || [];
+      if (casinoId && !enabledCasinos.includes(casinoId)) {
+        enabledCasinos = [...enabledCasinos, casinoId];
+      }
+
+      const updated: StoredPushSubscription = {
+        ...existing,
+        keys: keys || existing.keys,
+        expirationTime: expirationTime !== undefined ? expirationTime : existing.expirationTime,
+        userId: userId || existing.userId,
+        enabledCasinos,
+        updatedAt: now,
+      };
+
+      store.pushSubscriptions[existingIndex] = updated;
+      return updated;
+    }
+
+    const newSub: StoredPushSubscription = {
+      id: "sub-" + crypto.randomUUID(),
+      endpoint,
+      expirationTime: expirationTime ?? null,
+      keys,
+      userId: userId || null,
+      enabledCasinos: casinoId ? [casinoId] : [],
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    store.pushSubscriptions.push(newSub);
+    return newSub;
+  });
+}
+
+export async function removePushSubscription(endpoint: string): Promise<boolean> {
+  if (!endpoint) return false;
+  return queueMutation((store) => {
+    if (!store.pushSubscriptions) return false;
+    const initialLen = store.pushSubscriptions.length;
+    store.pushSubscriptions = store.pushSubscriptions.filter(
+      (sub) => sub.endpoint !== endpoint
+    );
+    return store.pushSubscriptions.length < initialLen;
+  });
+}
+
+export async function getPushSubscriptions(filter?: {
+  userId?: string | null;
+  casinoId?: string | null;
+}): Promise<StoredPushSubscription[]> {
+  const store = await readStore();
+  let subs = store.pushSubscriptions || [];
+  if (filter?.userId) {
+    subs = subs.filter((s) => s.userId === filter.userId);
+  }
+  if (filter?.casinoId) {
+    subs = subs.filter(
+      (s) => !s.enabledCasinos || s.enabledCasinos.length === 0 || s.enabledCasinos.includes(filter.casinoId!)
+    );
+  }
+  return subs;
+}
+
+export async function toggleCasinoPushAlert(params: {
+  endpoint: string;
+  casinoId: string;
+  enabled?: boolean;
+}): Promise<StoredPushSubscription | null> {
+  const { endpoint, casinoId, enabled } = params;
+  return queueMutation((store) => {
+    if (!store.pushSubscriptions) return null;
+    const sub = store.pushSubscriptions.find((s) => s.endpoint === endpoint);
+    if (!sub) return null;
+
+    let enabledCasinos = sub.enabledCasinos || [];
+    const hasCasino = enabledCasinos.includes(casinoId);
+    const shouldEnable = enabled !== undefined ? enabled : !hasCasino;
+
+    if (shouldEnable && !hasCasino) {
+      enabledCasinos = [...enabledCasinos, casinoId];
+    } else if (!shouldEnable && hasCasino) {
+      enabledCasinos = enabledCasinos.filter((id) => id !== casinoId);
+    }
+
+    sub.enabledCasinos = enabledCasinos;
+    sub.updatedAt = new Date().toISOString();
+    return sub;
   });
 }
