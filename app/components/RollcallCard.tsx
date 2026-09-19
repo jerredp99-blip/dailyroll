@@ -157,16 +157,16 @@ function RollcallCardComponent({
           ? `Alerts ON for ${casino.name} (click to disable)`
           : `Notify me when ${casino.name} resets`
       }
-      className={`h-8.5 w-8.5 sm:h-9 sm:w-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer shrink-0 select-none ${
+      className={`h-7.5 w-7.5 sm:h-8.5 sm:w-8.5 rounded-lg sm:rounded-xl border flex items-center justify-center transition-all cursor-pointer shrink-0 select-none ${
         isNotificationEnabled
-          ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-400 hover:bg-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+          ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-400 hover:bg-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
           : "bg-zinc-950/60 border-zinc-800/80 hover:border-zinc-700 text-zinc-500 hover:text-zinc-300"
       }`}
     >
       {isNotificationEnabled ? (
-        <Bell size={16} className="text-emerald-400 fill-emerald-400/40" />
+        <Bell size={14} className="text-emerald-400 fill-emerald-400/40 sm:w-4 sm:h-4" />
       ) : (
-        <Bell size={16} />
+        <Bell size={14} className="sm:w-4 sm:h-4" />
       )}
     </button>
   );
@@ -220,7 +220,7 @@ function RollcallCardComponent({
       }`}
     >
       {/* Left Column (Identity): Logo + Name & Stars */}
-      <div className={`flex items-center gap-2 sm:gap-2.5 min-w-0 ${isPending ? "justify-between w-full sm:w-auto flex-1" : "shrink"}`}>
+      <div className={`flex items-center gap-2 sm:gap-2.5 min-w-0 ${isPending ? "justify-between w-full sm:w-auto flex-1" : "flex-1 min-w-0"}`}>
         <button
           type="button"
           onClick={(e) => {
@@ -232,18 +232,18 @@ function RollcallCardComponent({
               onOpenCasino(casino);
             }
           }}
-          className="group/link flex items-center gap-2 sm:gap-2.5 min-w-0 hover:opacity-85 transition cursor-pointer text-left"
+          className="group/link flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 hover:opacity-85 transition cursor-pointer text-left overflow-hidden"
         >
-          <div className="grid h-8 w-8 sm:h-[38px] sm:w-[38px] shrink-0 place-items-center rounded-lg border border-[#1b3d2f] bg-[#07130e] text-sm font-bold text-emerald-400 transition group-hover/link:border-emerald-500/50 overflow-hidden">
+          <div className="grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-xl border border-[#1b3d2f] bg-[#07130e] text-sm font-bold text-emerald-400 transition group-hover/link:border-emerald-500/50 overflow-hidden">
             {renderLogo ? renderLogo() : <CasinoLogo name={casino.name} siteUrl={siteUrl} />}
           </div>
-          <div className="min-w-0 flex flex-col justify-center">
-            <h2 className="font-bold text-xs sm:text-sm text-zinc-100 leading-tight truncate group-hover/link:text-emerald-300 transition">
+          <div className="min-w-[110px] flex-1 min-w-0 flex flex-col justify-center overflow-hidden">
+            <h2 className="font-bold text-xs sm:text-sm text-zinc-100 leading-tight truncate whitespace-nowrap group-hover/link:text-emerald-300 transition">
               {casino.name}
             </h2>
-            <div className="flex items-center flex-wrap gap-1.5 mt-0.5">
+            <div className="flex items-center flex-nowrap whitespace-nowrap gap-1 mt-0.5 overflow-hidden">
               {casino.hidden && (
-                <span className="rounded border border-zinc-800 bg-zinc-900/60 px-1.5 py-0.5 text-[10px] text-zinc-500">
+                <span className="rounded border border-zinc-800 bg-zinc-900/60 px-1 py-0.2 text-[9px] text-zinc-500 shrink-0">
                   Hidden
                 </span>
               )}
@@ -271,7 +271,7 @@ function RollcallCardComponent({
                   }}
                   title="View Casino Cheat Sheet"
                   aria-label={`View details for ${casino.name}`}
-                  className="inline-flex items-center flex-nowrap whitespace-nowrap gap-0.5 text-amber-400 text-xs tracking-tight min-h-[24px] py-0.5 cursor-pointer hover:opacity-80 transition-opacity"
+                  className="inline-flex items-center flex-nowrap whitespace-nowrap gap-0.5 text-amber-400 text-xs tracking-tight min-h-[20px] py-0.5 cursor-pointer hover:opacity-80 transition-opacity shrink-0"
                 >
                   <TrustpilotStars rating={rating ?? casino.trustpilotRating} />
                 </div>
@@ -441,7 +441,7 @@ function RollcallCardComponent({
           </button>
         </div>
       ) : (
-        <div className="shrink-0 flex items-center gap-2 justify-end">
+        <div className="shrink-0 flex items-center gap-1 sm:gap-1.5 justify-end select-none">
           {casino.bonusUrl && onOpenBonus && (
             <button
               type="button"
@@ -459,9 +459,26 @@ function RollcallCardComponent({
 
           {currentStatus.ready ? (
             <>
+              {/* Ready Claim Button with vivid green indicator dot, clicky physical depth & bonus animations */}
+              <button
+                type="button"
+                onClick={handleClaimClick}
+                aria-label={`Claim ${casino.dailyBonus || "bonus"} for ${casino.name}`}
+                className="h-7.5 sm:h-8.5 px-2.5 sm:px-3 rounded-lg sm:rounded-xl bg-gradient-to-b from-[#082218] to-[#04140e] hover:from-[#0b2e21] hover:to-[#061a12] border border-emerald-500/50 hover:border-emerald-400 text-emerald-300 hover:text-emerald-200 font-bold text-xs sm:text-sm tracking-tight shadow-[inset_0_1px_0_rgba(52,211,153,0.3),0_2px_0_#064e3b,0_3px_6px_rgba(0,0,0,0.4)] hover:shadow-[inset_0_1px_0_rgba(52,211,153,0.4),0_2px_0_#065f46,0_0_12px_rgba(16,185,129,0.2)] active:translate-y-[1px] flex items-center justify-center gap-1 sm:gap-1.5 transition-all duration-100 cursor-pointer whitespace-nowrap shrink-0 select-none"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)] animate-pulse shrink-0" />
+                <span className="pointer-events-none inline-flex items-center gap-1 whitespace-nowrap font-bold text-[11px] sm:text-xs">
+                  {casino.dailyBonus ? (
+                    renderClaimBadge(casino.dailyBonus)
+                  ) : (
+                    <>Claim</>
+                  )}
+                </span>
+              </button>
+
               {renderNotificationBell()}
 
-              {/* Inline Kebab Button (placed to the LEFT of the Claim button when ready) */}
+              {/* Inline Kebab Button */}
               <button
                 type="button"
                 onClick={(e) => {
@@ -471,26 +488,9 @@ function RollcallCardComponent({
                 }}
                 aria-label={`Settings for ${casino.name}`}
                 title={`Settings for ${casino.name}`}
-                className="h-8.5 w-8.5 sm:h-9 sm:w-9 rounded-xl bg-gradient-to-b from-zinc-950 to-[#07140e] hover:from-emerald-950/80 hover:to-[#071811] border border-emerald-900/60 hover:border-emerald-500/60 text-emerald-400 hover:text-emerald-300 shadow-[inset_0_1px_0_rgba(52,211,153,0.15),0_2px_0_#064e3b,0_4px_8px_rgba(0,0,0,0.5)] hover:shadow-[inset_0_1px_0_rgba(52,211,153,0.25),0_2px_0_#065f46,0_0_8px_rgba(16,185,129,0.15)] active:translate-y-[2px] active:shadow-[inset_0_1px_0_rgba(52,211,153,0.1),0_0_0_#064e3b,0_1px_2px_rgba(0,0,0,0.5)] flex items-center justify-center transition-all duration-100 cursor-pointer shrink-0 select-none"
+                className="h-7.5 w-7.5 sm:h-8.5 sm:w-8.5 rounded-lg sm:rounded-xl bg-gradient-to-b from-zinc-950 to-[#07140e] hover:from-emerald-950/80 hover:to-[#071811] border border-emerald-900/60 hover:border-emerald-500/60 text-emerald-400 hover:text-emerald-300 shadow-[inset_0_1px_0_rgba(52,211,153,0.15),0_2px_0_#064e3b,0_3px_6px_rgba(0,0,0,0.4)] active:translate-y-[1px] flex items-center justify-center transition-all duration-100 cursor-pointer shrink-0 select-none"
               >
-                <MoreHorizontal size={16} />
-              </button>
-
-              {/* Ready Claim Button with vivid green indicator dot, clicky physical depth & bonus animations */}
-              <button
-                type="button"
-                onClick={handleClaimClick}
-                aria-label={`Claim ${casino.dailyBonus || "bonus"} for ${casino.name}`}
-                className="h-8.5 sm:h-9 px-3.5 sm:px-4 rounded-xl bg-gradient-to-b from-[#082218] to-[#04140e] hover:from-[#0b2e21] hover:to-[#061a12] border border-emerald-500/50 hover:border-emerald-400 text-emerald-300 hover:text-emerald-200 font-bold text-xs sm:text-sm tracking-tight shadow-[inset_0_1px_0_rgba(52,211,153,0.3),0_2px_0_#064e3b,0_4px_8px_rgba(0,0,0,0.5)] hover:shadow-[inset_0_1px_0_rgba(52,211,153,0.4),0_2px_0_#065f46,0_0_12px_rgba(16,185,129,0.2)] active:translate-y-[2px] active:shadow-[inset_0_1px_0_rgba(52,211,153,0.2),0_0_0_#064e3b,0_1px_2px_rgba(0,0,0,0.5)] flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-100 cursor-pointer whitespace-nowrap select-none"
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)] animate-pulse shrink-0" />
-                    <span className="pointer-events-none inline-flex items-center gap-1.5">
-                      {casino.dailyBonus ? (
-                        renderClaimBadge(casino.dailyBonus)
-                      ) : (
-                        <>Claim</>
-                      )}
-                    </span>
+                <MoreHorizontal size={14} className="sm:w-4 sm:h-4" />
               </button>
             </>
           ) : (
@@ -509,7 +509,7 @@ function RollcallCardComponent({
                     ? `Snoozed · ${formattedCountdown}. Click to override timer`
                     : `Resets in ${formattedCountdown}. Click to override timer`
                 }
-                className={`h-7 py-1 px-2 sm:px-2.5 rounded-md border flex items-center justify-center gap-1 sm:gap-1.5 font-mono text-[11px] font-medium tracking-tight shadow-inner shrink-0 cursor-pointer hover:border-emerald-500/60 transition active:scale-95 tabular-nums ${
+                className={`h-7 sm:h-7.5 py-1 px-2 sm:px-2.5 rounded-md sm:rounded-lg border flex items-center justify-center gap-1 sm:gap-1.5 font-mono text-[10px] sm:text-[11px] font-medium tracking-tight shadow-inner shrink-0 cursor-pointer hover:border-emerald-500/60 transition active:scale-95 tabular-nums whitespace-nowrap ${
                   currentStatus.isSnoozed
                     ? "border-amber-700/60 bg-amber-950/30 text-amber-300 hover:bg-amber-950/50"
                     : currentStatus.remainingMs < 3600000
@@ -544,7 +544,7 @@ function RollcallCardComponent({
 
               {renderNotificationBell()}
 
-              {/* Inline Kebab Button (kept to the right when on cooldown/timer) */}
+              {/* Inline Kebab Button */}
               <button
                 type="button"
                 onClick={(e) => {
@@ -554,9 +554,9 @@ function RollcallCardComponent({
                 }}
                 aria-label={`Settings for ${casino.name}`}
                 title={`Settings for ${casino.name}`}
-                className="h-8.5 w-8.5 sm:h-9 sm:w-9 rounded-xl bg-zinc-950/60 border border-emerald-900/60 hover:border-emerald-500/50 flex items-center justify-center text-emerald-400 transition-all active:scale-95 cursor-pointer shrink-0"
+                className="h-7.5 w-7.5 sm:h-8.5 sm:w-8.5 rounded-lg sm:rounded-xl bg-zinc-950/60 border border-emerald-900/60 hover:border-emerald-500/50 flex items-center justify-center text-emerald-400 transition-all active:scale-95 cursor-pointer shrink-0 select-none"
               >
-                <MoreHorizontal size={16} />
+                <MoreHorizontal size={14} className="sm:w-4 sm:h-4" />
               </button>
             </>
           )}

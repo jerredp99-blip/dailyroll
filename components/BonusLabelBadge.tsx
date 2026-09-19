@@ -233,24 +233,48 @@ export function renderBonusLabel(label?: string | null): React.ReactNode {
 export function renderClaimBadge(label?: string | null): React.ReactNode {
   if (!label || typeof label !== "string") return null;
 
-  // Split on keywords
-  const regex = /(\bwheel\b|\bscratch-?card\b|\bscratch\s+card\b)/gi;
-  const parts = label.split(regex);
+  const hasWheel = /\bwheel\b/i.test(label);
+  const hasScratch = /(\bscratch-?card\b|\bscratch\s+card\b)/i.test(label);
 
-  if (parts.length === 1) {
+  if (!hasWheel && !hasScratch) {
     return label;
   }
 
-  return parts.map((part, index) => {
-    const lower = part.toLowerCase().trim();
-    if (lower === "wheel") {
-      return <PrizeWheelBadge key={`wheel-${index}`} showLabel={false} />;
-    }
-    if (lower === "scratchcard" || lower === "scratch card" || lower === "scratch-card") {
-      return <ScratchcardBadge key={`scratch-${index}`} showLabel={false} />;
-    }
-    return <React.Fragment key={`text-${index}`}>{part}</React.Fragment>;
-  });
+  // Strip "Wheel", "Scratchcard", "Scratch card" and loose "+", ","
+  const cleanText = label
+    .replace(/(\bwheel\b|\bscratch-?card\b|\bscratch\s+card\b)/gi, "")
+    .replace(/[+,\s]+$/g, "")
+    .replace(/^[+,\s]+/g, "")
+    .trim();
+
+  const icons: React.ReactNode[] = [];
+  if (hasWheel) {
+    icons.push(
+      <span key="wheel" title="Lucky Wheel" className="inline-flex items-center justify-center shrink-0">
+        <PrizeWheelIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 drop-shadow-sm" />
+      </span>
+    );
+  }
+  if (hasScratch) {
+    icons.push(
+      <span key="scratch" title="Daily Scratchcard" className="inline-flex items-center justify-center shrink-0">
+        <ScratchcardIcon className="w-3.5 h-3 sm:w-4 sm:h-3.5 drop-shadow-sm" />
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 flex-nowrap whitespace-nowrap">
+      {cleanText ? (
+        <span className="font-extrabold">{cleanText}</span>
+      ) : (
+        <span>{hasWheel && hasScratch ? "Bonus" : hasWheel ? "Wheel" : "Scratcher"}</span>
+      )}
+      <span className="inline-flex items-center -space-x-1 shrink-0">
+        {icons}
+      </span>
+    </span>
+  );
 }
 
 /**
