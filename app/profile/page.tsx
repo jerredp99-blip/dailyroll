@@ -79,6 +79,8 @@ export default function ProfilePage() {
     message?: string;
   }>({ isOpen: false, type: "info" });
   const [testSent, setTestSent] = useState(false);
+  const [testSending, setTestSending] = useState(false);
+  const [testStatusMsg, setTestStatusMsg] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -541,21 +543,50 @@ export default function ProfilePage() {
                   )}
 
                   {isPushSubscribed && (
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-[10px] text-zinc-500">Service Worker push listener active</span>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const ok = await sendTestNotification();
-                          if (ok) {
-                            setTestSent(true);
-                            setTimeout(() => setTestSent(false), 4000);
-                          }
-                        }}
-                        className="rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-2 py-1 text-[10px] text-zinc-300 transition cursor-pointer"
-                      >
-                        {testSent ? "Test Alert Sent! ✓" : "Send Test Notification"}
-                      </button>
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-zinc-500">Service Worker push listener active</span>
+                        <button
+                          type="button"
+                          disabled={testSending}
+                          onClick={async () => {
+                            setTestSending(true);
+                            setTestStatusMsg(null);
+                            const res = await sendTestNotification();
+                            setTestSending(false);
+                            if (res.success) {
+                              setTestSent(true);
+                              setTestStatusMsg({
+                                ok: true,
+                                msg: "Test alert dispatched! Check your notification tray or Action Center.",
+                              });
+                              setTimeout(() => {
+                                setTestSent(false);
+                                setTestStatusMsg(null);
+                              }, 7000);
+                            } else {
+                              setTestStatusMsg({
+                                ok: false,
+                                msg: res.error || "Failed to deliver test notification.",
+                              });
+                            }
+                          }}
+                          className="rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-2.5 py-1 text-[10px] text-zinc-300 transition cursor-pointer disabled:opacity-50"
+                        >
+                          {testSending ? "Dispatching..." : testSent ? "Test Dispatched! ✓" : "Send Test Notification"}
+                        </button>
+                      </div>
+                      {testStatusMsg && (
+                        <div
+                          className={`rounded px-2.5 py-1.5 text-[11px] ${
+                            testStatusMsg.ok
+                              ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                              : "border border-rose-500/30 bg-rose-500/10 text-rose-300"
+                          }`}
+                        >
+                          {testStatusMsg.msg}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

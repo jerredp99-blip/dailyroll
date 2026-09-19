@@ -19,10 +19,14 @@ export interface UsePushNotificationsReturn {
   isIosNeedsInstall: boolean;
   errorMessage: string | null;
   clearError: () => void;
-  subscribe: (casinoId?: string) => Promise<boolean>;
+  subscribe: (
+    casinoId?: string,
+    casinoTimer?: { name: string; targetResetTimestamp: number; dailyBonus?: string },
+    userId?: string
+  ) => Promise<boolean>;
   unsubscribe: () => Promise<boolean>;
   toggle: (casinoId?: string) => Promise<boolean>;
-  sendTestNotification: () => Promise<boolean>;
+  sendTestNotification: () => Promise<{ success: boolean; error?: string }>;
   refreshState: () => Promise<void>;
 }
 
@@ -65,12 +69,20 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   }, []);
 
   const subscribe = useCallback(
-    async (casinoId?: string): Promise<boolean> => {
+    async (
+      casinoId?: string,
+      casinoTimer?: { name: string; targetResetTimestamp: number; dailyBonus?: string },
+      userId?: string
+    ): Promise<boolean> => {
       setIsLoading(true);
       setErrorMessage(null);
 
       try {
-        const result: SubscribePushResult = await subscribeToPush({ casinoId });
+        const result: SubscribePushResult = await subscribeToPush({
+          casinoId,
+          casinoTimer,
+          userId,
+        });
 
         if (!result.success) {
           setErrorMessage(result.error);
@@ -122,24 +134,46 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     [isSubscribed, subscribe, unsubscribe]
   );
 
-  const sendTestNotification = useCallback(async (): Promise<boolean> => {
+  const sendTestNotification = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
     try {
+      const sub = await getExistingPushSubscription();
+      if (!sub) {
+        return {
+          success: false,
+          error: "No active push subscription found on this device. Please toggle reminders on first.",
+        };
+      }
+
       const res = await fetch("/api/push/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          endpoint: sub.endpoint,
+          subscription: sub.toJSON(),
           payload: {
             title: "dailyroll | Test Alert 🔔",
-            body: "Push notifications are successfully configured and active!",
+            body: "Push notifications are active! You will receive alerts when daily bonus timers expire.",
             icon: "/icon-192.png",
             badge: "/favicon-32x32.png",
             data: { url: "/tracker" },
           },
         }),
       });
-      return res.ok;
-    } catch {
-      return false;
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || `Server responded with ${res.status}: Failed to deliver test notification`,
+        };
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || "Failed to dispatch test notification",
+      };
     }
   }, []);
 

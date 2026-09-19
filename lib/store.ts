@@ -116,6 +116,12 @@ export type PushSubscriptionKeys = {
   auth: string;
 };
 
+export type PushCasinoTimer = {
+  name: string;
+  targetResetTimestamp: number;
+  dailyBonus?: string;
+};
+
 export type StoredPushSubscription = {
   id: string;
   endpoint: string;
@@ -123,6 +129,7 @@ export type StoredPushSubscription = {
   keys: PushSubscriptionKeys;
   userId?: string | null;
   enabledCasinos?: string[];
+  casinoTimers?: Record<string, PushCasinoTimer>;
   lastNotifiedTimestamps?: Record<string, number>;
   createdAt: string;
   updatedAt: string;
@@ -1013,8 +1020,9 @@ export async function savePushSubscription(params: {
   expirationTime?: number | null;
   userId?: string | null;
   casinoId?: string | null;
+  casinoTimer?: PushCasinoTimer | null;
 }): Promise<StoredPushSubscription> {
-  const { endpoint, keys, expirationTime, userId, casinoId } = params;
+  const { endpoint, keys, expirationTime, userId, casinoId, casinoTimer } = params;
   return queueMutation((store) => {
     if (!store.pushSubscriptions) {
       store.pushSubscriptions = [];
@@ -1032,12 +1040,18 @@ export async function savePushSubscription(params: {
         enabledCasinos = [...enabledCasinos, casinoId];
       }
 
+      const existingTimers = existing.casinoTimers ? { ...existing.casinoTimers } : {};
+      if (casinoId && casinoTimer) {
+        existingTimers[casinoId] = casinoTimer;
+      }
+
       const updated: StoredPushSubscription = {
         ...existing,
         keys: keys || existing.keys,
         expirationTime: expirationTime !== undefined ? expirationTime : existing.expirationTime,
         userId: userId || existing.userId,
         enabledCasinos,
+        casinoTimers: Object.keys(existingTimers).length > 0 ? existingTimers : undefined,
         updatedAt: now,
       };
 
@@ -1052,6 +1066,7 @@ export async function savePushSubscription(params: {
       keys,
       userId: userId || null,
       enabledCasinos: casinoId ? [casinoId] : [],
+      casinoTimers: casinoId && casinoTimer ? { [casinoId]: casinoTimer } : undefined,
       createdAt: now,
       updatedAt: now,
     };
@@ -1094,8 +1109,9 @@ export async function toggleCasinoPushAlert(params: {
   endpoint: string;
   casinoId: string;
   enabled?: boolean;
+  casinoTimer?: PushCasinoTimer | null;
 }): Promise<StoredPushSubscription | null> {
-  const { endpoint, casinoId, enabled } = params;
+  const { endpoint, casinoId, enabled, casinoTimer } = params;
   return queueMutation((store) => {
     if (!store.pushSubscriptions) return null;
     const sub = store.pushSubscriptions.find((s) => s.endpoint === endpoint);
@@ -1111,7 +1127,34 @@ export async function toggleCasinoPushAlert(params: {
       enabledCasinos = enabledCasinos.filter((id) => id !== casinoId);
     }
 
+    const timers = sub.casinoTimers ? { ...sub.casinoTimers } : {};
+    if (shouldEnable && casinoTimer) {
+      timers[casinoId] = casinoTimer;
+    } else if (!shouldEnable) {
+      delete timers[casinoId];
+    }
+
     sub.enabledCasinos = enabledCasinos;
+    sub.casinoTimers = Object.keys(timers).length > 0 ? timers : undefined;
+    sub.updatedAt = new Date().toISOString();
+    return sub;
+  });
+}
+
+export async function syncPushCasinoTimers(params: {
+  endpoint: string;
+  casinoTimers: Record<string, PushCasinoTimer>;
+}): Promise<StoredPushSubscription | null> {
+  const { endpoint, casinoTimers } = params;
+  return queueMutation((store) => {
+    if (!store.pushSubscriptions) return null;
+    const sub = store.pushSubscriptions.find((s) => s.endpoint === endpoint);
+    if (!sub) return null;
+
+    sub.casinoTimers = {
+      ...(sub.casinoTimers || {}),
+      ...casinoTimers,
+    };
     sub.updatedAt = new Date().toISOString();
     return sub;
   });

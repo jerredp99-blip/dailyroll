@@ -96,11 +96,18 @@ async function main() {
   console.log("   Subscription was automatically deleted on 410:", !prunedSub);
   if (prunedSub) throw new Error("Subscription was not auto-pruned on 410 Gone");
 
+  // 5. Test Unsubscribe / Removal
+  const removed = await removePushSubscription(dummyEndpoint);
+  console.log("5. Unsubscribed successfully:", removed);
   // 6. Test Background Cron Timer Expiration Checker
   console.log("6. Testing background cron bonus timer evaluation (even when app is closed)...");
   const { checkAndDispatchDueBonusNotifications } = await import("../lib/push-cron");
   const { saveCasinos } = await import("../lib/store");
 
+  const subsAfter = await getPushSubscriptions({ userId: "testuser@dailyroll.app" });
+  const stillThere = subsAfter.find((s) => s.endpoint === dummyEndpoint);
+  console.log("   Confirmed subscription cleaned up:", !stillThere);
+  if (stillThere) throw new Error("Subscription was not removed");
   const cronUserEndpoint = "https://example.com/cron-test-endpoint-" + Date.now();
   await savePushSubscription({
     endpoint: cronUserEndpoint,

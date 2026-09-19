@@ -41,18 +41,32 @@ export async function POST(req: NextRequest) {
       renotify: payload?.renotify ?? true,
     };
 
-    // Case 1: Send to a specific subscription endpoint
+    // Case 0: Direct subscription object provided by client (e.g. Test Alert button)
+    if (body?.subscription?.endpoint && body?.subscription?.keys?.p256dh && body?.subscription?.keys?.auth) {
+      const result = await sendPushNotification(body.subscription, notificationPayload);
+      return NextResponse.json({
+        success: result.success,
+        result,
+        error: result.error,
+      });
+    }
+
+    // Case 1: Send to a specific subscription endpoint in database
     if (endpoint) {
       const subscriptions = await getPushSubscriptions();
       const sub = subscriptions.find((s) => s.endpoint === endpoint);
-      if (!sub) {
-        return NextResponse.json(
-          { error: "Subscription endpoint not found in database" },
-          { status: 404 }
-        );
+      if (sub) {
+        const result = await sendPushNotification(sub, notificationPayload);
+        return NextResponse.json({
+          success: result.success,
+          result,
+          error: result.error,
+        });
       }
-      const result = await sendPushNotification(sub, notificationPayload);
-      return NextResponse.json({ success: result.success, result });
+      return NextResponse.json(
+        { error: "Subscription endpoint not found in database" },
+        { status: 404 }
+      );
     }
 
     // Only allow broadcast/multi-user notifications if admin or cron authorized

@@ -156,6 +156,11 @@ export type SubscribePushResult =
 export async function subscribeToPush(options?: {
   userId?: string;
   casinoId?: string;
+  casinoTimer?: {
+    name: string;
+    targetResetTimestamp: number;
+    dailyBonus?: string;
+  };
 }): Promise<SubscribePushResult> {
   if (!isPushSupported()) {
     return {
@@ -216,6 +221,7 @@ export async function subscribeToPush(options?: {
         subscription: rawSub,
         userId: options?.userId,
         casinoId: options?.casinoId,
+        casinoTimer: options?.casinoTimer,
       }),
     });
 

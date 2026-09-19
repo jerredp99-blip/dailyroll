@@ -3,6 +3,7 @@ import {
   queueMutation,
   casinoKey,
   type StoredPushSubscription,
+  type PushCasinoTimer,
 } from "./store";
 import { sendPushNotification, type PushNotificationPayload } from "./web-push";
 import { getCasinoTargetResetTimestamp } from "./timer-calculations";
@@ -41,83 +42,146 @@ export async function checkAndDispatchDueBonusNotifications(
 
   for (const sub of subscriptions) {
     const currentSub = { ...sub };
-    const userEmail = currentSub.userId ? casinoKey(currentSub.userId) : null;
-
-    if (!userEmail) {
-      updatedSubscriptions.push(currentSub);
-      continue;
-    }
-
-    const userCasinos: Casino[] = store.casinos?.[userEmail] || [];
     const enabledCasinos = currentSub.enabledCasinos || [];
 
-    if (userCasinos.length === 0 || enabledCasinos.length === 0) {
+    if (enabledCasinos.length === 0) {
       updatedSubscriptions.push(currentSub);
       continue;
     }
 
-    for (const casino of userCasinos) {
-      // Check if user explicitly enabled notifications for this casino ID or name
-      const isEnabled =
-        enabledCasinos.includes(casino.id) || enabledCasinos.includes(casino.name);
+    const handledCasinoIds = new Set<string>();
 
-      if (!isEnabled) {
-        continue;
-      }
-
-      checked++;
-      const targetReset = getCasinoTargetResetTimestamp(casino, now);
-
-      // Must have had an active cooldown
-      if (!casino.lastClaimedAt && !casino.targetResetTimestamp && !casino.snoozedUntil) {
-        continue;
-      }
-
-      // Check if timer has expired (targetReset <= now)
-      if (targetReset !== null && targetReset <= now) {
-        const lastNotified = currentSub.lastNotifiedTimestamps?.[casino.id];
-
-        // If we already sent an alert for this cooldown cycle, do not duplicate
-        if (lastNotified && lastNotified >= targetReset) {
+    // Source 1: Direct casinoTimers on subscription (works for BOTH guest and signed-in users)
+    if (currentSub.casinoTimers) {
+      for (const [casinoId, rawTimer] of Object.entries(currentSub.casinoTimers)) {
+        const timer = rawTimer as PushCasinoTimer;
+        if (!timer || !enabledCasinos.includes(casinoId)) {
           continue;
         }
 
-        // Send Push Notification
-        const bonusText = casino.dailyBonus || "Daily Bonus";
-        const payload: PushNotificationPayload = {
-          title: `dailyroll | ${casino.name} Bonus Ready! 🎰`,
-          body: `Cooldown reset! Your ${bonusText} at ${casino.name} is ready to claim now.`,
-          icon: "/icon-192.png",
-          badge: "/favicon-32x32.png",
-          data: {
-            url: "/tracker",
-            casinoId: casino.id,
-            casinoName: casino.name,
-          },
-          tag: `casino-reset-${casino.id}`,
-          renotify: true,
-        };
+        handledCasinoIds.add(casinoId);
+        checked++;
 
-        const result = await sendPushNotification(currentSub, payload);
+        const targetReset = timer.targetResetTimestamp;
+        if (targetReset && targetReset <= now) {
+          const lastNotified = currentSub.lastNotifiedTimestamps?.[casinoId];
 
-        if (result.success) {
-          sent++;
-          details.push({ user: userEmail, casino: casino.name, status: "sent" });
-
-          if (!currentSub.lastNotifiedTimestamps) {
-            currentSub.lastNotifiedTimestamps = {};
+          if (lastNotified && lastNotified >= targetReset) {
+            continue;
           }
-          currentSub.lastNotifiedTimestamps[casino.id] = targetReset;
-          currentSub.updatedAt = new Date().toISOString();
-          hasChanges = true;
-        } else {
-          details.push({
-            user: userEmail,
-            casino: casino.name,
-            status: `failed: ${result.error}`,
-          });
-          if (result.expired) {
-            pruned++;
+
+          const bonusText = timer.dailyBonus || "Daily Bonus";
+          const payload: PushNotificationPayload = {
+            title: `dailyroll | ${timer.name} Bonus Ready! 🎰`,
+            body: `Cooldown reset! Your ${bonusText} at ${timer.name} is ready to claim now.`,
+            icon: "/icon-192.png",
+            badge: "/favicon-32x32.png",
+            data: {
+              url: "/tracker",
+              casinoId,
+              casinoName: timer.name,
+            },
+            tag: `casino-reset-${casinoId}`,
+            renotify: true,
+          };
+
+          const result = await sendPushNotification(currentSub, payload);
+
+          if (result.success) {
+            sent++;
+            details.push({
+              user: currentSub.userId || "guest",
+              casino: timer.name,
+              status: "sent",
+            });
+
+            if (!currentSub.lastNotifiedTimestamps) {
+              currentSub.lastNotifiedTimestamps = {};
+            }
+            currentSub.lastNotifiedTimestamps[casinoId] = targetReset;
+            currentSub.updatedAt = new Date().toISOString();
+            hasChanges = true;
+          } else {
+            details.push({
+              user: currentSub.userId || "guest",
+              casino: timer.name,
+              status: `failed: ${result.error}`,
+            });
+            if (result.expired) {
+              pruned++;
+            }
+          }
+        }
+      }
+    }
+
+    // Source 2: store.casinos for signed-in users (fallback or additional check)
+    const userEmail = currentSub.userId ? casinoKey(currentSub.userId) : null;
+    if (userEmail) {
+      const userCasinos: Casino[] = store.casinos?.[userEmail] || [];
+
+      for (const casino of userCasinos) {
+        if (handledCasinoIds.has(casino.id)) {
+          continue;
+        }
+
+        const isEnabled =
+          enabledCasinos.includes(casino.id) || enabledCasinos.includes(casino.name);
+
+        if (!isEnabled) {
+          continue;
+        }
+
+        checked++;
+        const targetReset = getCasinoTargetResetTimestamp(casino, now);
+
+        if (!casino.lastClaimedAt && !casino.targetResetTimestamp && !casino.snoozedUntil) {
+          continue;
+        }
+
+        if (targetReset !== null && targetReset <= now) {
+          const lastNotified = currentSub.lastNotifiedTimestamps?.[casino.id];
+
+          if (lastNotified && lastNotified >= targetReset) {
+            continue;
+          }
+
+          const bonusText = casino.dailyBonus || "Daily Bonus";
+          const payload: PushNotificationPayload = {
+            title: `dailyroll | ${casino.name} Bonus Ready! 🎰`,
+            body: `Cooldown reset! Your ${bonusText} at ${casino.name} is ready to claim now.`,
+            icon: "/icon-192.png",
+            badge: "/favicon-32x32.png",
+            data: {
+              url: "/tracker",
+              casinoId: casino.id,
+              casinoName: casino.name,
+            },
+            tag: `casino-reset-${casino.id}`,
+            renotify: true,
+          };
+
+          const result = await sendPushNotification(currentSub, payload);
+
+          if (result.success) {
+            sent++;
+            details.push({ user: userEmail, casino: casino.name, status: "sent" });
+
+            if (!currentSub.lastNotifiedTimestamps) {
+              currentSub.lastNotifiedTimestamps = {};
+            }
+            currentSub.lastNotifiedTimestamps[casino.id] = targetReset;
+            currentSub.updatedAt = new Date().toISOString();
+            hasChanges = true;
+          } else {
+            details.push({
+              user: userEmail,
+              casino: casino.name,
+              status: `failed: ${result.error}`,
+            });
+            if (result.expired) {
+              pruned++;
+            }
           }
         }
       }

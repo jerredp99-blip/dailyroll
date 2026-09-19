@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { userId: providedUserId, subscription, casinoId } = body || {};
+    const { userId: providedUserId, subscription, casinoId, casinoTimer } = body || {};
 
     if (!subscription || !subscription.endpoint || !subscription.keys) {
       return NextResponse.json(
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       expirationTime: expirationTime ?? null,
       userId: finalUserId || null,
       casinoId: casinoId || null,
+      casinoTimer: casinoTimer || null,
     });
 
     return NextResponse.json(

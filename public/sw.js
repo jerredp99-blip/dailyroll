@@ -75,24 +75,40 @@ self.addEventListener("push", (event) => {
   }
 
   const title = data.title || "dailyroll | Bonus Ready!";
-  const options = {
-    body: data.body || "A casino bonus is ready to claim!",
-    icon: data.icon || "/icon-192.png",
-    badge: data.badge || "/favicon-32x32.png",
-    vibrate: [150, 50, 150],
-    tag: data.tag || "dailyroll-notification",
-    renotify: data.renotify !== false,
-    data: {
-      url: data.data?.url || "/tracker",
-      timestamp: Date.now(),
-    },
-    actions: [
-      { action: "open", title: "Open Tracker" },
-      { action: "close", title: "Dismiss" },
-    ],
-  };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    (async () => {
+      try {
+        const options = {
+          body: data.body || "A casino bonus is ready to claim!",
+          icon: data.icon || "/icon-192.png",
+          badge: data.badge || "/favicon-32x32.png",
+          tag: data.tag || "dailyroll-notification",
+          renotify: data.renotify !== false,
+          data: {
+            url: data.data?.url || "/tracker",
+            timestamp: Date.now(),
+          },
+        };
+        // Add vibration only where supported
+        if ("vibrate" in navigator) {
+          options.vibrate = [150, 50, 150];
+        }
+        await self.registration.showNotification(title, options);
+      } catch (primaryErr) {
+        console.warn("[sw] Standard showNotification failed, trying minimal fallback:", primaryErr);
+        try {
+          // Minimal fallback guaranteed on iOS Safari PWA and older browsers
+          await self.registration.showNotification(title, {
+            body: data.body || "A casino bonus is ready to claim!",
+            icon: "/icon-192.png",
+          });
+        } catch (fallbackErr) {
+          console.error("[sw] Fallback showNotification failed:", fallbackErr);
+        }
+      }
+    })()
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {

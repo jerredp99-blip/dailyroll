@@ -42,7 +42,7 @@ import { Button } from "@/components/ui/Button";
 import { getCasinoDefaultMetadata, MASTER_CASINOS_DATA } from "@/lib/casinosData";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { PushNotificationModal } from "@/components/PushNotificationModal";
-import { getNotificationPermission } from "@/lib/push-notifications";
+import { getNotificationPermission, getExistingPushSubscription } from "@/lib/push-notifications";
 // import { BankrollSummary } from "@/app/components/BankrollSummary";
 import {
   apiGetCasinos,
@@ -340,9 +340,16 @@ export default function TrackerPage() {
         return;
       }
 
+      const targetReset = getCasinoTargetResetTimestamp(casino, Date.now());
+      const casinoTimer = {
+        name: casino.name,
+        targetResetTimestamp: targetReset || Date.now(),
+        dailyBonus: casino.dailyBonus,
+      };
+
       // 3. If not subscribed yet, trigger subscription flow on this direct user gesture
       if (!isPushSubscribed) {
-        const ok = await subscribePush(casino.id);
+        const ok = await subscribePush(casino.id, casinoTimer);
         if (ok) {
           setEnabledAlertCasinoIds((prev) => {
             const next = new Set(prev);
@@ -362,9 +369,11 @@ export default function TrackerPage() {
       }
 
       // 4. If already subscribed, toggle this casino's notification alert preference
+      const isCurrentlyEnabled = enabledAlertCasinoIds.has(casino.id);
+      const willEnable = !isCurrentlyEnabled;
+
       setEnabledAlertCasinoIds((prev) => {
         const next = new Set(prev);
-        const willEnable = !next.has(casino.id);
         if (willEnable) {
           next.add(casino.id);
         } else {
@@ -373,21 +382,29 @@ export default function TrackerPage() {
         try {
           localStorage.setItem("dailyroll_alert_casinos", JSON.stringify(Array.from(next)));
         } catch {}
-
-        // Persist to server so background cron knows to check this casino
-        fetch("/api/push/toggle-casino", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            casinoId: casino.id,
-            enabled: willEnable,
-          }),
-        }).catch((err) => console.warn("[push] Failed to sync casino alert with server:", err));
-
         return next;
       });
+
+      // Sync state and timer to backend so push alerts fire even when app is closed
+      try {
+        const sub = await getExistingPushSubscription();
+        if (sub) {
+          await fetch("/api/push/toggle-casino", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              endpoint: sub.endpoint,
+              casinoId: casino.id,
+              enabled: willEnable,
+              casinoTimer: willEnable ? casinoTimer : undefined,
+            }),
+          });
+        }
+      } catch (err) {
+        console.warn("[push] Failed to sync casino alert toggle to server:", err);
+      }
     },
-    [pushPermission, isIosNeedsInstall, isPushSubscribed, subscribePush]
+    [pushPermission, isIosNeedsInstall, isPushSubscribed, subscribePush, enabledAlertCasinoIds]
   );
 
   // Poll / fetch active bonus drop count and feed unread count for dynamic navigation indicator
@@ -949,6 +966,39 @@ export default function TrackerPage() {
     return (casino.siteUrl ?? casino.url) || undefined;
   }, []);
 
+  const syncCasinoTimerIfAlertEnabled = useCallback(
+    async (casinoId: string, updatedFields?: Partial<Casino>) => {
+      if (!enabledAlertCasinoIds.has(casinoId)) return;
+      try {
+        const sub = await getExistingPushSubscription();
+        if (!sub) return;
+
+        const casino = casinos.find((c) => c.id === casinoId);
+        if (!casino) return;
+        const fullCasino = { ...casino, ...updatedFields };
+        const targetReset = getCasinoTargetResetTimestamp(fullCasino, Date.now());
+
+        await fetch("/api/push/toggle-casino", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            endpoint: sub.endpoint,
+            casinoId,
+            enabled: true,
+            casinoTimer: {
+              name: fullCasino.name,
+              targetResetTimestamp: targetReset || Date.now(),
+              dailyBonus: fullCasino.dailyBonus,
+            },
+          }),
+        });
+      } catch (err) {
+        console.warn("[push] Failed to sync updated timer to server:", err);
+      }
+    },
+    [casinos, enabledAlertCasinoIds]
+  );
+
   const handleClaimSuccess = useCallback(
     (casinoId: string, updatedData?: Partial<Casino>) => {
       const nowIso = new Date().toISOString();
@@ -968,6 +1018,13 @@ export default function TrackerPage() {
         return updated;
       });
 
+      syncCasinoTimerIfAlertEnabled(casinoId, {
+        lastClaimedAt: nowIso,
+        snoozedUntil: null,
+        targetResetTimestamp: null,
+        ...updatedData,
+      });
+
       try {
         const storedTimes = JSON.parse(localStorage.getItem("dailyroll_claimed_times") || "{}");
         storedTimes[casinoId] = nowIso;
@@ -976,7 +1033,7 @@ export default function TrackerPage() {
         // ignore
       }
     },
-    [],
+    [syncCasinoTimerIfAlertEnabled],
   );
 
   const markClaimed = useCallback((casino: Casino) => {
@@ -1085,7 +1142,13 @@ export default function TrackerPage() {
       apiSaveCasinos(signedInUserRef.current?.email, updated);
       return updated;
     });
-  }, []);
+
+    syncCasinoTimerIfAlertEnabled(targetCasino.id, {
+      snoozedUntil,
+      targetResetTimestamp: !isNaN(newResetTimestamp) ? newResetTimestamp : null,
+      lastClaimedAt: nowIso,
+    });
+  }, [syncCasinoTimerIfAlertEnabled]);
 
   const handleSnoozeDuration = useCallback((targetCasino: Casino, durationMs: number) => {
     setPendingClaims((prev) => {
@@ -1124,7 +1187,13 @@ export default function TrackerPage() {
       apiSaveCasinos(signedInUserRef.current?.email, updated);
       return updated;
     });
-  }, []);
+
+    syncCasinoTimerIfAlertEnabled(targetCasino.id, {
+      targetResetTimestamp,
+      lastClaimedAt: nowIso,
+      snoozedUntil: null,
+    });
+  }, [syncCasinoTimerIfAlertEnabled]);
 
   const handleResetToReady = useCallback((targetCasino: Casino) => {
     setPendingClaims((prev) => {
